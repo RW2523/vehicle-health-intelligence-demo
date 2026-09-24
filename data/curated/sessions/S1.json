@@ -1,0 +1,120 @@
+{
+ "session": "S1",
+ "title": "Tampered diesel prime mover - Berkala at Alam Megah",
+ "branch_id": "BR00",
+ "vehicle": {
+  "plate": "DMO 9001",
+  "make": "Scania",
+  "model": "P-Series Prime Mover",
+  "year": 2022,
+  "usage": "lorry",
+  "fuel": "diesel",
+  "euro_class": "Euro 5",
+  "dpf_fitted": true,
+  "scr_fitted": true,
+  "odometer_km": 412300,
+  "fleet_id": "FLEET07",
+  "axles": 3
+ },
+ "injected_faults": [
+  "dpf_removed",
+  "scr_fault_adblue_bypass",
+  "dragging_brake_axle2_R",
+  "wheel_bearing_axle1_L"
+ ],
+ "expected": {
+  "smoke_opacity_pct": 18.5,
+  "opacity_verdict": "PASS (misleading)",
+  "pn_per_cm3": 2400000.0,
+  "pn_verdict": "FAIL advisory (>250k)",
+  "obd_dtcs": [
+   "P2002",
+   "P20EE",
+   "P2BAD"
+  ],
+  "enose": "nh3_slip_scr high",
+  "thermal": "A2R hub 146C",
+  "acoustic": "fault_bad_wheal_bearing",
+  "health_score": 41,
+  "next_berkala_fail_risk": 0.83,
+  "examiner_action": "confirm"
+ },
+ "media": {
+  "undercarriage_images": [
+   "images/corrosion/corrosion_industrial_metal/industrial_corrosi_00115.jpg",
+   "images/corrosion/corrosion_industrial_metal/industrial_corrosi_00119.jpg"
+  ],
+  "tyre_images": [
+   "images/tyre/defective/tyre_helath_qualit_00231.jpg"
+  ],
+  "audio": [
+   "audio/fault_bad_wheal_bearing/sound_based_ve_00003.wav",
+   "audio/engine_normal_idle/car_engine_sou_00047.wav"
+  ]
+ },
+ "streams": [
+  "brake_roller.parquet",
+  "enose.parquet",
+  "instruments.json",
+  "obd.parquet",
+  "pn.parquet",
+  "thermal.json"
+ ],
+ "lane_timeline": [
+  {
+   "step": "check_in_anpr",
+   "start_s": 0,
+   "end_s": 20
+  },
+  {
+   "step": "identity_ocr",
+   "start_s": 20,
+   "end_s": 40
+  },
+  {
+   "step": "emission_idle_rev",
+   "start_s": 40,
+   "end_s": 130
+  },
+  {
+   "step": "brake_roller",
+   "start_s": 130,
+   "end_s": 190
+  },
+  {
+   "step": "suspension",
+   "start_s": 190,
+   "end_s": 230
+  },
+  {
+   "step": "side_slip",
+   "start_s": 230,
+   "end_s": 245
+  },
+  {
+   "step": "headlamp_tint",
+   "start_s": 245,
+   "end_s": 280
+  },
+  {
+   "step": "undercarriage_ai",
+   "start_s": 280,
+   "end_s": 340
+  },
+  {
+   "step": "above_carriage_ai",
+   "start_s": 340,
+   "end_s": 380
+  },
+  {
+   "step": "examiner_review",
+   "start_s": 380,
+   "end_s": 460
+  },
+  {
+   "step": "report",
+   "start_s": 460,
+   "end_s": 480
+  }
+ ]
+}

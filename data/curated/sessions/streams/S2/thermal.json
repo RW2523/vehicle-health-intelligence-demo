@@ -1,0 +1,13 @@
+{
+ "wheel_hub_max_c": {
+  "A1L": 57.9,
+  "A1R": 61.0,
+  "A2L": 50.9,
+  "A2R": 55.9
+ },
+ "battery_pack_cells": {
+  "max_c": 44.2,
+  "mean_c": 33.5,
+  "hotspot_cell": "M07-C12"
+ }
+}

@@ -1,0 +1,341 @@
+claim_id,family,defect_group,n,initial_tests_2024,failure_items_per_100_tests,national_failure_items_per_100_tests,excess_pp,over_representation_ratio,confidence,source_data_release_id,dataset_release_id
+fail-group:audi-a1:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,audi-a1,"Lamps, reflectors and electrical equipment",35669,386496,9.2288,23.5162,-14.2874,0.3924,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:suspension,audi-a1,Suspension,60163,386496,15.5663,19.9047,-4.3384,0.7820,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:brakes,audi-a1,Brakes,35707,386496,9.2386,14.3394,-5.1008,0.6443,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:visibility,audi-a1,Visibility,37545,386496,9.7142,11.9934,-2.2792,0.8100,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:tyres,audi-a1,Tyres,46944,386496,12.1461,10.2666,1.8795,1.1831,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:body-chassis-structure,audi-a1,"Body, chassis, structure",19988,386496,5.1716,8.3605,-3.1889,0.6186,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:noise-emissions-and-leaks,audi-a1,"Noise, emissions and leaks",10957,386496,2.8350,4.9009,-2.0660,0.5785,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:steering,audi-a1,Steering,12238,386496,3.1664,4.5923,-1.4259,0.6895,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,audi-a1,Seat belts and supplementary restraint systems,3247,386496,0.8401,1.4183,-0.5782,0.5923,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:identification-of-the-vehicle,audi-a1,Identification of the vehicle,2428,386496,0.6282,0.6183,0.0099,1.0160,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a1:dvsa-2024-v1:road-wheels,audi-a1,Road Wheels,1255,386496,0.3247,0.5972,-0.2725,0.5437,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,audi-a3,"Lamps, reflectors and electrical equipment",125332,654933,19.1366,23.5162,-4.3796,0.8138,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:suspension,audi-a3,Suspension,142008,654933,21.6828,19.9047,1.7781,1.0893,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:brakes,audi-a3,Brakes,78248,654933,11.9475,14.3394,-2.3920,0.8332,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:visibility,audi-a3,Visibility,78015,654933,11.9119,11.9934,-0.0815,0.9932,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:tyres,audi-a3,Tyres,78942,654933,12.0534,10.2666,1.7869,1.1740,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:body-chassis-structure,audi-a3,"Body, chassis, structure",64444,654933,9.8398,8.3605,1.4793,1.1769,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:noise-emissions-and-leaks,audi-a3,"Noise, emissions and leaks",31776,654933,4.8518,4.9009,-0.0491,0.9900,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:steering,audi-a3,Steering,9913,654933,1.5136,4.5923,-3.0787,0.3296,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,audi-a3,Seat belts and supplementary restraint systems,8082,654933,1.2340,1.4183,-0.1843,0.8701,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:identification-of-the-vehicle,audi-a3,Identification of the vehicle,4412,654933,0.6737,0.6183,0.0554,1.0895,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a3:dvsa-2024-v1:road-wheels,audi-a3,Road Wheels,3517,654933,0.5370,0.5972,-0.0602,0.8992,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,audi-a4,"Lamps, reflectors and electrical equipment",82274,406182,20.2555,23.5162,-3.2608,0.8613,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:suspension,audi-a4,Suspension,96395,406182,23.7320,19.9047,3.8273,1.1923,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:brakes,audi-a4,Brakes,49045,406182,12.0746,14.3394,-2.2648,0.8421,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:visibility,audi-a4,Visibility,48621,406182,11.9702,11.9934,-0.0231,0.9981,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:tyres,audi-a4,Tyres,54044,406182,13.3054,10.2666,3.0388,1.2960,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:body-chassis-structure,audi-a4,"Body, chassis, structure",56439,406182,13.8950,8.3605,5.5345,1.6620,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:noise-emissions-and-leaks,audi-a4,"Noise, emissions and leaks",18343,406182,4.5160,4.9009,-0.3850,0.9214,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:steering,audi-a4,Steering,19357,406182,4.7656,4.5923,0.1733,1.0377,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,audi-a4,Seat belts and supplementary restraint systems,5475,406182,1.3479,1.4183,-0.0704,0.9504,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:identification-of-the-vehicle,audi-a4,Identification of the vehicle,2926,406182,0.7204,0.6183,0.1021,1.1651,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:audi-a4:dvsa-2024-v1:road-wheels,audi-a4,Road Wheels,3168,406182,0.7799,0.5972,0.1827,1.3059,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,bmw-3-series,"Lamps, reflectors and electrical equipment",151262,675043,22.4078,23.5162,-1.1085,0.9529,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:suspension,bmw-3-series,Suspension,129267,675043,19.1494,19.9047,-0.7553,0.9621,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:brakes,bmw-3-series,Brakes,115062,675043,17.0451,14.3394,2.7057,1.1887,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:visibility,bmw-3-series,Visibility,103831,675043,15.3814,11.9934,3.3880,1.2825,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:tyres,bmw-3-series,Tyres,87422,675043,12.9506,10.2666,2.6840,1.2614,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:body-chassis-structure,bmw-3-series,"Body, chassis, structure",25673,675043,3.8032,8.3605,-4.5573,0.4549,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:noise-emissions-and-leaks,bmw-3-series,"Noise, emissions and leaks",35820,675043,5.3063,4.9009,0.4054,1.0827,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:steering,bmw-3-series,Steering,15430,675043,2.2858,4.5923,-2.3065,0.4977,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,bmw-3-series,Seat belts and supplementary restraint systems,11017,675043,1.6320,1.4183,0.2138,1.1507,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:identification-of-the-vehicle,bmw-3-series,Identification of the vehicle,5932,675043,0.8788,0.6183,0.2605,1.4213,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:bmw-3-series:dvsa-2024-v1:road-wheels,bmw-3-series,Road Wheels,13809,675043,2.0456,0.5972,1.4484,3.4253,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,ds3,"Lamps, reflectors and electrical equipment",55492,158830,34.9380,23.5162,11.4218,1.4857,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:suspension,ds3,Suspension,34785,158830,21.9008,19.9047,1.9961,1.1003,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:brakes,ds3,Brakes,24424,158830,15.3774,14.3394,1.0380,1.0724,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:visibility,ds3,Visibility,19366,158830,12.1929,11.9934,0.1995,1.0166,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:tyres,ds3,Tyres,21393,158830,13.4691,10.2666,3.2026,1.3119,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:body-chassis-structure,ds3,"Body, chassis, structure",38727,158830,24.3827,8.3605,16.0222,2.9164,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:noise-emissions-and-leaks,ds3,"Noise, emissions and leaks",11217,158830,7.0623,4.9009,2.1613,1.4410,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:steering,ds3,Steering,12030,158830,7.5741,4.5923,2.9818,1.6493,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ds3:dvsa-2024-v1:road-wheels,ds3,Road Wheels,1544,158830,0.9721,0.5972,0.3749,1.6277,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,fiat-500,"Lamps, reflectors and electrical equipment",83099,477588,17.3997,23.5162,-6.1165,0.7399,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:suspension,fiat-500,Suspension,145634,477588,30.4936,19.9047,10.5889,1.5320,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:brakes,fiat-500,Brakes,69530,477588,14.5586,14.3394,0.2191,1.0153,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:visibility,fiat-500,Visibility,46063,477588,9.6449,11.9934,-2.3484,0.8042,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:tyres,fiat-500,Tyres,51397,477588,10.7618,10.2666,0.4952,1.0482,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:body-chassis-structure,fiat-500,"Body, chassis, structure",28202,477588,5.9051,8.3605,-2.4554,0.7063,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:noise-emissions-and-leaks,fiat-500,"Noise, emissions and leaks",22052,477588,4.6174,4.9009,-0.2836,0.9421,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:steering,fiat-500,Steering,6210,477588,1.3003,4.5923,-3.2920,0.2831,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:fiat-500:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,fiat-500,Seat belts and supplementary restraint systems,3002,477588,0.6286,1.4183,-0.7897,0.4432,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,ford-fiesta,"Lamps, reflectors and electrical equipment",585642,1959383,29.8891,23.5162,6.3729,1.2710,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:suspension,ford-fiesta,Suspension,560801,1959383,28.6213,19.9047,8.7166,1.4379,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:brakes,ford-fiesta,Brakes,252082,1959383,12.8654,14.3394,-1.4741,0.8972,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:visibility,ford-fiesta,Visibility,213348,1959383,10.8885,11.9934,-1.1048,0.9079,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:tyres,ford-fiesta,Tyres,256807,1959383,13.1065,10.2666,2.8400,1.2766,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:body-chassis-structure,ford-fiesta,"Body, chassis, structure",142862,1959383,7.2912,8.3605,-1.0693,0.8721,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:noise-emissions-and-leaks,ford-fiesta,"Noise, emissions and leaks",141307,1959383,7.2118,4.9009,2.3109,1.4715,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:steering,ford-fiesta,Steering,119969,1959383,6.1228,4.5923,1.5305,1.3333,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,ford-fiesta,Seat belts and supplementary restraint systems,23114,1959383,1.1797,1.4183,-0.2386,0.8317,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:identification-of-the-vehicle,ford-fiesta,Identification of the vehicle,11313,1959383,0.5774,0.6183,-0.0409,0.9338,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-fiesta:dvsa-2024-v1:road-wheels,ford-fiesta,Road Wheels,12826,1959383,0.6546,0.5972,0.0574,1.0961,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,ford-focus,"Lamps, reflectors and electrical equipment",364036,1348944,26.9867,23.5162,3.4705,1.1476,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:suspension,ford-focus,Suspension,299972,1348944,22.2375,19.9047,2.3328,1.1172,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:brakes,ford-focus,Brakes,153736,1348944,11.3968,14.3394,-2.9427,0.7948,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:visibility,ford-focus,Visibility,138215,1348944,10.2462,11.9934,-1.7472,0.8543,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:tyres,ford-focus,Tyres,178328,1348944,13.2198,10.2666,2.9533,1.2877,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:body-chassis-structure,ford-focus,"Body, chassis, structure",117645,1348944,8.7213,8.3605,0.3608,1.0432,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:noise-emissions-and-leaks,ford-focus,"Noise, emissions and leaks",81047,1348944,6.0082,4.9009,1.1072,1.2259,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:steering,ford-focus,Steering,37064,1348944,2.7476,4.5923,-1.8447,0.5983,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,ford-focus,Seat belts and supplementary restraint systems,15106,1348944,1.1198,1.4183,-0.2984,0.7896,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:identification-of-the-vehicle,ford-focus,Identification of the vehicle,7665,1348944,0.5682,0.6183,-0.0501,0.9190,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-focus:dvsa-2024-v1:road-wheels,ford-focus,Road Wheels,9708,1348944,0.7197,0.5972,0.1224,1.2050,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,ford-kuga,"Lamps, reflectors and electrical equipment",51571,396566,13.0044,23.5162,-10.5118,0.5530,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:suspension,ford-kuga,Suspension,23225,396566,5.8565,19.9047,-14.0482,0.2942,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:brakes,ford-kuga,Brakes,35414,396566,8.9302,14.3394,-5.4093,0.6228,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:visibility,ford-kuga,Visibility,38917,396566,9.8135,11.9934,-2.1799,0.8182,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:tyres,ford-kuga,Tyres,36648,396566,9.2413,10.2666,-1.0252,0.9001,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:body-chassis-structure,ford-kuga,"Body, chassis, structure",14475,396566,3.6501,8.3605,-4.7104,0.4366,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:noise-emissions-and-leaks,ford-kuga,"Noise, emissions and leaks",9440,396566,2.3804,4.9009,-2.5205,0.4857,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:steering,ford-kuga,Steering,6653,396566,1.6777,4.5923,-2.9147,0.3653,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,ford-kuga,Seat belts and supplementary restraint systems,1636,396566,0.4125,1.4183,-1.0057,0.2909,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:identification-of-the-vehicle,ford-kuga,Identification of the vehicle,1669,396566,0.4209,0.6183,-0.1974,0.6807,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:ford-kuga:dvsa-2024-v1:road-wheels,ford-kuga,Road Wheels,1515,396566,0.3820,0.5972,-0.2152,0.6397,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,honda-civic,"Lamps, reflectors and electrical equipment",193196,411763,46.9192,23.5162,23.4030,1.9952,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:suspension,honda-civic,Suspension,135038,411763,32.7951,19.9047,12.8904,1.6476,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:brakes,honda-civic,Brakes,76460,411763,18.5689,14.3394,4.2295,1.2950,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:visibility,honda-civic,Visibility,53521,411763,12.9980,11.9934,1.0046,1.0838,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:tyres,honda-civic,Tyres,43690,411763,10.6105,10.2666,0.3439,1.0335,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:body-chassis-structure,honda-civic,"Body, chassis, structure",35386,411763,8.5938,8.3605,0.2333,1.0279,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:noise-emissions-and-leaks,honda-civic,"Noise, emissions and leaks",24314,411763,5.9049,4.9009,1.0039,1.2048,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:steering,honda-civic,Steering,49710,411763,12.0725,4.5923,7.4801,2.6288,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,honda-civic,Seat belts and supplementary restraint systems,7522,411763,1.8268,1.4183,0.4085,1.2880,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:identification-of-the-vehicle,honda-civic,Identification of the vehicle,2566,411763,0.6232,0.6183,0.0049,1.0079,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-civic:dvsa-2024-v1:road-wheels,honda-civic,Road Wheels,2966,411763,0.7203,0.5972,0.1231,1.2061,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,honda-jazz,"Lamps, reflectors and electrical equipment",123992,440547,28.1450,23.5162,4.6288,1.1968,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:suspension,honda-jazz,Suspension,75400,440547,17.1151,19.9047,-2.7896,0.8599,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:brakes,honda-jazz,Brakes,82977,440547,18.8350,14.3394,4.4956,1.3135,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:visibility,honda-jazz,Visibility,48864,440547,11.0917,11.9934,-0.9017,0.9248,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:tyres,honda-jazz,Tyres,32391,440547,7.3525,10.2666,-2.9141,0.7162,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:body-chassis-structure,honda-jazz,"Body, chassis, structure",21290,440547,4.8326,8.3605,-3.5279,0.5780,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:noise-emissions-and-leaks,honda-jazz,"Noise, emissions and leaks",22499,440547,5.1071,4.9009,0.2061,1.0421,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:steering,honda-jazz,Steering,22250,440547,5.0505,4.5923,0.4582,1.0998,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,honda-jazz,Seat belts and supplementary restraint systems,5354,440547,1.2153,1.4183,-0.2030,0.8569,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:identification-of-the-vehicle,honda-jazz,Identification of the vehicle,1223,440547,0.2776,0.6183,-0.3407,0.4490,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:honda-jazz:dvsa-2024-v1:road-wheels,honda-jazz,Road Wheels,1498,440547,0.3400,0.5972,-0.2572,0.5694,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,hyundai-i10,"Lamps, reflectors and electrical equipment",55294,328314,16.8418,23.5162,-6.6744,0.7162,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:suspension,hyundai-i10,Suspension,35678,328314,10.8670,19.9047,-9.0377,0.5460,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:brakes,hyundai-i10,Brakes,53521,328314,16.3018,14.3394,1.9623,1.1368,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:visibility,hyundai-i10,Visibility,34064,328314,10.3754,11.9934,-1.6179,0.8651,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:tyres,hyundai-i10,Tyres,28170,328314,8.5802,10.2666,-1.6864,0.8357,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:body-chassis-structure,hyundai-i10,"Body, chassis, structure",4487,328314,1.3667,8.3605,-6.9938,0.1635,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:noise-emissions-and-leaks,hyundai-i10,"Noise, emissions and leaks",7094,328314,2.1607,4.9009,-2.7402,0.4409,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:steering,hyundai-i10,Steering,6407,328314,1.9515,4.5923,-2.6408,0.4249,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:hyundai-i10:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,hyundai-i10,Seat belts and supplementary restraint systems,2235,328314,0.6808,1.4183,-0.7375,0.4800,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,kia-sportage,"Lamps, reflectors and electrical equipment",39018,396816,9.8328,23.5162,-13.6835,0.4181,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:suspension,kia-sportage,Suspension,40121,396816,10.1107,19.9047,-9.7940,0.5080,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:brakes,kia-sportage,Brakes,66201,396816,16.6830,14.3394,2.3436,1.1634,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:visibility,kia-sportage,Visibility,40188,396816,10.1276,11.9934,-1.8657,0.8444,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:tyres,kia-sportage,Tyres,38749,396816,9.7650,10.2666,-0.5016,0.9511,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:body-chassis-structure,kia-sportage,"Body, chassis, structure",8254,396816,2.0801,8.3605,-6.2804,0.2488,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:noise-emissions-and-leaks,kia-sportage,"Noise, emissions and leaks",8983,396816,2.2638,4.9009,-2.6372,0.4619,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:steering,kia-sportage,Steering,18055,396816,4.5500,4.5923,-0.0424,0.9908,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,kia-sportage,Seat belts and supplementary restraint systems,1693,396816,0.4266,1.4183,-0.9916,0.3008,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:identification-of-the-vehicle,kia-sportage,Identification of the vehicle,1492,396816,0.3760,0.6183,-0.2423,0.6081,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:kia-sportage:dvsa-2024-v1:road-wheels,kia-sportage,Road Wheels,1473,396816,0.3712,0.5972,-0.2260,0.6215,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,mercedes-a-class,"Lamps, reflectors and electrical equipment",51554,585107,8.8110,23.5162,-14.7052,0.3747,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:suspension,mercedes-a-class,Suspension,74059,585107,12.6573,19.9047,-7.2474,0.6359,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:brakes,mercedes-a-class,Brakes,47022,585107,8.0365,14.3394,-6.3030,0.5604,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:visibility,mercedes-a-class,Visibility,65012,585107,11.1111,11.9934,-0.8822,0.9264,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:tyres,mercedes-a-class,Tyres,64528,585107,11.0284,10.2666,0.7619,1.0742,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:body-chassis-structure,mercedes-a-class,"Body, chassis, structure",17234,585107,2.9454,8.3605,-5.4151,0.3523,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:noise-emissions-and-leaks,mercedes-a-class,"Noise, emissions and leaks",14315,585107,2.4466,4.9009,-2.4544,0.4992,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:steering,mercedes-a-class,Steering,2819,585107,0.4818,4.5923,-4.1105,0.1049,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,mercedes-a-class,Seat belts and supplementary restraint systems,10333,585107,1.7660,1.4183,0.3477,1.2452,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:identification-of-the-vehicle,mercedes-a-class,Identification of the vehicle,4682,585107,0.8002,0.6183,0.1819,1.2942,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-a-class:dvsa-2024-v1:road-wheels,mercedes-a-class,Road Wheels,4655,585107,0.7956,0.5972,0.1984,1.3321,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,mercedes-c-class,"Lamps, reflectors and electrical equipment",82119,646907,12.6941,23.5162,-10.8221,0.5398,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:suspension,mercedes-c-class,Suspension,177797,646907,27.4842,19.9047,7.5795,1.3808,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:brakes,mercedes-c-class,Brakes,91038,646907,14.0728,14.3394,-0.2666,0.9814,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:visibility,mercedes-c-class,Visibility,72338,646907,11.1821,11.9934,-0.8112,0.9324,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:tyres,mercedes-c-class,Tyres,86420,646907,13.3590,10.2666,3.0924,1.3012,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:body-chassis-structure,mercedes-c-class,"Body, chassis, structure",11981,646907,1.8520,8.3605,-6.5085,0.2215,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:noise-emissions-and-leaks,mercedes-c-class,"Noise, emissions and leaks",28404,646907,4.3907,4.9009,-0.5102,0.8959,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:steering,mercedes-c-class,Steering,9672,646907,1.4951,4.5923,-3.0972,0.3256,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,mercedes-c-class,Seat belts and supplementary restraint systems,7611,646907,1.1765,1.4183,-0.2418,0.8295,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:identification-of-the-vehicle,mercedes-c-class,Identification of the vehicle,5933,646907,0.9171,0.6183,0.2988,1.4833,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-c-class:dvsa-2024-v1:road-wheels,mercedes-c-class,Road Wheels,9005,646907,1.3920,0.5972,0.7948,2.3308,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,mercedes-e-class,"Lamps, reflectors and electrical equipment",49818,419012,11.8894,23.5162,-11.6268,0.5056,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:suspension,mercedes-e-class,Suspension,85266,419012,20.3493,19.9047,0.4446,1.0223,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:brakes,mercedes-e-class,Brakes,52724,419012,12.5829,14.3394,-1.7565,0.8775,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:visibility,mercedes-e-class,Visibility,40547,419012,9.6768,11.9934,-2.3166,0.8068,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:tyres,mercedes-e-class,Tyres,60740,419012,14.4960,10.2666,4.2294,1.4120,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:body-chassis-structure,mercedes-e-class,"Body, chassis, structure",9046,419012,2.1589,8.3605,-6.2016,0.2582,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:noise-emissions-and-leaks,mercedes-e-class,"Noise, emissions and leaks",14039,419012,3.3505,4.9009,-1.5504,0.6836,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:steering,mercedes-e-class,Steering,6074,419012,1.4496,4.5923,-3.1427,0.3157,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,mercedes-e-class,Seat belts and supplementary restraint systems,3769,419012,0.8995,1.4183,-0.5188,0.6342,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:identification-of-the-vehicle,mercedes-e-class,Identification of the vehicle,3394,419012,0.8100,0.6183,0.1917,1.3101,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mercedes-e-class:dvsa-2024-v1:road-wheels,mercedes-e-class,Road Wheels,8590,419012,2.0501,0.5972,1.4528,3.4326,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,mini-hatch,"Lamps, reflectors and electrical equipment",272153,1011919,26.8947,23.5162,3.3785,1.1437,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:suspension,mini-hatch,Suspension,103779,1011919,10.2557,19.9047,-9.6490,0.5152,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:brakes,mini-hatch,Brakes,126092,1011919,12.4607,14.3394,-1.8788,0.8690,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:visibility,mini-hatch,Visibility,147850,1011919,14.6109,11.9934,2.6175,1.2182,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:tyres,mini-hatch,Tyres,96636,1011919,9.5498,10.2666,-0.7168,0.9302,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:body-chassis-structure,mini-hatch,"Body, chassis, structure",63350,1011919,6.2604,8.3605,-2.1001,0.7488,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:noise-emissions-and-leaks,mini-hatch,"Noise, emissions and leaks",108496,1011919,10.7218,4.9009,5.8209,2.1877,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:steering,mini-hatch,Steering,21786,1011919,2.1529,4.5923,-2.4394,0.4688,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,mini-hatch,Seat belts and supplementary restraint systems,8704,1011919,0.8601,1.4183,-0.5581,0.6065,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:identification-of-the-vehicle,mini-hatch,Identification of the vehicle,6059,1011919,0.5988,0.6183,-0.0195,0.9684,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mini-hatch:dvsa-2024-v1:road-wheels,mini-hatch,Road Wheels,5621,1011919,0.5555,0.5972,-0.0417,0.9301,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mitsubishi-outlander:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,mitsubishi-outlander,"Lamps, reflectors and electrical equipment",17607,120823,14.5726,23.5162,-8.9437,0.6197,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mitsubishi-outlander:dvsa-2024-v1:suspension,mitsubishi-outlander,Suspension,18343,120823,15.1817,19.9047,-4.7230,0.7627,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mitsubishi-outlander:dvsa-2024-v1:brakes,mitsubishi-outlander,Brakes,15704,120823,12.9975,14.3394,-1.3419,0.9064,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mitsubishi-outlander:dvsa-2024-v1:visibility,mitsubishi-outlander,Visibility,11523,120823,9.5371,11.9934,-2.4563,0.7952,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mitsubishi-outlander:dvsa-2024-v1:tyres,mitsubishi-outlander,Tyres,9882,120823,8.1789,10.2666,-2.0877,0.7967,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mitsubishi-outlander:dvsa-2024-v1:body-chassis-structure,mitsubishi-outlander,"Body, chassis, structure",2952,120823,2.4432,8.3605,-5.9173,0.2922,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mitsubishi-outlander:dvsa-2024-v1:noise-emissions-and-leaks,mitsubishi-outlander,"Noise, emissions and leaks",2223,120823,1.8399,4.9009,-3.0611,0.3754,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:mitsubishi-outlander:dvsa-2024-v1:steering,mitsubishi-outlander,Steering,9648,120823,7.9852,4.5923,3.3929,1.7388,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,nissan-juke,"Lamps, reflectors and electrical equipment",55122,460457,11.9712,23.5162,-11.5451,0.5091,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:suspension,nissan-juke,Suspension,94184,460457,20.4545,19.9047,0.5498,1.0276,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:brakes,nissan-juke,Brakes,58140,460457,12.6266,14.3394,-1.7129,0.8805,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:visibility,nissan-juke,Visibility,54653,460457,11.8693,11.9934,-0.1241,0.9897,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:tyres,nissan-juke,Tyres,39714,460457,8.6249,10.2666,-1.6416,0.8401,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:body-chassis-structure,nissan-juke,"Body, chassis, structure",19071,460457,4.1418,8.3605,-4.2187,0.4954,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:noise-emissions-and-leaks,nissan-juke,"Noise, emissions and leaks",16171,460457,3.5119,4.9009,-1.3890,0.7166,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:steering,nissan-juke,Steering,39402,460457,8.5572,4.5923,3.9648,1.8634,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,nissan-juke,Seat belts and supplementary restraint systems,4722,460457,1.0255,1.4183,-0.3928,0.7231,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:identification-of-the-vehicle,nissan-juke,Identification of the vehicle,1686,460457,0.3662,0.6183,-0.2521,0.5922,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-juke:dvsa-2024-v1:road-wheels,nissan-juke,Road Wheels,3912,460457,0.8496,0.5972,0.2524,1.4226,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-leaf:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,nissan-leaf,"Lamps, reflectors and electrical equipment",3016,70882,4.2550,23.5162,-19.2613,0.1809,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-leaf:dvsa-2024-v1:suspension,nissan-leaf,Suspension,6560,70882,9.2548,19.9047,-10.6499,0.4650,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-leaf:dvsa-2024-v1:brakes,nissan-leaf,Brakes,5433,70882,7.6649,14.3394,-6.6746,0.5345,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-leaf:dvsa-2024-v1:visibility,nissan-leaf,Visibility,8164,70882,11.5177,11.9934,-0.4756,0.9603,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-leaf:dvsa-2024-v1:tyres,nissan-leaf,Tyres,7103,70882,10.0209,10.2666,-0.2457,0.9761,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,nissan-micra,"Lamps, reflectors and electrical equipment",123300,342234,36.0280,23.5162,12.5118,1.5320,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:suspension,nissan-micra,Suspension,104081,342234,30.4122,19.9047,10.5075,1.5279,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:brakes,nissan-micra,Brakes,48897,342234,14.2876,14.3394,-0.0518,0.9964,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:visibility,nissan-micra,Visibility,49197,342234,14.3753,11.9934,2.3819,1.1986,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:tyres,nissan-micra,Tyres,32656,342234,9.5420,10.2666,-0.7245,0.9294,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:body-chassis-structure,nissan-micra,"Body, chassis, structure",36685,342234,10.7193,8.3605,2.3588,1.2821,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:noise-emissions-and-leaks,nissan-micra,"Noise, emissions and leaks",17619,342234,5.1482,4.9009,0.2473,1.0505,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:steering,nissan-micra,Steering,10366,342234,3.0289,4.5923,-1.5634,0.6596,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,nissan-micra,Seat belts and supplementary restraint systems,11092,342234,3.2411,1.4183,1.8228,2.2852,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:identification-of-the-vehicle,nissan-micra,Identification of the vehicle,2116,342234,0.6183,0.6183,-0.0000,1.0000,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-micra:dvsa-2024-v1:road-wheels,nissan-micra,Road Wheels,1489,342234,0.4351,0.5972,-0.1621,0.7285,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,nissan-qashqai,"Lamps, reflectors and electrical equipment",162811,800602,20.3361,23.5162,-3.1801,0.8648,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:suspension,nissan-qashqai,Suspension,254780,800602,31.8236,19.9047,11.9188,1.5988,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:brakes,nissan-qashqai,Brakes,120376,800602,15.0357,14.3394,0.6962,1.0486,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:visibility,nissan-qashqai,Visibility,80478,800602,10.0522,11.9934,-1.9412,0.8381,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:tyres,nissan-qashqai,Tyres,71954,800602,8.9875,10.2666,-1.2791,0.8754,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:body-chassis-structure,nissan-qashqai,"Body, chassis, structure",82954,800602,10.3615,8.3605,2.0010,1.2393,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:noise-emissions-and-leaks,nissan-qashqai,"Noise, emissions and leaks",26256,800602,3.2795,4.9009,-1.6214,0.6692,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:steering,nissan-qashqai,Steering,114144,800602,14.2573,4.5923,9.6649,3.1046,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,nissan-qashqai,Seat belts and supplementary restraint systems,13890,800602,1.7349,1.4183,0.3167,1.2233,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:identification-of-the-vehicle,nissan-qashqai,Identification of the vehicle,2915,800602,0.3641,0.6183,-0.2542,0.5889,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:nissan-qashqai:dvsa-2024-v1:road-wheels,nissan-qashqai,Road Wheels,8608,800602,1.0752,0.5972,0.4780,1.8003,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,renault-clio,"Lamps, reflectors and electrical equipment",201238,473424,42.5069,23.5162,18.9907,1.8076,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:suspension,renault-clio,Suspension,163751,473424,34.5887,19.9047,14.6840,1.7377,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:brakes,renault-clio,Brakes,111110,473424,23.4694,14.3394,9.1300,1.6367,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:visibility,renault-clio,Visibility,74257,473424,15.6851,11.9934,3.6917,1.3078,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:tyres,renault-clio,Tyres,63785,473424,13.4731,10.2666,3.2066,1.3123,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:body-chassis-structure,renault-clio,"Body, chassis, structure",51383,473424,10.8535,8.3605,2.4930,1.2982,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:noise-emissions-and-leaks,renault-clio,"Noise, emissions and leaks",24164,473424,5.1041,4.9009,0.2031,1.0415,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:steering,renault-clio,Steering,47698,473424,10.0751,4.5923,5.4828,2.1939,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,renault-clio,Seat belts and supplementary restraint systems,13923,473424,2.9409,1.4183,1.5226,2.0736,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:identification-of-the-vehicle,renault-clio,Identification of the vehicle,2325,473424,0.4911,0.6183,-0.1272,0.7943,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:renault-clio:dvsa-2024-v1:road-wheels,renault-clio,Road Wheels,2680,473424,0.5661,0.5972,-0.0311,0.9479,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:tesla-model-3:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,tesla-model-3,"Lamps, reflectors and electrical equipment",3115,116025,2.6848,23.5162,-20.8315,0.1142,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:tesla-model-3:dvsa-2024-v1:suspension,tesla-model-3,Suspension,3509,116025,3.0243,19.9047,-16.8804,0.1519,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:tesla-model-3:dvsa-2024-v1:brakes,tesla-model-3,Brakes,1054,116025,0.9084,14.3394,-13.4310,0.0634,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:tesla-model-3:dvsa-2024-v1:visibility,tesla-model-3,Visibility,5113,116025,4.4068,11.9934,-7.5866,0.3674,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:tesla-model-3:dvsa-2024-v1:tyres,tesla-model-3,Tyres,25308,116025,21.8125,10.2666,11.5460,2.1246,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,toyota-aygo,"Lamps, reflectors and electrical equipment",70057,359723,19.4753,23.5162,-4.0410,0.8282,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:suspension,toyota-aygo,Suspension,43297,359723,12.0362,19.9047,-7.8685,0.6047,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:brakes,toyota-aygo,Brakes,54647,359723,15.1914,14.3394,0.8520,1.0594,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:visibility,toyota-aygo,Visibility,24462,359723,6.8002,11.9934,-5.1931,0.5670,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:tyres,toyota-aygo,Tyres,28785,359723,8.0020,10.2666,-2.2646,0.7794,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:body-chassis-structure,toyota-aygo,"Body, chassis, structure",18302,359723,5.0878,8.3605,-3.2727,0.6086,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:noise-emissions-and-leaks,toyota-aygo,"Noise, emissions and leaks",13859,359723,3.8527,4.9009,-1.0483,0.7861,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:steering,toyota-aygo,Steering,2100,359723,0.5838,4.5923,-4.0085,0.1271,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,toyota-aygo,Seat belts and supplementary restraint systems,4128,359723,1.1475,1.4183,-0.2707,0.8091,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:identification-of-the-vehicle,toyota-aygo,Identification of the vehicle,1061,359723,0.2949,0.6183,-0.3233,0.4770,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-aygo:dvsa-2024-v1:road-wheels,toyota-aygo,Road Wheels,1108,359723,0.3080,0.5972,-0.2892,0.5157,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,toyota-yaris,"Lamps, reflectors and electrical equipment",161034,629646,25.5753,23.5162,2.0591,1.0876,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:suspension,toyota-yaris,Suspension,107872,629646,17.1322,19.9047,-2.7725,0.8607,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:brakes,toyota-yaris,Brakes,71984,629646,11.4325,14.3394,-2.9070,0.7973,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:visibility,toyota-yaris,Visibility,62982,629646,10.0028,11.9934,-1.9906,0.8340,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:tyres,toyota-yaris,Tyres,44006,629646,6.9890,10.2666,-3.2776,0.6808,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:body-chassis-structure,toyota-yaris,"Body, chassis, structure",42142,629646,6.6930,8.3605,-1.6675,0.8005,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:noise-emissions-and-leaks,toyota-yaris,"Noise, emissions and leaks",26181,629646,4.1581,4.9009,-0.7429,0.8484,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:steering,toyota-yaris,Steering,4080,629646,0.6480,4.5923,-3.9443,0.1411,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,toyota-yaris,Seat belts and supplementary restraint systems,6243,629646,0.9915,1.4183,-0.4268,0.6991,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:identification-of-the-vehicle,toyota-yaris,Identification of the vehicle,2484,629646,0.3945,0.6183,-0.2238,0.6381,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:toyota-yaris:dvsa-2024-v1:road-wheels,toyota-yaris,Road Wheels,1272,629646,0.2020,0.5972,-0.3952,0.3383,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,vauxhall-astra,"Lamps, reflectors and electrical equipment",273715,914157,29.9418,23.5162,6.4256,1.2732,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:suspension,vauxhall-astra,Suspension,220219,914157,24.0898,19.9047,4.1851,1.2103,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:brakes,vauxhall-astra,Brakes,191369,914157,20.9339,14.3394,6.5945,1.4599,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:visibility,vauxhall-astra,Visibility,119559,914157,13.0786,11.9934,1.0852,1.0905,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:tyres,vauxhall-astra,Tyres,119239,914157,13.0436,10.2666,2.7770,1.2705,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:body-chassis-structure,vauxhall-astra,"Body, chassis, structure",78707,914157,8.6098,8.3605,0.2493,1.0298,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:noise-emissions-and-leaks,vauxhall-astra,"Noise, emissions and leaks",83913,914157,9.1793,4.9009,4.2783,1.8730,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:steering,vauxhall-astra,Steering,20843,914157,2.2800,4.5923,-2.3123,0.4965,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,vauxhall-astra,Seat belts and supplementary restraint systems,8942,914157,0.9782,1.4183,-0.4401,0.6897,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:identification-of-the-vehicle,vauxhall-astra,Identification of the vehicle,6017,914157,0.6582,0.6183,0.0399,1.0645,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-astra:dvsa-2024-v1:road-wheels,vauxhall-astra,Road Wheels,5910,914157,0.6465,0.5972,0.0493,1.0825,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,vauxhall-corsa,"Lamps, reflectors and electrical equipment",388209,1191943,32.5694,23.5162,9.0532,1.3850,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:suspension,vauxhall-corsa,Suspension,296299,1191943,24.8585,19.9047,4.9538,1.2489,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:brakes,vauxhall-corsa,Brakes,180938,1191943,15.1801,14.3394,0.8406,1.0586,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:visibility,vauxhall-corsa,Visibility,140459,1191943,11.7840,11.9934,-0.2093,0.9825,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:tyres,vauxhall-corsa,Tyres,131285,1191943,11.0144,10.2666,0.7478,1.0728,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:body-chassis-structure,vauxhall-corsa,"Body, chassis, structure",107560,1191943,9.0239,8.3605,0.6634,1.0794,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:noise-emissions-and-leaks,vauxhall-corsa,"Noise, emissions and leaks",99343,1191943,8.3345,4.9009,3.4336,1.7006,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:steering,vauxhall-corsa,Steering,210321,1191943,17.6452,4.5923,13.0529,3.8423,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,vauxhall-corsa,Seat belts and supplementary restraint systems,14297,1191943,1.1995,1.4183,-0.2188,0.8457,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:identification-of-the-vehicle,vauxhall-corsa,Identification of the vehicle,6482,1191943,0.5438,0.6183,-0.0745,0.8795,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-corsa:dvsa-2024-v1:road-wheels,vauxhall-corsa,Road Wheels,4926,1191943,0.4133,0.5972,-0.1840,0.6920,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,vauxhall-mokka,"Lamps, reflectors and electrical equipment",36293,332738,10.9074,23.5162,-12.6088,0.4638,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:suspension,vauxhall-mokka,Suspension,93055,332738,27.9664,19.9047,8.0617,1.4050,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:brakes,vauxhall-mokka,Brakes,26625,332738,8.0018,14.3394,-6.3376,0.5580,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:visibility,vauxhall-mokka,Visibility,32457,332738,9.7545,11.9934,-2.2388,0.8133,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:tyres,vauxhall-mokka,Tyres,25636,332738,7.7046,10.2666,-2.5620,0.7505,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:body-chassis-structure,vauxhall-mokka,"Body, chassis, structure",8307,332738,2.4966,8.3605,-5.8639,0.2986,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:noise-emissions-and-leaks,vauxhall-mokka,"Noise, emissions and leaks",12249,332738,3.6813,4.9009,-1.2197,0.7511,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:steering,vauxhall-mokka,Steering,18694,332738,5.6182,4.5923,1.0259,1.2234,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:vauxhall-mokka:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,vauxhall-mokka,Seat belts and supplementary restraint systems,1995,332738,0.5996,1.4183,-0.8187,0.4227,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,volkswagen-golf,"Lamps, reflectors and electrical equipment",282419,1323641,21.3365,23.5162,-2.1797,0.9073,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:suspension,volkswagen-golf,Suspension,308423,1323641,23.3011,19.9047,3.3964,1.1706,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:brakes,volkswagen-golf,Brakes,201104,1323641,15.1932,14.3394,0.8538,1.0595,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:visibility,volkswagen-golf,Visibility,153789,1323641,11.6186,11.9934,-0.3747,0.9688,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:tyres,volkswagen-golf,Tyres,147494,1323641,11.1431,10.2666,0.8765,1.0854,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:body-chassis-structure,volkswagen-golf,"Body, chassis, structure",184881,1323641,13.9676,8.3605,5.6071,1.6707,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:noise-emissions-and-leaks,volkswagen-golf,"Noise, emissions and leaks",76359,1323641,5.7689,4.9009,0.8679,1.1771,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:steering,volkswagen-golf,Steering,42652,1323641,3.2223,4.5923,-1.3700,0.7017,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,volkswagen-golf,Seat belts and supplementary restraint systems,27180,1323641,2.0534,1.4183,0.6351,1.4478,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:identification-of-the-vehicle,volkswagen-golf,Identification of the vehicle,8789,1323641,0.6640,0.6183,0.0457,1.0739,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-golf:dvsa-2024-v1:road-wheels,volkswagen-golf,Road Wheels,9410,1323641,0.7109,0.5972,0.1137,1.1904,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,volkswagen-polo,"Lamps, reflectors and electrical equipment",284129,895817,31.7173,23.5162,8.2011,1.3487,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:suspension,volkswagen-polo,Suspension,226901,895817,25.3289,19.9047,5.4242,1.2725,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:brakes,volkswagen-polo,Brakes,180872,895817,20.1907,14.3394,5.8513,1.4081,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:visibility,volkswagen-polo,Visibility,113707,895817,12.6931,11.9934,0.6997,1.0583,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:tyres,volkswagen-polo,Tyres,93714,895817,10.4613,10.2666,0.1947,1.0190,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:body-chassis-structure,volkswagen-polo,"Body, chassis, structure",125574,895817,14.0178,8.3605,5.6573,1.6767,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:noise-emissions-and-leaks,volkswagen-polo,"Noise, emissions and leaks",82215,895817,9.1777,4.9009,4.2767,1.8726,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:steering,volkswagen-polo,Steering,110861,895817,12.3754,4.5923,7.7831,2.6948,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,volkswagen-polo,Seat belts and supplementary restraint systems,16389,895817,1.8295,1.4183,0.4112,1.2899,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:identification-of-the-vehicle,volkswagen-polo,Identification of the vehicle,5331,895817,0.5951,0.6183,-0.0232,0.9625,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-polo:dvsa-2024-v1:road-wheels,volkswagen-polo,Road Wheels,4949,895817,0.5525,0.5972,-0.0448,0.9250,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,volkswagen-tiguan,"Lamps, reflectors and electrical equipment",21963,397745,5.5219,23.5162,-17.9943,0.2348,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:suspension,volkswagen-tiguan,Suspension,49446,397745,12.4316,19.9047,-7.4731,0.6246,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:brakes,volkswagen-tiguan,Brakes,22105,397745,5.5576,14.3394,-8.7819,0.3876,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:visibility,volkswagen-tiguan,Visibility,28971,397745,7.2838,11.9934,-4.7096,0.6073,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:tyres,volkswagen-tiguan,Tyres,36073,397745,9.0694,10.2666,-1.1972,0.8834,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:body-chassis-structure,volkswagen-tiguan,"Body, chassis, structure",10082,397745,2.5348,8.3605,-5.8257,0.3032,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:noise-emissions-and-leaks,volkswagen-tiguan,"Noise, emissions and leaks",7029,397745,1.7672,4.9009,-3.1337,0.3606,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:steering,volkswagen-tiguan,Steering,2910,397745,0.7316,4.5923,-3.8607,0.1593,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,volkswagen-tiguan,Seat belts and supplementary restraint systems,2392,397745,0.6014,1.4183,-0.8169,0.4240,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:identification-of-the-vehicle,volkswagen-tiguan,Identification of the vehicle,2160,397745,0.5431,0.6183,-0.0752,0.8783,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-tiguan:dvsa-2024-v1:road-wheels,volkswagen-tiguan,Road Wheels,1100,397745,0.2766,0.5972,-0.3207,0.4631,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:lamps-reflectors-and-electrical-equipment,volkswagen-transporter,"Lamps, reflectors and electrical equipment",222644,503457,44.2230,23.5162,20.7068,1.8805,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:suspension,volkswagen-transporter,Suspension,169358,503457,33.6390,19.9047,13.7343,1.6900,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:brakes,volkswagen-transporter,Brakes,119927,503457,23.8207,14.3394,9.4813,1.6612,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:visibility,volkswagen-transporter,Visibility,100468,503457,19.9556,11.9934,7.9623,1.6639,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:tyres,volkswagen-transporter,Tyres,48252,503457,9.5841,10.2666,-0.6824,0.9335,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:body-chassis-structure,volkswagen-transporter,"Body, chassis, structure",93419,503457,18.5555,8.3605,10.1950,2.2194,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:noise-emissions-and-leaks,volkswagen-transporter,"Noise, emissions and leaks",28362,503457,5.6335,4.9009,0.7325,1.1495,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:steering,volkswagen-transporter,Steering,42476,503457,8.4369,4.5923,3.8445,1.8372,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:seat-belts-and-supplementary-restraint-systems,volkswagen-transporter,Seat belts and supplementary restraint systems,14645,503457,2.9089,1.4183,1.4906,2.0510,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:identification-of-the-vehicle,volkswagen-transporter,Identification of the vehicle,5457,503457,1.0839,0.6183,0.4656,1.7531,ok,dvsa-2024-v1,motriskindex-families-2024-v2
+fail-group:volkswagen-transporter:dvsa-2024-v1:road-wheels,volkswagen-transporter,Road Wheels,3083,503457,0.6124,0.5972,0.0151,1.0254,low_sample,dvsa-2024-v1,motriskindex-families-2024-v2

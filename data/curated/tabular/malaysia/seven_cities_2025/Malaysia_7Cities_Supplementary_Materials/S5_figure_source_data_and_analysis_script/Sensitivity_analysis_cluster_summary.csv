@@ -1,0 +1,16 @@
+﻿setting,cluster_raw,cities
+core_9,1,Seberang Perai; Johor Bahru; Ipoh; Kajang
+core_9,2,George Town; Kota Bharu
+core_9,3,Kuala Lumpur
+full_16,1,Seberang Perai; Johor Bahru; Ipoh; Kajang
+full_16,2,George Town; Kota Bharu
+full_16,3,Kuala Lumpur
+traffic_only_5,1,Seberang Perai; Kajang
+traffic_only_5,2,George Town; Kota Bharu
+traffic_only_5,3,Kuala Lumpur; Johor Bahru; Ipoh
+without_OSM,1,Seberang Perai; Kajang
+without_OSM,2,George Town; Kota Bharu
+without_OSM,3,Kuala Lumpur; Johor Bahru; Ipoh
+without_background,1,Seberang Perai; Kajang
+without_background,2,Kota Bharu; Kuala Lumpur
+without_background,3,George Town; Johor Bahru; Ipoh

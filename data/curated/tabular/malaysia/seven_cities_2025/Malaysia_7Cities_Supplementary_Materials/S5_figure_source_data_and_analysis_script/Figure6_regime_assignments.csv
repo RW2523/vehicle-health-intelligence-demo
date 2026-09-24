@@ -1,0 +1,8 @@
+﻿city,cluster_raw,regime,diagnostic_label
+George Town,2,Regime 2,High congestion and long TT10
+Kota Bharu,2,Regime 2,High congestion and long TT10
+Kuala Lumpur,3,Regime 3,High background pressure and peak asymmetry
+Seberang Perai,1,Regime 1,Lower overall pressure with internal heterogeneity
+Johor Bahru,1,Regime 1,Lower overall pressure with internal heterogeneity
+Ipoh,1,Regime 1,Lower overall pressure with internal heterogeneity
+Kajang,1,Regime 1,Lower overall pressure with internal heterogeneity

@@ -1,0 +1,11 @@
+{
+ "hv_isolation_mohm": 1.8,
+ "suspension_eff_pct": [
+  74,
+  72
+ ],
+ "side_slip_m_per_km": 1.4,
+ "headlamp_dev_pct": 0.8,
+ "tint_vlt_pct": 70,
+ "adas_self_test": "advisory only"
+}

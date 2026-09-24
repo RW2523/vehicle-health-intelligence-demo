@@ -1,0 +1,8 @@
+﻿city,road_density_km_per_km2,intersection_density_per_km2,high_capacity_road_share_calibrated,major_road_share_calibrated,vehicle_reg_per_1000_pop_2025
+George Town,5.378,27.697,0.0735,0.2489,8.9791
+Kota Bharu,17.161,109.62,0.0576,0.2726,3.5425
+Kuala Lumpur,14.01,67.972,0.2072,0.3624,39.1538
+Seberang Perai,6.819,33.3,0.0711,0.1744,8.9791
+Johor Bahru,6.463,30.68,0.1061,0.236,9.607
+Ipoh,4.864,27.081,0.0453,0.1497,4.2662
+Kajang,4.218,20.678,0.0949,0.1705,5.9842

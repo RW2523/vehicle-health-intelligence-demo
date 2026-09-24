@@ -1,0 +1,73 @@
+{
+ "session": "S4",
+ "title": "HQ integrity analytics + lane predictive maintenance",
+ "expected": {
+  "outlier_examiners": [
+   "VE017",
+   "VE044"
+  ],
+  "hash_chain_audit": "all records intact",
+  "failing_device": "BR00 lane 3 roller_brake_tester"
+ },
+ "streams": [
+  "equipment.parquet",
+  "examiner_stats.parquet"
+ ],
+ "lane_timeline": [
+  {
+   "step": "check_in_anpr",
+   "start_s": 0,
+   "end_s": 20
+  },
+  {
+   "step": "identity_ocr",
+   "start_s": 20,
+   "end_s": 40
+  },
+  {
+   "step": "emission_idle_rev",
+   "start_s": 40,
+   "end_s": 130
+  },
+  {
+   "step": "brake_roller",
+   "start_s": 130,
+   "end_s": 190
+  },
+  {
+   "step": "suspension",
+   "start_s": 190,
+   "end_s": 230
+  },
+  {
+   "step": "side_slip",
+   "start_s": 230,
+   "end_s": 245
+  },
+  {
+   "step": "headlamp_tint",
+   "start_s": 245,
+   "end_s": 280
+  },
+  {
+   "step": "undercarriage_ai",
+   "start_s": 280,
+   "end_s": 340
+  },
+  {
+   "step": "above_carriage_ai",
+   "start_s": 340,
+   "end_s": 380
+  },
+  {
+   "step": "examiner_review",
+   "start_s": 380,
+   "end_s": 460
+  },
+  {
+   "step": "report",
+   "start_s": 460,
+   "end_s": 480
+  }
+ ]
+}

@@ -1,0 +1,21 @@
+branch,state,heavy_vehicle_capable,lanes,branch_id,note
+Alam Megah,Selangor,True,8,BR00,illustrative branch list - replace with official PUSPAKOM list
+Glenmarie,Selangor,False,6,BR01,illustrative branch list - replace with official PUSPAKOM list
+Batu Caves,Selangor,False,5,BR02,illustrative branch list - replace with official PUSPAKOM list
+Cheras,W.P. Kuala Lumpur,False,4,BR03,illustrative branch list - replace with official PUSPAKOM list
+Kajang,Selangor,False,4,BR04,illustrative branch list - replace with official PUSPAKOM list
+Klang,Selangor,True,5,BR05,illustrative branch list - replace with official PUSPAKOM list
+Seremban,Negeri Sembilan,True,4,BR06,illustrative branch list - replace with official PUSPAKOM list
+Melaka,Melaka,False,3,BR07,illustrative branch list - replace with official PUSPAKOM list
+Johor Bahru,Johor,True,6,BR08,illustrative branch list - replace with official PUSPAKOM list
+Kluang,Johor,False,3,BR09,illustrative branch list - replace with official PUSPAKOM list
+Ipoh,Perak,True,4,BR10,illustrative branch list - replace with official PUSPAKOM list
+Prai,Pulau Pinang,True,5,BR11,illustrative branch list - replace with official PUSPAKOM list
+Alor Setar,Kedah,False,3,BR12,illustrative branch list - replace with official PUSPAKOM list
+Kuantan,Pahang,True,4,BR13,illustrative branch list - replace with official PUSPAKOM list
+Kota Bharu,Kelantan,False,3,BR14,illustrative branch list - replace with official PUSPAKOM list
+Kuala Terengganu,Terengganu,False,3,BR15,illustrative branch list - replace with official PUSPAKOM list
+Kuching,Sarawak,True,4,BR16,illustrative branch list - replace with official PUSPAKOM list
+Miri,Sarawak,True,3,BR17,illustrative branch list - replace with official PUSPAKOM list
+Kota Kinabalu,Sabah,True,4,BR18,illustrative branch list - replace with official PUSPAKOM list
+Mobile Truck Service,Nationwide,True,2,BR19,illustrative branch list - replace with official PUSPAKOM list

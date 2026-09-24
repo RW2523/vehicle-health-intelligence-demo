@@ -1,0 +1,11 @@
+{
+ "smoke_opacity_pct": 18.5,
+ "suspension_eff_pct": [
+  71,
+  69,
+  66
+ ],
+ "side_slip_m_per_km": 3.1,
+ "headlamp_dev_pct": 1.2,
+ "tint_vlt_pct": 72
+}

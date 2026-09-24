@@ -1,0 +1,118 @@
+{
+ "session": "S2",
+ "title": "Used EV with flood history - B5 + B7 for sale with bank loan",
+ "branch_id": "BR01",
+ "vehicle": {
+  "plate": "DMO 9002",
+  "make": "BYD",
+  "model": "Atto 3",
+  "year": 2022,
+  "usage": "private",
+  "fuel": "ev",
+  "odometer_km": 58200,
+  "axles": 2
+ },
+ "prior_claims": [
+  {
+   "date": "2025-12-10",
+   "type": "flood_natural_disaster",
+   "amount_rm": 38400,
+   "ber": false
+  }
+ ],
+ "injected_faults": [
+  "flood_immersion_dec_2025",
+  "hv_isolation_marginal",
+  "cell_module_hotspot",
+  "undercarriage_corrosion"
+ ],
+ "expected": {
+  "ev_soh_pct": 71.0,
+  "hv_isolation_mohm": 1.8,
+  "hv_verdict": "marginal (<2 MOhm advisory)",
+  "enose": "ev_electrolyte_offgas trace",
+  "corrosion_score": 7.1,
+  "flood_probability": 0.91,
+  "health_score": 52,
+  "certificate": "EV Health Certificate - CONDITIONAL"
+ },
+ "media": {
+  "flood_reference_images": [
+   "images/flood/reference_photo_with_overlay/flood_depths_00004.jpg",
+   "images/flood/reference_photo_with_overlay/flood_depths_00003.jpg"
+  ],
+  "undercarriage_images": [
+   "images/corrosion/corrosion_industrial_metal/industrial_corrosi_00024.jpg",
+   "images/corrosion/corrosion_industrial_metal/industrial_corrosi_00114.jpg"
+  ],
+  "audio": [
+   "audio/fault_flooded_engin/sound_based_ve_00000.wav"
+  ]
+ },
+ "streams": [
+  "brake_roller.parquet",
+  "enose.parquet",
+  "ev_bms.parquet",
+  "instruments.json",
+  "nasa_reference.parquet",
+  "obd.parquet",
+  "thermal.json"
+ ],
+ "lane_timeline": [
+  {
+   "step": "check_in_anpr",
+   "start_s": 0,
+   "end_s": 20
+  },
+  {
+   "step": "identity_ocr",
+   "start_s": 20,
+   "end_s": 40
+  },
+  {
+   "step": "emission_idle_rev",
+   "start_s": 40,
+   "end_s": 130
+  },
+  {
+   "step": "brake_roller",
+   "start_s": 130,
+   "end_s": 190
+  },
+  {
+   "step": "suspension",
+   "start_s": 190,
+   "end_s": 230
+  },
+  {
+   "step": "side_slip",
+   "start_s": 230,
+   "end_s": 245
+  },
+  {
+   "step": "headlamp_tint",
+   "start_s": 245,
+   "end_s": 280
+  },
+  {
+   "step": "undercarriage_ai",
+   "start_s": 280,
+   "end_s": 340
+  },
+  {
+   "step": "above_carriage_ai",
+   "start_s": 340,
+   "end_s": 380
+  },
+  {
+   "step": "examiner_review",
+   "start_s": 380,
+   "end_s": 460
+  },
+  {
+   "step": "report",
+   "start_s": 460,
+   "end_s": 480
+  }
+ ]
+}

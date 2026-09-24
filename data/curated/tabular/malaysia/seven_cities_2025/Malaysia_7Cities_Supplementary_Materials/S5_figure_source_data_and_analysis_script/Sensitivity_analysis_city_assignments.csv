@@ -1,0 +1,36 @@
+﻿setting,city,cluster_raw
+core_9,George Town,2
+core_9,Kota Bharu,2
+core_9,Kuala Lumpur,3
+core_9,Seberang Perai,1
+core_9,Johor Bahru,1
+core_9,Ipoh,1
+core_9,Kajang,1
+full_16,George Town,2
+full_16,Kota Bharu,2
+full_16,Kuala Lumpur,3
+full_16,Seberang Perai,1
+full_16,Johor Bahru,1
+full_16,Ipoh,1
+full_16,Kajang,1
+traffic_only_5,George Town,2
+traffic_only_5,Kota Bharu,2
+traffic_only_5,Kuala Lumpur,3
+traffic_only_5,Seberang Perai,1
+traffic_only_5,Johor Bahru,3
+traffic_only_5,Ipoh,3
+traffic_only_5,Kajang,1
+without_OSM,George Town,2
+without_OSM,Kota Bharu,2
+without_OSM,Kuala Lumpur,3
+without_OSM,Seberang Perai,1
+without_OSM,Johor Bahru,3
+without_OSM,Ipoh,3
+without_OSM,Kajang,1
+without_background,George Town,3
+without_background,Kota Bharu,2
+without_background,Kuala Lumpur,2
+without_background,Seberang Perai,1
+without_background,Johor Bahru,3
+without_background,Ipoh,3
+without_background,Kajang,1

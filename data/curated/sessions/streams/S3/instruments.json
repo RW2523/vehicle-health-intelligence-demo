@@ -1,0 +1,11 @@
+{
+ "co_pct": 0.3,
+ "hc_ppm": 110,
+ "suspension_eff_pct": [
+  63,
+  61
+ ],
+ "side_slip_m_per_km": 2.2,
+ "headlamp_dev_pct": 1.1,
+ "tint_vlt_pct": 55
+}
