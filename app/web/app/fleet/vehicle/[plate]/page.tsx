@@ -3,6 +3,7 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { LineChart } from "@/components/charts";
 import { Icon } from "@/components/icons";
+import { ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
 import { Shell } from "@/components/Shell";
 import { Bar, Modal, PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -56,6 +57,7 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
   const ov = useFetch<any>("/api/fleet/overview");
   const [metric, setMetric] = useState<string | null>(null);
   const [zoom, setZoom] = useState<any>(null);
+  const [viewer, setViewer] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => setMetric(null), [plate]);
   useEffect(() => {
@@ -63,6 +65,8 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
   }, [plate, ov.data]);
   const m = d ? (d.metrics.find((x: any) => x.metric === metric) || d.primary) : null;
   const v = d?.vehicle;
+  const images: LibImage[] = d?.images || [];
+  const progression = images.findIndex((e) => e.kind === "progression");
   const send = async () => {
     setBusy(true);
     try {
@@ -98,8 +102,11 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
         <>
           <section className="card mb-3 flex flex-wrap items-center gap-5 p-4">
             {v.photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={`/media/assets/${v.photo}`} alt={v.model} className="h-24 w-36 rounded-xl object-cover" />
+              <button className="group relative shrink-0 overflow-hidden rounded-xl" disabled={!images.length} onClick={() => setViewer(0)} aria-label={`Inspection images of ${plate}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/media/assets/${v.photo}`} alt={v.model} className="h-24 w-36 object-cover transition group-hover:scale-105 group-disabled:group-hover:scale-100" />
+                {images.length > 0 && <span className="absolute bottom-1 right-1 rounded bg-ink-950/85 px-1.5 text-[10.5px] font-semibold text-fg-2">{images.length} image{images.length > 1 ? "s" : ""}</span>}
+              </button>
             ) : <span className="flex h-24 w-36 flex-col items-center justify-center gap-1 rounded-xl bg-ink-700 text-[12px] text-fg-4"><Icon name="car" size={34} />{v.vtype}</span>}
             <div className="flex min-w-[190px] flex-col gap-1">
               <span className="font-display text-[24px] font-bold">{v.plate}</span>
@@ -163,6 +170,17 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
               </section>
             </div>
           </div>
+          {images.length > 0 && (
+            <section className="card mb-3 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-[15px] font-semibold">Inspection images <span className="text-[12.5px] font-normal text-fg-3">· what the lane cameras and inspectors captured on {plate}</span></h2>
+                <Source kind="sample" text="Sample images · AI boxes pre-drawn" />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {images.map((e, k) => <ImageCard key={e.id} e={e} compact onOpen={() => setViewer(k)} />)}
+              </div>
+            </section>
+          )}
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.15fr)_260px_minmax(0,1fr)]">
             <section className="card p-4">
               <h2 className="mb-2 text-[15px] font-semibold">Inspection history</h2>
@@ -184,7 +202,8 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
                 <div className="flex gap-2">
                   {(d.photos.length ? d.photos.map((p: any) => ({ src: `/media/assets/${p.photo}`, l: lab(p.date), v: `${p.value} ${p.unit}` }))
                     : (v.evidence || []).map((e: string, i: number) => ({ src: `/media/assets/${e}`, l: i === 0 ? "Close-up (AI)" : "Lane camera", v: "" }))).map((p: any, i: number) => (
-                    <button key={i} onClick={() => setZoom(p)} className="max-w-[140px] flex-1 overflow-hidden rounded-lg border border-ink-500 bg-ink-850 text-left">
+                    <button key={i} onClick={() => (d.photos.length && progression >= 0 ? setViewer(progression) : images.length ? setViewer(0) : setZoom(p))}
+                      className="max-w-[140px] flex-1 overflow-hidden rounded-lg border border-ink-500 bg-ink-850 text-left transition hover:border-cyan/70">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.src} alt={p.l} className="h-20 w-full object-cover" />
                       <span className="flex justify-between px-2 py-1 text-[11.5px]"><b>{p.l}</b><span className="text-[#FCA5A5]">{p.v}</span></span>
@@ -220,6 +239,7 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
           </div>
         </>
       )}
+      <ImageViewer items={images} index={viewer} onIndex={setViewer} onClose={() => setViewer(null)} />
       <Modal open={!!zoom} onClose={() => setZoom(null)} title={zoom ? `${plate} · ${zoom.l} ${zoom.v}` : ""}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {zoom && <img src={zoom.src} alt={zoom.l} className="max-h-[75vh] rounded-lg" />}

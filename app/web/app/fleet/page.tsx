@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { Donut, LineChart, Spark } from "@/components/charts";
 import { Icon } from "@/components/icons";
+import { ImageViewer, LibImage } from "@/components/ImageViewer";
 import { Shell } from "@/components/Shell";
 import { PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -40,6 +41,13 @@ function FleetOverview() {
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [shown, setShown] = useState(10);
   const [rf, setRf] = useState("all");
+  const lib = useFetch<any>("/api/vision/library");
+  const [viewer, setViewer] = useState<{ items: LibImage[]; index: number } | null>(null);
+  const openImages = (r: any, index = 0) => {
+    const all: LibImage[] = lib.data?.images || [];
+    const items = (r.images || []).map((x: any) => all.find((e) => e.id === x.id)).filter(Boolean) as LibImage[];
+    if (items.length) setViewer({ items, index: Math.min(index, items.length - 1) });
+  };
   const nSel = Object.values(sel).filter(Boolean).length;
   const book = async () => {
     const plates = Object.keys(sel).filter((k) => sel[k]);
@@ -58,7 +66,7 @@ function FleetOverview() {
     a.click();
   };
   const att = (o?.attention || []).filter((r: any) =>
-    rf === "all" ? true : rf === "acc" ? ["Accelerating", "Spike, then faster rise"].includes(r.issue?.pattern) : rf === "photo" ? r.evidence?.length > 0 : r.issue?.risk === rf);
+    rf === "all" ? true : rf === "acc" ? ["Accelerating", "Spike, then faster rise"].includes(r.issue?.pattern) : rf === "photo" ? r.images?.length > 0 || r.evidence?.length > 0 : r.issue?.risk === rf);
   const fleetBranches = new Set((o?.fleets || []).map((f: any) => f.branch_id));
   return (
     <Shell context={<span className="chip hidden border-ink-500 text-fg-2 xl:inline-flex">Fleet manager view</span>}>
@@ -134,8 +142,10 @@ function FleetOverview() {
                         <td className="py-2">
                           <div className="flex items-center gap-3">
                             {r.photo ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={`/media/assets/${r.photo}`} alt="" className="h-11 w-16 rounded-md object-cover" />
+                              <button onClick={() => openImages(r)} disabled={!r.images?.length} className="shrink-0 overflow-hidden rounded-md" aria-label={`Inspection images of ${r.plate}`}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={`/media/assets/${r.photo}`} alt="" className="h-11 w-16 object-cover" />
+                              </button>
                             ) : <span className="flex h-11 w-16 shrink-0 flex-col items-center justify-center rounded-md bg-ink-700 text-[9.5px] text-fg-4"><Icon name="car" size={18} />{r.vtype}</span>}
                             <span className="flex flex-col"><b className="text-[14px]">{r.plate}</b><span className="text-[11.5px] text-[#B7C5DA]">{r.make} {r.model}</span><span className="text-[11.5px] text-fg-3">{r.vtype} · {r.operator}</span></span>
                           </div>
@@ -148,7 +158,18 @@ function FleetOverview() {
                         </td>
                         <td><div className="flex items-center gap-2"><Spark values={r.issue.spark} color={c} width={56} /><span className="text-[11.5px]" style={{ color: c }}>{r.issue.pattern}</span></div></td>
                         <td>
-                          {r.evidence?.length ? (
+                          {r.images?.length ? (
+                            <div className="flex items-center gap-1.5">
+                              {r.images.slice(0, 2).map((im: any, k: number) => (
+                                <button key={im.id} onClick={() => openImages(r, k)} title={im.title} aria-label={`Open image ${im.id} of ${r.plate}`}
+                                  className="overflow-hidden rounded border border-ink-500 transition hover:border-cyan">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={im.web_url} alt="" loading="lazy" className="h-10 w-12 object-cover" />
+                                </button>
+                              ))}
+                              {r.images.length > 2 && <button onClick={() => openImages(r, 2)} className="rounded bg-ink-700 px-1.5 py-0.5 text-[12px] font-bold hover:bg-ink-600">+{r.images.length - 2}</button>}
+                            </div>
+                          ) : r.evidence?.length ? (
                             <div className="flex items-center gap-1.5">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={`/media/assets/${r.evidence[0]}`} alt="evidence" className="h-10 w-12 rounded object-cover" />
@@ -200,6 +221,7 @@ function FleetOverview() {
           <p className="mt-2 text-[11.5px] text-fg-4">{o.insights.method}</p>
         </>
       )}
+      <ImageViewer items={viewer?.items || []} index={viewer ? viewer.index : null} onIndex={(index) => setViewer((x) => (x ? { ...x, index } : x))} onClose={() => setViewer(null)} />
     </Shell>
   );
 }

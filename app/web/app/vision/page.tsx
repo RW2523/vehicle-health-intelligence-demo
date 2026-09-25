@@ -1,7 +1,9 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { IMAGE_KIND, ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
 import { Shell } from "@/components/Shell";
-import { Card, Modal, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
+import { Card, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { llmLabel } from "@/lib/format";
 import { useFetch } from "@/lib/live";
@@ -11,7 +13,7 @@ const FILTERS = [
   { id: "body", label: "Body" }, { id: "under", label: "Underbody" }, { id: "interior", label: "Cabin" }, { id: "tyres", label: "Tyres & lamps" },
 ];
 const SEV: Record<string, [string, string]> = { H: ["High · fail item", "#F87171"], M: ["Medium · advisory", "#FBBF24"], L: ["Low · cosmetic", "#93C5FD"] };
-const KIND: Record<string, string> = { comparison: "Inspection comparison", closeup: "Close-up", progression: "Month-by-month progression" };
+const LIB_KINDS = [{ id: "all", label: "All" }, { id: "comparison", label: "Inspections" }, { id: "closeup", label: "Close-ups" }, { id: "progression", label: "Progressions" }];
 const TASKS = [{ id: "damage", label: "Body damage" }, { id: "tyre", label: "Tyre" }, { id: "corrosion", label: "Corrosion" }, { id: "plate", label: "Plate OCR" }];
 
 function outcome(c: any) {
@@ -22,12 +24,16 @@ function outcome(c: any) {
   return { label: "Pass · cosmetic only", c: "#34D399" };
 }
 
-export default function Vision() {
+function Vision() {
+  const sp = useSearchParams();
+  const router = useRouter();
   const { data } = useFetch<any>("/api/vision/captures");
   const samples = useFetch<any>("/api/vision/samples");
   const lib = useFetch<any>("/api/vision/library");
+  const [view, setViewState] = useState<"cases" | "library">(sp.get("view") === "library" ? "library" : "cases");
   const [libKind, setLibKind] = useState("all");
-  const [zoom, setZoom] = useState<any>(null);
+  const [libPlate, setLibPlate] = useState("");
+  const [viewer, setViewer] = useState<{ items: LibImage[]; index: number } | null>(null);
   const [filt, setFilt] = useState("all");
   const [sel, setSel] = useState(0);
   const [mode, setMode] = useState<"orig" | "ai" | "cmp">("ai");
@@ -45,6 +51,42 @@ export default function Vision() {
   const cases: any[] = data?.cases || [];
   const list = useMemo(() => cases.filter((c) => filt === "all" || c.group === filt || c.cats.includes(filt) || (filt === "tyres" && c.cats.includes("lamps"))), [cases, filt]);
   const cur = cases[sel];
+  const images: LibImage[] = lib.data?.images || [];
+  const plates = useMemo(() => [...new Set(images.flatMap((e) => e.used_by_vehicles || []))].sort(), [images]);
+  const shown = images.filter((e) => (libKind === "all" || e.kind === libKind) && (!libPlate || e.used_by_vehicles?.includes(libPlate)));
+  const setView = (v: "cases" | "library") => {
+    setViewState(v);
+    router.replace(v === "library" ? "/vision?view=library" : `/vision${cur ? `?case=${cur.id}` : ""}`, { scroll: false });
+  };
+  const openCase = (id: number) => {
+    const k = cases.findIndex((c) => c.id === id);
+    if (k < 0) return;
+    setFilt("all");
+    setSel(k);
+    setMode("ai");
+    show(null);
+    setViewer(null);
+    setViewState("cases");
+    router.replace(`/vision?case=${id}`, { scroll: false });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  // deep links: ?case=23 selects a capture, ?img=i7 opens an image from the library
+  useEffect(() => {
+    const id = Number(sp.get("case"));
+    if (id && cases.length) {
+      const k = cases.findIndex((c) => c.id === id);
+      if (k >= 0) setSel(k);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cases.length]);
+  useEffect(() => {
+    const img = sp.get("img");
+    if (img && images.length) {
+      const k = images.findIndex((e) => e.id === img);
+      if (k >= 0) setViewer({ items: images, index: k });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images.length]);
   const run = async (body: any) => {
     setBusy(true);
     try {
@@ -80,9 +122,16 @@ export default function Vision() {
   const clip = mode === "ai" ? 100 : mode === "orig" ? 0 : split;
   return (
     <Shell>
-      <PageHeader title="AI vision inspection" sub={`Lane and close-up captures with their findings (${cases.length} captures · ${cases.reduce((a, c) => a + c.findings.length, 0)} findings). Run the live image models on any of them, on a curated photo, or on your own upload.`}
-        actions={<Source kind="sample" text="Sample images · AI boxes pre-drawn" />} />
-      {cur && (
+      <PageHeader title="AI vision inspection" sub="Inspection captures with their findings, the image library they come from, and the live image models: run them on any capture, a curated photo or your own upload."
+        actions={<Source kind="sample" text="Sample images · AI boxes pre-drawn" />}>
+        <div className="mt-3">
+          <Tabs value={view} onChange={setView} items={[
+            { id: "cases", label: `Captures · ${cases.length}` },
+            { id: "library", label: `Image library · ${images.length}` },
+          ]} />
+        </div>
+      </PageHeader>
+      {view === "cases" && cur && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_minmax(320px,0.9fr)]">
           <Card className="flex max-h-[860px] flex-col">
             <div className="mb-3 flex flex-wrap gap-1.5">
@@ -95,7 +144,7 @@ export default function Vision() {
               {list.map((c) => {
                 const i = cases.indexOf(c), o = outcome(c);
                 return (
-                  <button key={c.id} onClick={() => { setSel(i); setMode("ai"); show(null); }}
+                  <button key={c.id} onClick={() => { setSel(i); setMode("ai"); show(null); router.replace(`/vision?case=${c.id}`, { scroll: false }); }}
                     className={`flex items-center gap-3 rounded-xl border p-2 text-left ${i === sel ? "border-cyan bg-ink-750" : "border-transparent bg-ink-850"}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={c.original_url} alt="" className="h-16 w-12 shrink-0 rounded-lg object-cover" />
@@ -161,9 +210,10 @@ export default function Vision() {
                 </div>
                 <Source kind="sample" />
               </div>
-              {cur.source_image && (
-                <button className="mt-2 text-left text-[12.5px] text-cyan hover:underline" onClick={() => setZoom(lib.data?.images.find((e: any) => e.id === cur.source_image.library_id) || cur.source_image)}>
-                  Full-resolution source · image {cur.source_image.library_id} ({cur.source_image.width}×{cur.source_image.height}) →
+              {cur.source_image && images.length > 0 && (
+                <button className="mt-2 text-left text-[12.5px] text-cyan hover:underline"
+                  onClick={() => setViewer({ items: images, index: Math.max(0, images.findIndex((e) => e.id === cur.source_image.library_id)) })}>
+                  View the full inspection image · image {cur.source_image.library_id} ({cur.source_image.width}×{cur.source_image.height}) →
                 </button>
               )}
               <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: outcome(cur).c + "77", background: outcome(cur).c + "12" }}>
@@ -237,49 +287,32 @@ export default function Vision() {
           </div>
         </div>
       )}
-      {lib.data?.images?.length > 0 && (
-        <Card className="mt-4" title={`Image library · ${lib.data.images.length} source images`}
-          right={<><Tabs size="sm" value={libKind} onChange={setLibKind} items={[{ id: "all", label: "All" }, ...lib.data.kinds.map((k: string) => ({ id: k, label: KIND[k] || k }))]} /><Source kind="sample" /></>}>
-          <p className="mb-3 text-[12.5px] text-fg-3">Every image from the demo image set, de-duplicated, with where it came from and where the app uses it (captures, fleet vehicle histories). Mapping file: data/curated/images/vehiclesense_demo/manifest.json.</p>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-            {lib.data.images.filter((e: any) => libKind === "all" || e.kind === libKind).map((e: any) => (
-              <button key={e.id} onClick={() => setZoom(e)} className="flex flex-col overflow-hidden rounded-xl border border-ink-600 bg-ink-850 text-left hover:border-cyan" aria-label={`Library image ${e.id}`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={e.web_url} alt={e.title} loading="lazy" className="aspect-[4/3] w-full object-cover" />
-                <span className="flex flex-col gap-1 p-2.5">
-                  <span className="text-[12.5px] font-semibold leading-snug">{e.id} · {e.title}</span>
-                  <span className="flex flex-wrap gap-1">
-                    {e.app_capture && <span className="chip border-ink-500 text-[11px] text-fg-2">App case #{e.app_capture.capture_id}</span>}
-                    {e.used_by_vehicles.map((v: string) => <span key={v} className="chip border-ink-500 text-[11px] text-cyan">{v}</span>)}
-                  </span>
-                </span>
-              </button>
-            ))}
+      {view === "library" && (
+        <section aria-label="Image library">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <Tabs size="sm" value={libKind} onChange={setLibKind} items={LIB_KINDS.map((k) => ({ ...k, label: `${k.label} · ${images.filter((e) => k.id === "all" || e.kind === k.id).length}` }))} />
+            <label className="flex items-center gap-2 text-[12.5px] text-fg-3">Vehicle
+              <select aria-label="Vehicle" className="input py-1.5" value={libPlate} onChange={(e) => setLibPlate(e.target.value)}>
+                <option value="">All vehicles</option>
+                {plates.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+            <span className="text-[12.5px] text-fg-3">{shown.length} image{shown.length === 1 ? "" : "s"} · click one to open it with its findings</span>
           </div>
-        </Card>
+          {shown.length ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {shown.map((e, k) => <ImageCard key={e.id} e={e} onOpen={() => setViewer({ items: shown, index: k })} />)}
+            </div>
+          ) : <p className="text-[13px] text-fg-3">{lib.data ? "No images match these filters." : "Loading the image library…"}</p>}
+          <p className="mt-4 text-[12px] text-fg-4">{IMAGE_KIND.comparison}s, close-ups and month-by-month progressions from the demo image set, de-duplicated and mapped to the app captures and fleet vehicles (data/curated/images/vehiclesense_demo/manifest.json).</p>
+        </section>
       )}
-      <Modal open={!!zoom} onClose={() => setZoom(null)} title={zoom ? `Image ${zoom.library_id || zoom.id} · ${zoom.title}` : ""}>
-        {zoom && (
-          <div className="flex flex-col gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={zoom.full_url} alt={zoom.title} className="max-h-[62vh] w-full rounded-lg object-contain" />
-            <div className="grid grid-cols-1 gap-x-6 gap-y-1 text-[12.5px] md:grid-cols-2">
-              <div><span className="text-fg-3">Original file(s): </span>{(zoom.source_files || []).join(" · ")}</div>
-              <div><span className="text-fg-3">Size: </span>{zoom.width}×{zoom.height}{zoom.kind ? ` · ${KIND[zoom.kind] || zoom.kind}` : ""}</div>
-              {zoom.app_capture && <div><span className="text-fg-3">App capture: </span>#{zoom.app_capture.capture_id} ({zoom.app_capture.original}, {zoom.app_capture.ai})</div>}
-              {zoom.used_by_vehicles?.length > 0 && <div><span className="text-fg-3">Fleet vehicles: </span>{zoom.used_by_vehicles.join(", ")}</div>}
-              {zoom.findings?.length > 0 && <div className="md:col-span-2"><span className="text-fg-3">Findings: </span>{zoom.findings.map((f: any) => `${f.name} (${f.location})`).join("; ")}</div>}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <a className="btn btn-sm" href={zoom.full_url} target="_blank" rel="noreferrer">Open full resolution</a>
-              {zoom.app_capture && cases.some((c) => c.id === zoom.app_capture.capture_id) && (
-                <button className="btn btn-sm btn-primary" onClick={() => { setFilt("all"); setSel(cases.findIndex((c) => c.id === zoom.app_capture.capture_id)); setMode("ai"); setLive(null); setZoom(null); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Open this case in the viewer</button>
-              )}
-              {zoom.used_by_vehicles?.map((v: string) => <a key={v} className="btn btn-sm" href={`/fleet/vehicle/${encodeURIComponent(v)}`}>{v} history →</a>)}
-            </div>
-          </div>
-        )}
-      </Modal>
+      <ImageViewer items={viewer?.items || []} index={viewer ? viewer.index : null} onIndex={(index) => setViewer((v) => (v ? { ...v, index } : v))}
+        onClose={() => setViewer(null)} onOpenCase={openCase} />
     </Shell>
   );
+}
+
+export default function Page() {
+  return <Suspense><Vision /></Suspense>;
 }

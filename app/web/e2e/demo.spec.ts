@@ -160,20 +160,40 @@ test.describe("AI vision", () => {
 
   test("image library maps every source image to its case and fleet vehicles", async ({ page }) => {
     await page.goto("/vision");
-    await expect(page.getByText("Image library · 26 source images")).toBeVisible();
-    await page.getByRole("tab", { name: "Month-by-month progression" }).click();
+    await page.getByRole("tab", { name: /Image library · 26/ }).click();
+    await expect(page).toHaveURL(/view=library/);
+    await page.getByRole("tab", { name: /Progressions · 3/ }).click();
     await page.getByRole("button", { name: "Library image i7" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("1/i7.png")).toBeVisible();
-    await expect(dialog.getByRole("link", { name: "VJM 3287 history →" })).toBeVisible();
+    await expect(dialog.getByRole("link", { name: /VJM 3287 history/ })).toBeVisible();
     await dialog.getByRole("button", { name: "Close" }).click();
-    // a capture opens its full-resolution source, and the library can jump back to a case
-    await page.getByRole("tab", { name: "All" }).first().click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    // an image opens its case in the captures view
+    await page.getByRole("tab", { name: /^All/ }).click();
     await page.getByRole("button", { name: "Library image 17" }).click();
     await expect(page.getByRole("dialog").getByText("VehicleSense_Full_Demo/assets/split_screen_ai_vehicle_inspection.png")).toBeVisible();
-    await page.getByRole("button", { name: "Open this case in the viewer" }).click();
+    await page.getByRole("button", { name: "Open the case in AI vision" }).click();
     await expect(page.getByRole("heading", { name: "Lane 3 · Case 2" })).toBeVisible();
     await expect(page.getByText("Right rear bumper (corner)")).toBeVisible();
+    await expect(page).toHaveURL(/case=23/);
+  });
+
+  test("a vehicle's inspection images open in the viewer, with findings and keyboard navigation", async ({ page }) => {
+    await page.goto("/fleet/vehicle/VKR%203128");
+    await expect(page.getByRole("heading", { name: /Inspection images/ })).toBeVisible();
+    await page.getByRole("button", { name: "Library image 07" }).click();
+    const dialog = page.getByRole("dialog", { name: /Image 07/ });
+    await expect(dialog.getByText("Findings (3)")).toBeVisible();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("dialog", { name: /Image i1/ }).getByText("1. Disc scoring", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    // the fleet table's evidence thumbnails open the same viewer
+    await page.goto("/fleet");
+    await page.getByRole("button", { name: "With photos" }).click();
+    await page.getByRole("button", { name: "Open image 07 of VKR 3128" }).click();
+    await expect(page.getByRole("dialog", { name: /Image 07/ })).toBeVisible();
   });
 });
 

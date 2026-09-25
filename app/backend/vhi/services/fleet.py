@@ -18,6 +18,7 @@ from ..fleet_metrics import METRICS, SYSTEMS
 from ..ml.degradation import Point, analyse
 from ..tables import Booking, Fleet, FleetReading, PatternReport, Vehicle
 from . import booking as booking_svc
+from . import library
 
 _cache: dict[str, dict] = {}
 _lock = threading.Lock()
@@ -118,7 +119,8 @@ def _vehicle_row(v: Vehicle, a: dict, fleet_names: dict, booked: dict) -> dict:
                             "weeks_label": fc.get("weeks_label"), "weeks": fc.get("weeks_to_limit"), "date": fc.get("date"),
                             "value": p["points"][-1]["value"], "unit": p["unit"], "limit": p["limit"],
                             "spark": [pt["value"] for pt in p["points"]], "anomalies": len([x for x in p["anomalies"] if x["kind"] != "repair"])},
-            "last_check": lane_dates[-1] if lane_dates else None, "booked": booked.get(v.plate)}
+            "last_check": lane_dates[-1] if lane_dates else None, "booked": booked.get(v.plate),
+            "images": [library.summary(e) for e in library.for_vehicle(v.plate)]}
 
 
 def overview(fleet_id: str | None = None, vtype: str | None = None, branch_id: str | None = None, months: int = 12) -> dict:
@@ -281,7 +283,7 @@ def vehicle_detail(plate: str) -> dict:
                     "branch_id": f.branch_id if f else None, "mvl_expiry": v.mvl_expiry},
         "health": a["health"], "subsystems": a["subsystems"], "primary": p,
         "metrics": sorted(a["metrics"].values(), key=lambda m: (-m["attention"], -m["risk_i"])),
-        "checks": checks[:6], "photos": photos, "inspections": hist.to_dict("records"),
+        "checks": checks[:6], "photos": photos, "inspections": hist.to_dict("records"), "images": library.for_vehicle(v.plate),
         "report": {"text": report_text(v, a), "recipients": recipients(v, a, sent), "rule": REPORT_RULE,
                    "sent_at": sent.created_at.isoformat() if sent else None},
     }

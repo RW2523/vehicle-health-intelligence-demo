@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from ..ml import ocr
 from ..ml.vision import annotate
 from ..runtime import rt
+from ..services.library import library
 
 router = APIRouter(prefix="/api/vision", tags=["vision"])
 TASKS = ("tyre", "damage", "corrosion", "plate")
@@ -30,22 +31,6 @@ EXPLAIN_PLATE = ("This photo shows a vehicle number plate. Reply with the regist
 @lru_cache(maxsize=1)
 def captures() -> dict:
     return json.loads((rt().settings.assets_dir / "captures" / "captures.json").read_text())
-
-
-LIBRARY = "images/vehiclesense_demo/manifest.json"
-
-
-@lru_cache(maxsize=1)
-def library() -> dict:
-    """The demo image library (data/curated/images/vehiclesense_demo): every source image with its mapping."""
-    p = rt().settings.data_dir / LIBRARY
-    if not p.exists():
-        return {"images": [], "counts": {}, "unmapped": []}
-    m = json.loads(p.read_text())
-    for e in m["images"]:
-        e["full_url"], e["web_url"] = f"/media/data/{e['full']}", f"/media/data/{e['web']}"
-        e["crop_urls"] = [f"/media/assets/{c}" for c in e["crops"]]
-    return m
 
 
 @router.get("/captures")

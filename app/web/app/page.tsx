@@ -2,11 +2,65 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { GuideCard } from "@/components/Guide";
+import { ImageViewer, LibImage } from "@/components/ImageViewer";
 import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
-import { Card, PageHeader, Pill, Source } from "@/components/ui";
+import { Card, Pill, Source } from "@/components/ui";
 import { api } from "@/lib/api";
 import { fmtN, llmLabel } from "@/lib/format";
+import { useFetch } from "@/lib/live";
+
+const HERO_IMAGES = ["16", "i1", "i8"];
+
+/** What the demo is, in one screen: the pitch, live numbers, and real inspection images to open. */
+function Hero({ status }: { status: any }) {
+  const lib = useFetch<any>("/api/vision/library");
+  const [viewer, setViewer] = useState<number | null>(null);
+  const all: LibImage[] = lib.data?.images || [];
+  const pics = HERO_IMAGES.map((id) => all.find((e) => e.id === id)).filter(Boolean) as LibImage[];
+  const live = (status?.models || []).filter((m: any) => m.runs_as === "live_model").length;
+  const llm = llmLabel(status?.llm?.backend);
+  const stats = [
+    { v: live || "–", l: "live AI models" },
+    { v: 6, l: "scripted sessions" },
+    { v: all.length || "–", l: "inspection images" },
+    { v: llm ? (llm.split(" · ")[1] || llm).replace(/^(.*?-\d+B).*$/, "$1") : "Template", l: llm ? `LLM on ${llm.split(" · ")[0]}` : "assistant engine" },
+  ];
+  return (
+    <section className="card mb-5 grid grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <div className="flex flex-col justify-center gap-3 p-6">
+        <span className="label text-cyan">VehicleSense AI · vehicle health intelligence</span>
+        <h1 className="font-display text-[30px] font-semibold leading-tight">Demo control</h1>
+        <p className="max-w-[620px] text-[14.5px] leading-relaxed text-fg-2">
+          AI-assisted vehicle inspection, end to end: lane sensors and cameras stream into live models, an examiner decides every
+          alert, and owners, fleets, HQ and the regulator see the result. Start with the guided demo below.
+        </p>
+        <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {stats.map((x) => (
+            <div key={x.l} className="rounded-xl border border-ink-600 bg-ink-850 px-3 py-2">
+              <div className="truncate font-display text-[20px] font-semibold" title={String(x.v)}>{x.v}</div>
+              <div className="text-[11.5px] text-fg-3">{x.l}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 pt-1"><Source kind="simulated" text="Sensor streams: simulated" /><Source kind="live_model" /><Source kind="real" /></div>
+      </div>
+      <div className="grid min-h-[260px] grid-cols-2 grid-rows-2 gap-1.5 bg-ink-950 p-1.5">
+        {pics.map((e, k) => (
+          <button key={e.id} onClick={() => setViewer(k)} aria-label={`Open inspection image ${e.id}`}
+            className={`group relative overflow-hidden rounded-lg ${k === 0 ? "row-span-2" : ""}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={e.web_url} alt={e.title} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+              style={{ objectPosition: e.kind === "progression" ? "center" : "78% center" }} />
+            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-950/90 to-transparent px-3 pb-2 pt-6 text-left text-[12px] font-semibold text-fg">{e.title.split(" · ").slice(1).join(" · ") || e.title}</span>
+          </button>
+        ))}
+        {!pics.length && <div className="col-span-2 row-span-2 flex items-center justify-center text-[13px] text-fg-4">Loading images…</div>}
+      </div>
+      <ImageViewer items={pics} index={viewer} onIndex={setViewer} onClose={() => setViewer(null)} />
+    </section>
+  );
+}
 
 const LINKS: Record<string, { href: string; label: string }[]> = {
   S1: [{ href: "/lane?lane=BR00-L3", label: "Lane console" }, { href: "/examiner?session=S1", label: "Examiner" }],
@@ -34,9 +88,12 @@ export default function DemoControl() {
 
   return (
     <Shell>
-      <PageHeader title="Demo control" sub="Six scripted sessions. Lane sessions replay real-time sensor streams; every result downstream is computed live."
-        actions={<><Source kind="simulated" text="Sensor streams: simulated" /><Source kind="live_model" /><Source kind="real" /></>} />
+      <Hero status={status} />
       <GuideCard s1Player={sessions.find((s) => s.session_id === "S1")?.player} />
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-[18px] font-semibold">Sessions</h2>
+        <p className="text-[13px] text-fg-3">Lane sessions replay real-time sensor streams; every result downstream is computed live.</p>
+      </div>
       <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_400px]">
         <div id="sessions" className="grid scroll-mt-20 grid-cols-1 gap-4 lg:grid-cols-2">
           {sessions.map((s) => (

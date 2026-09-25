@@ -146,3 +146,12 @@ def test_image_library_mapping(client):
         for url in (e["full_url"], e["web_url"], *e["crop_urls"]):
             assert client.get(url).status_code == 200, url
     assert len(client.get("/api/vision/library", params={"kind": "closeup"}).json()["images"]) == 6
+
+
+def test_fleet_vehicles_carry_their_inspection_images(client):
+    d = client.get("/api/fleet/vehicles/VKR 3128").json()
+    assert [e["id"] for e in d["images"]] == ["07", "i1"]  # the inspection comparison first, then the brake close-up
+    assert d["images"][1]["findings"][0]["name"] == "Disc scoring" and client.get(d["images"][0]["web_url"]).status_code == 200
+    rows = {r["plate"]: r for r in client.get("/api/fleet/overview").json()["attention"]}
+    assert [i["id"] for i in rows["VKR 3128"]["images"]] == ["07", "i1"] and rows["VKR 3128"]["images"][0]["findings"] == 3
+    assert client.get("/api/fleet/vehicles/DMO 1954").json()["images"] == []
