@@ -45,7 +45,8 @@ def analyse_vehicle(v: Vehicle) -> dict:
                        "order by metric, date"), engine(), params={"v": v.vehicle_id})
     metrics = {}
     for m, g in rows.groupby("metric"):
-        pts = [Point(i, r.date, float(r.value), r.note or "", r.photo, r.source) for i, r in enumerate(g.itertuples())]
+        pts = [Point(i, r.date, float(r.value), r.note if isinstance(r.note, str) else "",
+                     r.photo if isinstance(r.photo, str) else None, r.source) for i, r in enumerate(g.itertuples())]
         metrics[m] = analyse(pts, METRICS[m], v.km_per_month, today())
     sys_scores = {}
     for sname in SYSTEMS:

@@ -204,7 +204,7 @@ def self_check(plate: str, attempt: dict, models) -> dict:
         r = models.vision.classify("tyre", p)
         ok = not (r.get("available") and r["class"] == "defective" and r["p"] >= 0.6)
         items.append({"item": f"Tyre {i + 1}", "value": r.get("label"), "p": r.get("p"), "ok": ok, "image": f"/media/data/{ref}",
-                      "source": "live model (YOLO11n-cls)", "advice": None if ok else "This tyre looks damaged or worn. Have it checked."})
+                      "source": f"live model ({r.get('arch', 'YOLO11')})", "advice": None if ok else "This tyre looks damaged or worn. Have it checked."})
     if attempt.get("engine_audio"):
         r = models.acoustic.classify(s.data_dir / attempt["engine_audio"])
         ok = r["top"]["class"] in ("normal_engine", "lane_background") or r["top"]["p"] < 0.4

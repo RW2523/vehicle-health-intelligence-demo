@@ -1,4 +1,5 @@
-"""AI vision: the 22 sample captures (pre-annotated) and live model runs on any image, including uploads."""
+"""AI vision: the 22 sample captures (pre-annotated) and live model runs on any image, including uploads, plus an
+optional plain-words description of the same image from a vision-language model on the GPU."""
 from __future__ import annotations
 
 import asyncio
@@ -16,6 +17,13 @@ from ..runtime import rt
 
 router = APIRouter(prefix="/api/vision", tags=["vision"])
 TASKS = ("tyre", "damage", "corrosion", "plate")
+SUBJECT = {"tyre": "a vehicle tyre", "damage": "a vehicle's body panels", "corrosion": "a metal surface on or under a vehicle",
+           "plate": "a vehicle number plate"}
+EXPLAIN = ("You are a vehicle inspection examiner in Malaysia. This photo shows {subject}. In two or three short sentences, "
+           "describe what you can see - damage, wear, cracks, dents, rust, or nothing wrong - and whether it looks "
+           "roadworthy. If the photo is unclear, say so. Plain words, no lists.")
+EXPLAIN_PLATE = ("This photo shows a vehicle number plate. Reply with the registration number exactly as written, then one "
+                 "short sentence on how clearly it can be read. If you cannot read it, say so.")
 
 
 @lru_cache(maxsize=1)
@@ -35,6 +43,27 @@ class AnalyseReq(BaseModel):
     task: str
     capture_id: int | None = None
     data_path: str | None = None  # a file under data/curated (e.g. images/tyre/defective/...)
+    upload_id: str | None = None  # a photo sent to /upload earlier
+
+
+def _image_path(req: AnalyseReq) -> Path:
+    s = rt().settings
+    if req.capture_id is not None:
+        case = next((c for c in captures()["cases"] if c["id"] == req.capture_id), None)
+        if case is None:
+            raise HTTPException(404, "capture not found")
+        return s.assets_dir / "captures" / case["original"]
+    if req.data_path:
+        path = (s.data_dir / req.data_path).resolve()
+        if not path.is_relative_to(s.data_dir.resolve()) or not path.exists():
+            raise HTTPException(400, "path must be an existing file under data/curated")
+        return path
+    if req.upload_id:
+        path = s.evidence_dir / "uploads" / req.upload_id
+        if Path(req.upload_id).name != req.upload_id or not path.exists():
+            raise HTTPException(404, "upload not found")
+        return path
+    raise HTTPException(400, "give capture_id, data_path or upload_id")
 
 
 def _run(task: str, path: Path) -> dict:
@@ -51,26 +80,30 @@ def _run(task: str, path: Path) -> dict:
         r = m.vision.classify(task, path)
         annotate(path, out, [], f"{r.get('label', 'unavailable')} ({r.get('p', 0):.0%})")
     return {"task": task, "result": r, "annotated_url": f"/media/evidence/vision/{out.name}",
-            "runs_as": "live logic" if task == "corrosion" else "live model"}
+            "runs_as": "live logic" if task == "corrosion" else "live model", "vlm": rt().vlm.status()}
 
 
 @router.post("/analyse")
 async def analyse(req: AnalyseReq):
     if req.task not in TASKS:
         raise HTTPException(400, f"task must be one of {TASKS}")
-    s = rt().settings
-    if req.capture_id is not None:
-        case = next((c for c in captures()["cases"] if c["id"] == req.capture_id), None)
-        if case is None:
-            raise HTTPException(404, "capture not found")
-        path = s.assets_dir / "captures" / case["original"]
-    elif req.data_path:
-        path = (s.data_dir / req.data_path).resolve()
-        if not str(path).startswith(str(s.data_dir.resolve())) or not path.exists():
-            raise HTTPException(400, "path must be an existing file under data/curated")
-    else:
-        raise HTTPException(400, "give capture_id or data_path")
-    return await asyncio.to_thread(_run, req.task, path)
+    return await asyncio.to_thread(_run, req.task, _image_path(req))
+
+
+@router.post("/explain")
+async def explain(req: AnalyseReq):
+    """Second opinion in plain words from the vision-language model (GPU), for the same image and task."""
+    if req.task not in TASKS:
+        raise HTTPException(400, f"task must be one of {TASKS}")
+    path = _image_path(req)
+    vlm = rt().vlm
+    if not vlm.available():
+        raise HTTPException(503, "No vision-language model is reachable (set VHI_VLM_URL and VHI_VLM_MODEL)")
+    prompt = EXPLAIN_PLATE if req.task == "plate" else EXPLAIN.format(subject=SUBJECT[req.task])
+    text = await asyncio.to_thread(vlm.describe, path, prompt)
+    if not text:
+        raise HTTPException(502, "The vision-language model did not answer - try again")
+    return {"task": req.task, "text": text, "model": vlm.status()["backend"], "runs_as": "live model"}
 
 
 @router.post("/upload")
@@ -84,7 +117,7 @@ async def upload(task: str, file: UploadFile = File(...)):
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(data)
     try:
-        return await asyncio.to_thread(_run, task, dst)
+        return {**await asyncio.to_thread(_run, task, dst), "upload_id": dst.name}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(400, f"could not analyse the image: {e}") from e
 

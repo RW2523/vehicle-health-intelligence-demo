@@ -105,9 +105,16 @@ def test_vision(client):
     tyre = next(c for c in caps if "tyres" in c["cats"])
     r = client.post("/api/vision/analyse", json={"task": "tyre", "capture_id": tyre["id"]}).json()
     assert r["result"]["available"] and r["annotated_url"].startswith("/media/evidence/")
+    assert r["result"]["arch"].startswith("YOLO11") and r["vlm"]["reachable"] is False
     s = client.get("/api/vision/samples").json()
     pl = client.post("/api/vision/analyse", json={"task": "plate", "data_path": s["plate"][2]}).json()
     assert pl["result"]["plate"] == "QTD 6957"
     img = client.get(caps[0]["original_url"])
     up = client.post("/api/vision/upload", params={"task": "damage"}, files={"file": ("x.jpg", img.content, "image/jpeg")})
     assert up.status_code == 200 and up.json()["result"]["class"] in ("normal", "breakage", "crushed")
+    again = client.post("/api/vision/analyse", json={"task": "tyre", "upload_id": up.json()["upload_id"]})
+    assert again.status_code == 200 and again.json()["result"]["class"] in ("good", "defective")
+    assert client.post("/api/vision/analyse", json={"task": "tyre", "upload_id": "../vhi.db"}).status_code == 404
+    # no vision-language model configured in the tests: the page does not offer it and the API says why
+    ex = client.post("/api/vision/explain", json={"task": "damage", "capture_id": caps[0]["id"]})
+    assert ex.status_code == 503 and "VHI_VLM_URL" in ex.json()["detail"]

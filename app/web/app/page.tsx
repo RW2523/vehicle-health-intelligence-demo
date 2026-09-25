@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { Card, Pill, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { STEP_LABEL, fmtN } from "@/lib/format";
+import { STEP_LABEL, fmtN, llmLabel } from "@/lib/format";
 import { useLive } from "@/lib/live";
 
 const LINKS: Record<string, { href: string; label: string }[]> = {
@@ -165,7 +165,8 @@ export default function DemoControl() {
                   ["Database", status.database], ["Message bus", status.bus.kind], ["Bus messages", fmtN(status.bus.published)],
                   ["WebSocket clients", status.websocket.clients], ["Model calls", fmtN(status.processor.model_calls)],
                   ["Readings stored", fmtN(status.counts.readings)], ["Evidence entries", fmtN(status.counts.evidence_entries)],
-                  ["Assistant / reports", status.llm.backend],
+                  ["Assistant / reports", llmLabel(status.llm.backend) || "Template engine"],
+                  ["Photo explanations", llmLabel(status.vlm?.backend) || "Off"],
                 ].map(([k, v]) => (
                   <div key={k as string} className="rounded-lg border border-ink-600 bg-ink-850 px-3 py-2">
                     <div className="text-[11px] text-fg-3">{k}</div>

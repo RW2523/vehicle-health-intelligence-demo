@@ -20,6 +20,22 @@ open http://localhost:3000
 
 It runs out of the box with SQLite, an in-process message bus and the built-in template engine for the assistant. The trained model files are committed in `app/backend/models/`.
 
+## On the DGX Spark, always on (no Docker, GPU models)
+
+```bash
+make setup      # once
+make spark      # = scripts/spark.sh install: systemd user services for the API (:8120, localhost) and web (:3120)
+make spark-status
+```
+
+Open `http://<spark-host>:3120` (LAN or Tailscale address). The services start at boot (with `loginctl enable-linger`) and restart on failure; `scripts/spark.sh restart | logs | uninstall` manage them. Settings live in `~/.config/vehiclesense/env`. The first install writes it with the GPU model servers on the Spark:
+
+- **Assistant and report summaries:** `nvidia/Qwen3-30B-A3B-FP4` (NVFP4 mixture-of-experts) on TensorRT-LLM (`trtllm-serve`, port 8355), about 1-2 s per answer in BM, English or Chinese. Any OpenAI-compatible server works (vLLM, NIM): set `VHI_LLM_URL` and `VHI_LLM_MODEL`.
+- **Photo explanations:** a vision-language model (`Qwen2.5-VL-7B-Instruct` on vLLM) gives a plain-words second opinion next to the image classifiers on the AI vision page. Set `VHI_VLM_URL` and `VHI_VLM_MODEL`, or leave them empty to switch it off.
+- **Report QR codes:** `VHI_PUBLIC_BASE_URL` is set to the Spark's Tailscale address, so a phone on the tailnet can scan them.
+
+If a model server is down, the assistant and reports fall back to the template engine and the photo explanation is not offered. The UI labels which one answered.
+
 ## On the DGX Spark (Docker)
 
 ```bash
@@ -27,7 +43,7 @@ make up         # docker compose: TimescaleDB + Mosquitto (MQTT) + API + web
 make up-llm     # the same, plus Ollama on the GPU and a pull of qwen3:32b for the assistant and report summaries
 ```
 
-Open `http://<spark-host>:3000`. The browser also opens the live WebSocket on port **8000**, so keep that port reachable.
+Open `http://<spark-host>:3000`. The web server also proxies the live WebSocket (`/ws`) to the API, so only port 3000 needs to be reachable.
 
 - **Multi-arch images.** Everything builds natively for `linux/arm64`, the Grace CPU in the DGX Spark:
   - `python:3.11-slim`
@@ -41,14 +57,18 @@ Open `http://<spark-host>:3000`. The browser also opens the live WebSocket on po
 - **Using a different Ollama.** Set `VHI_OLLAMA_URL` (for example `http://host.docker.internal:11434`) and `VHI_OLLAMA_MODEL` in a `.env` file next to `docker-compose.yml`.
 - **Report QR codes.** The QR codes on reports point to `VHI_PUBLIC_BASE_URL`. Set it to `http://<spark-host>:3000` so a phone can scan them.
 - **Lane sensors.** Real or simulated lane sensors can publish JSON to the broker on port 1883, on topics `lane/<lane_id>/<sensor>`. The player uses the same topics.
-- **Retraining the vision models on the GPU:**
+- **Retraining the vision models on the GPU.** Use a separate environment with the CUDA build of PyTorch (arm64, CUDA 13 on the GB10):
 
   ```bash
-  .venv/bin/pip install ultralytics onnx onnxslim
-  make train-vision DEVICE=0
+  uv venv --python python3.12 .venv-train      # or: python3 -m venv .venv-train
+  uv pip install --python .venv-train/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu130
+  uv pip install --python .venv-train/bin/python ultralytics onnx onnxslim onnxruntime pydantic-settings pandas
+  # the committed models (a minute or two each on the GB10):
+  make train-vision DEVICE=0 TASKS=tyre EPOCHS=50 IMGSZ=224 WEIGHTS=yolo11m-cls.pt BATCH=64 WORKERS=6
+  make train-vision DEVICE=0 TASKS=damage EPOCHS=60 IMGSZ=320 WEIGHTS=yolo11s-cls.pt BATCH=64 WORKERS=6
   ```
 
-  This defaults to 30 epochs at 224 px. It writes `app/backend/models/vision/*.onnx`.
+  This writes `app/backend/models/vision/*.onnx` and `vision_metrics.json`. At runtime the classifiers run on onnxruntime (15-25 ms per image on the Grace CPU), so the API does not need PyTorch.
 
 ## The demo: six sessions
 
@@ -97,8 +117,10 @@ simulated lane streams (data/curated/sessions/S1–S3)          Next.js web apps
 
 | Model | What it does | Result |
 |---|---|---|
-| Tyre classifier | YOLO11n-cls fine-tuned on curated tyre images, run with ONNX Runtime | 93.9% validation accuracy |
-| Body-damage classifier | YOLO11n-cls, 3 classes (normal / breakage / crushed) | 75.4% validation accuracy |
+| Tyre classifier | YOLO11m-cls fine-tuned on the curated tyre images on the DGX Spark GPU (224 px), run with ONNX Runtime | 97.8% validation accuracy (YOLO11n on CPU: 93.9%) |
+| Body-damage classifier | YOLO11s-cls fine-tuned on the GPU at 320 px, 3 classes (normal / breakage / crushed) | 83.8% validation accuracy (YOLO11n on CPU: 75.4%) |
+| Assistant and report summaries | Qwen3-30B-A3B NVFP4 on TensorRT-LLM (GPU), grounded on the retrieved knowledge base; or Ollama; or the template engine | — |
+| Photo explanations | Qwen2.5-VL-7B-Instruct on vLLM (GPU): a plain-words second opinion on the same image | — |
 | Corrosion | HSV rust segmentation, calibrated on rust vs clean photos | 89% balanced accuracy |
 | Plate / chassis OCR | RapidOCR (PaddleOCR via ONNX) with Malaysian plate grammar | — |
 | E-nose | XGBoost on the UCI gas-sensor array, plus a Bayesian context prior | 99.4% random split; 72.3% on later batches (sensor drift) |
@@ -119,18 +141,20 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 |---|---|---|
 | `VHI_DATABASE_URL` | SQLite in `app/backend/var/` | e.g. `postgresql+psycopg://vhi:vhi@db:5432/vhi`; uses TimescaleDB when the extension exists |
 | `VHI_MQTT_URL` | in-process bus | e.g. `mqtt://mqtt:1883` |
+| `VHI_LLM_URL` / `VHI_LLM_MODEL` | none | OpenAI-compatible LLM server on the GPU (TensorRT-LLM, vLLM, NIM), e.g. `http://127.0.0.1:8355/v1` / `nvidia/Qwen3-30B-A3B-FP4`; takes precedence over Ollama |
 | `VHI_OLLAMA_URL` / `VHI_OLLAMA_MODEL` | none / `qwen3:32b` | local LLM for the assistant and report summaries; falls back to the template engine (labelled in the UI) |
+| `VHI_VLM_URL` / `VHI_VLM_MODEL` | none | optional vision-language model (OpenAI-compatible) for photo explanations on the AI vision page |
 | `VHI_PUBLIC_BASE_URL` | `http://localhost:3000` | base URL encoded in report QR codes |
 | `VHI_DATA_DIR`, `VHI_VAR_DIR` | repo `data/curated`, `app/backend/var` | data and runtime-state locations |
 | `VHI_API_INTERNAL` | `http://127.0.0.1:8000` | where the web server forwards `/api` (fixed at `next build` time) |
-| `NEXT_PUBLIC_WS_URL` | `ws://<page host>:8000/ws` | override the WebSocket address, e.g. behind a reverse proxy |
+| `NEXT_PUBLIC_WS_URL` | `ws://<page host>/ws` (proxied to the API by the web server) | override the WebSocket address |
 
 ## Tests
 
 ```bash
-make test                                                          # 27 backend tests (SQLite)
+make test                                                          # 31 backend tests (SQLite)
 VHI_DATABASE_URL=postgresql+psycopg://... make test                # the same suite on PostgreSQL (add VHI_MQTT_URL=... for MQTT)
-make e2e                                                           # 12 Playwright end-to-end tests (needs `make start`;
+make e2e                                                           # 14 Playwright end-to-end tests (needs `make start`;
                                                                    # first time: cd app/web && npx playwright install chromium)
 ```
 
@@ -140,12 +164,12 @@ The end-to-end tests drive the real UI through all six sessions:
 - **S4:** HQ tamper test.
 - **S5:** fleet pattern report and booking, FLEET07 risk, the regulator view.
 - **S6:** assistant, self-check and paid booking.
-- The live vision model.
+- The live vision model, the live WebSocket through the web port, and the photo explanation (when a vision-language model is configured).
 
 ## Troubleshooting
 
 - **"The API is not reachable" on Demo control.** Run `make status`, then `make logs`. The first start seeds the database, which takes 1–2 minutes.
-- **Live updates don't arrive.** The browser needs port 8000 for the WebSocket. Behind a proxy, set `NEXT_PUBLIC_WS_URL` and rebuild the web app.
+- **Live updates don't arrive.** The browser opens the WebSocket at `/ws` on the web port, and the web server proxies it to the API. A reverse proxy in front must pass WebSocket upgrades; otherwise set `NEXT_PUBLIC_WS_URL` and rebuild the web app.
 - **Start over with a clean demo.** Run `make reset`. It clears issued reports, bookings, lane sessions, chats and evidence, keeps the seeded world, and restarts. With Docker, run `docker compose exec api python -m vhi.seed --reset-runtime && docker compose restart api`.
 - **Rebuild the whole world.** Run `make seed`, or delete `app/backend/var/vhi.db`. With Docker, use `docker compose down -v`.
 - **Fonts look plain offline.** The UI loads Sora and IBM Plex from Google Fonts and falls back to system fonts without internet.

@@ -627,7 +627,7 @@ class StreamProcessor:
         r = await self._model(c, task, self.rt.models.vision.classify, task, p["path"])
         n = len(c.results.get("images", []))
         out = self._evfile(c, f"{task}_{n}.jpg")
-        banner = f"{r.get('label', 'model unavailable')} ({r.get('p', 0):.0%}) - YOLO11n-cls" if r.get("available") else "model unavailable"
+        banner = f"{r.get('label', 'model unavailable')} ({r.get('p', 0):.0%}) - {r.get('arch')}" if r.get("available") else "model unavailable"
         await asyncio.to_thread(annotate, p["path"], out, [], banner)
         item = {"kind": p["kind"], "camera": p.get("camera"), "source_image": self._media_url(p["path"]),
                 "annotated": self._media_url(str(out)), "model": f"{task} classifier", **r}

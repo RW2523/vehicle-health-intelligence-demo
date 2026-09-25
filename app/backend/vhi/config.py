@@ -28,7 +28,15 @@ class Settings(BaseSettings):
     # Local LLM (Ollama). Empty or unreachable = built-in template engine (labelled as such in the UI).
     ollama_url: str = ""
     ollama_model: str = "qwen3:32b"
+    # Or an OpenAI-compatible server on the GPU - TensorRT-LLM (trtllm-serve), vLLM or NVIDIA NIM - which takes
+    # precedence over Ollama, e.g. http://127.0.0.1:8355/v1 serving nvidia/Qwen3-30B-A3B-FP4 on the DGX Spark.
+    llm_url: str = ""
+    llm_model: str = ""
     llm_timeout_s: float = 60.0
+    # Optional vision-language model on an OpenAI-compatible server (e.g. Qwen2.5-VL-7B on vLLM): plain-words
+    # descriptions of inspection photos on the AI vision page. Empty = not offered.
+    vlm_url: str = ""
+    vlm_model: str = ""
 
     # Session player defaults
     player_speed: float = 1.0

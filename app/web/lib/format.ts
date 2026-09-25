@@ -38,3 +38,14 @@ export const STEP_LABEL: Record<string, string> = {
 export const sevColor = (s: string) => (s === "high" ? "#F87171" : s === "medium" ? "#FBBF24" : "#93C5FD");
 export const riskColor = (r: string) => (r === "High" ? "#EF4444" : r === "Medium" ? "#F59E0B" : "#60A5FA");
 export const scoreColor = (v: number | null | undefined) => (v == null ? "#9AA8BF" : v < 50 ? "#F87171" : v < 70 ? "#FBBF24" : "#34D399");
+
+const LLM_ENGINES: Record<string, string> = { trtllm: "TensorRT-LLM", vllm: "vLLM", ollama: "Ollama", openai: "LLM server" };
+
+/** "trtllm:nvidia/Qwen3-30B-A3B-FP4" -> "TensorRT-LLM · Qwen3-30B-A3B-FP4"; null for the template engine. */
+export const llmLabel = (backend?: string | null) => {
+  if (!backend || backend === "template") return null;
+  const i = backend.indexOf(":");
+  const engine = i < 0 ? backend : backend.slice(0, i);
+  const model = i < 0 ? "" : backend.slice(i + 1).split("/").pop();
+  return [LLM_ENGINES[engine] || engine, model].filter(Boolean).join(" · ");
+};

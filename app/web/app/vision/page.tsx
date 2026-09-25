@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { Card, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
+import { llmLabel } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 const FILTERS = [
@@ -31,13 +32,19 @@ export default function Vision() {
   const [task, setTask] = useState("damage");
   const [live, setLive] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [expl, setExpl] = useState<any>(null);
+  const [explaining, setExplaining] = useState(false);
+  const show = (r: any) => {
+    setLive(r);
+    setExpl(null);
+  };
   const cases: any[] = data?.cases || [];
   const list = useMemo(() => cases.filter((c) => filt === "all" || c.group === filt || c.cats.includes(filt) || (filt === "tyres" && c.cats.includes("lamps"))), [cases, filt]);
   const cur = cases[sel];
   const run = async (body: any) => {
     setBusy(true);
     try {
-      setLive(await api.post("/api/vision/analyse", body));
+      show({ ...(await api.post("/api/vision/analyse", body)), req: body });
     } catch (e: any) {
       toast(e.message);
     } finally {
@@ -48,11 +55,22 @@ export default function Vision() {
     if (!f) return;
     setBusy(true);
     try {
-      setLive(await api.upload(`/api/vision/upload?task=${task}`, f));
+      const r = await api.upload(`/api/vision/upload?task=${task}`, f);
+      show({ ...r, req: { task, upload_id: r.upload_id } });
     } catch (e: any) {
       toast(e.message);
     } finally {
       setBusy(false);
+    }
+  };
+  const explain = async () => {
+    setExplaining(true);
+    try {
+      setExpl(await api.post("/api/vision/explain", live.req));
+    } catch (e: any) {
+      toast(e.message);
+    } finally {
+      setExplaining(false);
     }
   };
   const clip = mode === "ai" ? 100 : mode === "orig" ? 0 : split;
@@ -78,7 +96,7 @@ export default function Vision() {
               {list.map((c) => {
                 const i = cases.indexOf(c), o = outcome(c);
                 return (
-                  <button key={c.id} onClick={() => { setSel(i); setMode("ai"); setLive(null); }}
+                  <button key={c.id} onClick={() => { setSel(i); setMode("ai"); show(null); }}
                     className={`flex items-center gap-3 rounded-xl border p-2 text-left ${i === sel ? "border-cyan bg-ink-750" : "border-transparent bg-ink-850"}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={c.original_url} alt="" className="h-16 w-12 shrink-0 rounded-lg object-cover" />
@@ -187,12 +205,29 @@ export default function Vision() {
                     ) : (
                       <>
                         <div className="font-display text-[18px] font-bold">{live.result.label}</div>
-                        <div className="text-fg-3">{Math.round(live.result.p * 100)}% · YOLO11n-cls · validation accuracy {Math.round((live.result.val_accuracy || 0) * 100)}%</div>
+                        <div className="text-fg-3">{Math.round(live.result.p * 100)}% · {live.result.arch || "YOLO11"} · validation accuracy {Math.round((live.result.val_accuracy || 0) * 100)}%</div>
                         <div className="mt-2 flex flex-wrap gap-1.5">{Object.entries(live.result.probs || {}).map(([k, v]: any) => <Pill key={k} color="#22D3EE">{k} {Math.round(v * 100)}%</Pill>)}</div>
                       </>
                     )}
                   </div>
                 </div>
+                {live.vlm?.reachable && (
+                  <div className="mt-3 border-t border-ink-600 pt-3">
+                    {expl ? (
+                      <>
+                        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                          <span className="label">In plain words</span>
+                          <Source kind="llm" text={`Vision-language model · ${llmLabel(expl.model)}`} />
+                        </div>
+                        <p className="text-[13px] leading-relaxed text-fg-2">{expl.text}</p>
+                      </>
+                    ) : (
+                      <button className="btn btn-sm" disabled={explaining} onClick={explain}>
+                        {explaining ? "Asking the vision-language model…" : "Explain in plain words (vision-language model on the GPU)"}
+                      </button>
+                    )}
+                  </div>
+                )}
               </Card>
             )}
           </div>

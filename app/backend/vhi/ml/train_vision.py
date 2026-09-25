@@ -5,6 +5,7 @@ exported ``.onnx`` files run on onnxruntime (CPU, or CUDA on the DGX Spark).
 
     python -m vhi.ml.train_vision                 # tyre + damage, CPU-friendly settings
     python -m vhi.ml.train_vision --epochs 30 --imgsz 224 --device 0   # on the DGX Spark GPU
+    python -m vhi.ml.train_vision --device 0 --epochs 40 --imgsz 224 --weights yolo11m-cls.pt --batch 64 --workers 8
 
 Outputs (in app/backend/models/vision/): ``tyre_cls.onnx``, ``damage_cls.onnx`` and ``vision_metrics.json``.
 """
@@ -54,6 +55,8 @@ def main() -> None:
     ap.add_argument("--imgsz", type=int, default=160)
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--weights", default="yolo11n-cls.pt")
+    ap.add_argument("--batch", type=int, default=32)
+    ap.add_argument("--workers", type=int, default=2)
     args = ap.parse_args()
 
     from ultralytics import YOLO
@@ -67,8 +70,9 @@ def main() -> None:
     for task in args.tasks.split(","):
         ds = build_split(task, work / "datasets")
         model = YOLO(args.weights)
-        model.train(data=str(ds), epochs=args.epochs, imgsz=args.imgsz, device=args.device, batch=32, workers=2,
-                    project=str(work / "runs"), name=task, exist_ok=True, verbose=False, plots=False, seed=0)
+        model.train(data=str(ds), epochs=args.epochs, imgsz=args.imgsz, device=args.device, batch=args.batch,
+                    workers=args.workers, project=str(work / "runs"), name=task, exist_ok=True, verbose=False, plots=False,
+                    seed=0)
         val = model.val(data=str(ds), imgsz=args.imgsz, device=args.device, split="val", verbose=False, plots=False)
         onnx_path = Path(model.export(format="onnx", imgsz=args.imgsz, simplify=True, dynamic=False))
         dst = out_dir / f"{task}_cls.onnx"

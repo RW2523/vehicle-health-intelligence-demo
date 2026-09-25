@@ -79,12 +79,12 @@ cmd_start() {
   [[ -d "$WEB/node_modules" ]] || (cd "$WEB" && npm ci --no-audit --no-fund)
   say "training any missing models"
   (cd "$BACK" && "$PY" -m vhi.ml.train --missing >/dev/null)
-  # the API address is baked into the web build (rewrites + WebSocket port), so rebuild when it changes
+  # the API address is baked into the web build (rewrites for /api, /media and the /ws WebSocket), so rebuild when it changes
   local stamp="$WEB/.next/vhi-api-port"
   if [[ ! -f "$WEB/.next/BUILD_ID" || "$(cat "$stamp" 2>/dev/null)" != "$API_PORT" \
         || -n "$(find "$WEB/app" "$WEB/components" "$WEB/lib" "$WEB/next.config.mjs" -newer "$WEB/.next/BUILD_ID" -type f 2>/dev/null | head -1)" ]]; then
     say "building the web app"
-    (cd "$WEB" && VHI_API_INTERNAL="http://127.0.0.1:$API_PORT" NEXT_PUBLIC_API_PORT="$API_PORT" npx next build >"$RUN/web-build.log" 2>&1) \
+    (cd "$WEB" && VHI_API_INTERNAL="http://127.0.0.1:$API_PORT" npx next build >"$RUN/web-build.log" 2>&1) \
       || { tail -30 "$RUN/web-build.log"; exit 1; }
     echo "$API_PORT" >"$stamp"
   fi

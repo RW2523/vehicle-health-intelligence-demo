@@ -1,25 +1,27 @@
 {
  "damage": {
-  "top1_val_accuracy": 0.7542,
+  "top1_val_accuracy": 0.8375,
   "classes": [
    "breakage",
    "crushed",
    "normal"
   ],
-  "imgsz": 160,
-  "epochs": 12,
-  "base": "yolo11n-cls.pt",
-  "n_val": 240
+  "imgsz": 320,
+  "epochs": 60,
+  "base": "yolo11s-cls.pt",
+  "n_val": 240,
+  "device": "DGX Spark GPU (GB10)"
  },
  "tyre": {
-  "top1_val_accuracy": 0.9389,
+  "top1_val_accuracy": 0.9778,
   "classes": [
    "defective",
    "good"
   ],
-  "imgsz": 160,
-  "epochs": 12,
-  "base": "yolo11n-cls.pt",
-  "n_val": 180
+  "imgsz": 224,
+  "epochs": 50,
+  "base": "yolo11m-cls.pt",
+  "n_val": 180,
+  "device": "DGX Spark GPU (GB10)"
  }
 }

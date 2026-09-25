@@ -8,6 +8,8 @@ import pytest
 _tmp = tempfile.mkdtemp(prefix="vhi-test-")
 os.environ["VHI_VAR_DIR"] = _tmp
 os.environ.setdefault("VHI_OLLAMA_URL", "")
+os.environ.setdefault("VHI_LLM_URL", "")
+os.environ.setdefault("VHI_VLM_URL", "")
 
 
 @pytest.fixture(scope="session")

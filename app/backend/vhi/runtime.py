@@ -20,6 +20,7 @@ class Runtime:
     processor: Any = None   # vhi.pipeline.processor.StreamProcessor
     models: Any = None      # vhi.ml.registry.ModelRegistry
     llm: Any = None         # vhi.services.llm.LLM
+    vlm: Any = None         # vhi.services.llm.VLM
     stats: dict[str, Any] = field(default_factory=dict)
 
 

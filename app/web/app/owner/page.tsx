@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { Pill, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { dmy, fmtN, scoreColor } from "@/lib/format";
+import { dmy, fmtN, llmLabel, scoreColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 type Tab = "passport" | "book" | "check" | "chat";
@@ -191,7 +191,10 @@ function Chat() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ behavior: "smooth" }), [msgs]);
+  // block body: newer browsers return a Promise from scrollIntoView, which React would call as the effect cleanup
+  useEffect(() => {
+    end.current?.scrollIntoView({ behavior: "smooth" });
+  }, [msgs]);
   const send = async (t: string) => {
     if (!t.trim()) return;
     setMsgs((m) => [...m, { role: "user", text: t }]);
@@ -214,7 +217,7 @@ function Chat() {
             {m.tool?.slots?.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">{m.tool.slots.map((s: string) => <span key={s} className="rounded-md border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[11px]">{s} GEAR</span>)}</div>
             )}
-            {m.source && <div className="mt-1 text-[10px] text-slate-400">{m.source === "template" ? "Template engine" : `Local LLM · ${m.source}`}{m.kb ? ` · source: ${m.kb}` : ""}{m.lang ? ` · ${m.lang}` : ""}</div>}
+            {m.source && <div className="mt-1 text-[10px] text-slate-400">{llmLabel(m.source) ? `Local LLM · ${llmLabel(m.source)}` : "Template engine"}{m.kb ? ` · source: ${m.kb}` : ""}{m.lang ? ` · ${m.lang}` : ""}</div>}
           </div>
         ))}
         {busy && <div className="w-16 rounded-xl bg-white px-3 py-2 text-[13px] text-slate-400">…</div>}

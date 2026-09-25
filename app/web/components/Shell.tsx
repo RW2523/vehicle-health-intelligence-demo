@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { mydate, myt } from "@/lib/format";
+import { llmLabel, mydate, myt } from "@/lib/format";
 import { useClock } from "@/lib/live";
 
 export const APPS = [
@@ -40,7 +40,7 @@ function StatusDot() {
   return (
     <span className="chip border-ink-600 text-fg-2" title={s ? `bus ${s.bus.kind} · ${s.llm.backend} · ${s.database}` : "API not reachable"}>
       <span className={`h-2 w-2 rounded-full ${ok ? "bg-ok pulse-dot" : "bg-bad"}`} />
-      {ok ? `Pipeline live · ${s.llm.backend.startsWith("ollama") ? "LLM" : "template"}` : "API offline"}
+      {ok ? `Pipeline live · ${llmLabel(s.llm.backend) ? "LLM" : "template"}` : "API offline"}
     </span>
   );
 }

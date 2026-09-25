@@ -32,6 +32,7 @@ def status():
         "bus": {"kind": r.bus.kind, "published": r.bus.published},
         "websocket": {"clients": len(r.hub.clients), "sent": r.hub.sent},
         "llm": r.llm.status() if r.llm else {"backend": "none"},
+        "vlm": r.vlm.status() if r.vlm else {"backend": None},
         "models": models,
         "player": r.player.state_all() if r.player else [],
         "processor": r.processor.stats() if r.processor else {},

@@ -135,10 +135,14 @@ class VisionModels:
         cal = models_dir / "corrosion_calibration.json"
         self.corrosion = CorrosionModel(json.loads(cal.read_text()) if cal.exists() else None)
 
+    def arch(self, task: str) -> str:
+        """The fine-tuned base model, e.g. "YOLO11s-cls" for yolo11s-cls.pt."""
+        return self.meta.get(task, {}).get("base", "yolo11n-cls.pt").removesuffix(".pt").replace("yolo", "YOLO")
+
     def classify(self, task: str, path: str | Path) -> dict:
         if task not in self.cls:
             return {"available": False, "reason": f"{task} model not trained - run `make train-vision`"}
         r = self.cls[task].predict(path)
         r.update(available=True, label=LABELS[task].get(r["class"], r["class"]), provider=self.cls[task].provider,
-                 val_accuracy=self.meta.get(task, {}).get("top1_val_accuracy"))
+                 val_accuracy=self.meta.get(task, {}).get("top1_val_accuracy"), arch=self.arch(task))
         return r

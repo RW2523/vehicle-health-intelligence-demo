@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { Shell } from "@/components/Shell";
 import { Card, Empty, Pill, ScoreRing, Source } from "@/components/ui";
-import { dmy, fmtN, pct, scoreColor } from "@/lib/format";
+import { dmy, fmtN, llmLabel, pct, scoreColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 const VCOL: Record<string, string> = { PASS: "#34D399", FAIL: "#F87171", CONDITIONAL: "#FBBF24", REFERRED: "#60A5FA" };
@@ -50,7 +50,7 @@ function ReportView() {
               <div className="mt-4 rounded-xl border border-ink-600 bg-ink-850 p-4">
                 <div className="mb-1 flex items-center justify-between">
                   <span className="label">In plain words</span>
-                  <Source kind={r.summary_source.startsWith("ollama") ? "llm" : "template"} text={r.summary_source.startsWith("ollama") ? `Local LLM (${r.summary_source.slice(7)})` : "Template engine"} />
+                  <Source kind={llmLabel(r.summary_source) ? "llm" : "template"} text={llmLabel(r.summary_source) ? `Local LLM (${llmLabel(r.summary_source)})` : "Template engine"} />
                 </div>
                 <p className="text-[14.5px] leading-relaxed">{r.summary}</p>
               </div>

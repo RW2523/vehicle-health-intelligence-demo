@@ -156,3 +156,20 @@ test.describe("AI vision", () => {
     await expect(page.getByText(/onnx|YOLO|confidence|%/i).first()).toBeVisible();
   });
 });
+
+test.describe("GPU models and live updates", () => {
+  test("the lane console connects to the live WebSocket through the web origin", async ({ page }) => {
+    await page.goto("/lane?lane=BR02-L1");
+    await expect(page.getByText("Live", { exact: true })).toBeVisible();
+  });
+
+  test("the vision-language model explains a photo in plain words (when one is configured)", async ({ page, request }) => {
+    const st = await (await request.get("/api/system/status")).json();
+    test.skip(!st.vlm?.reachable, "no vision-language model configured (VHI_VLM_URL)");
+    await page.goto("/vision");
+    await page.getByRole("button", { name: "Run", exact: true }).click();
+    await page.getByRole("button", { name: /Explain in plain words/ }).click();
+    await expect(page.getByText("In plain words")).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/Vision-language model · vLLM/)).toBeVisible();
+  });
+});

@@ -36,12 +36,11 @@ export const api = {
   },
 };
 
-/** WebSocket URL for live updates: same host, API port (8000) unless NEXT_PUBLIC_WS_URL is set. */
+/** WebSocket URL for live updates: /ws on the page's own origin (the web server proxies it to the API) unless
+ *  NEXT_PUBLIC_WS_URL is set. */
 export function wsUrl(channels: string[]) {
   const base =
     process.env.NEXT_PUBLIC_WS_URL ||
-    (typeof window !== "undefined"
-      ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:${process.env.NEXT_PUBLIC_API_PORT || "8000"}/ws`
-      : "");
+    (typeof window !== "undefined" ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws` : "");
   return `${base}?channels=${encodeURIComponent(channels.join(","))}`;
 }

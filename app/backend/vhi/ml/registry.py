@@ -13,8 +13,8 @@ log = logging.getLogger("vhi.models")
 CATALOGUE = [
     # key, title, how it runs, metrics file
     ("anpr_ocr", "ANPR + chassis OCR (PaddleOCR via onnxruntime)", "live_model", None),
-    ("tyre", "Tyre condition (YOLO11n-cls, fine-tuned)", "live_model", "vision/vision_metrics.json"),
-    ("damage", "Body damage (YOLO11n-cls, fine-tuned)", "live_model", "vision/vision_metrics.json"),
+    ("tyre", "Tyre condition ({arch}, fine-tuned)", "live_model", "vision/vision_metrics.json"),
+    ("damage", "Body damage ({arch}, fine-tuned)", "live_model", "vision/vision_metrics.json"),
     ("corrosion", "Corrosion segmentation (calibrated colour-texture)", "live_logic", "corrosion_calibration.json"),
     ("enose", "E-nose classifier (XGBoost on UCI gas array)", "live_model", "enose_metrics.json"),
     ("acoustic", "Acoustic fault classifier + engine fingerprint", "live_model", "acoustic_metrics.json"),
@@ -54,6 +54,8 @@ class ModelRegistry:
             ready = True
             if key in ("tyre", "damage"):
                 ready = (self.dir / "vision" / f"{key}_cls.onnx").exists()
+                base = (m or {}).get("base", "yolo11n-cls.pt")
+                title = title.format(arch=base.removesuffix(".pt").replace("yolo", "YOLO"))
             out.append({"key": key, "title": title, "runs_as": how, "ready": ready, "metrics": m})
         return out
 

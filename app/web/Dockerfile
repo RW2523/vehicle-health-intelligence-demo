@@ -5,7 +5,7 @@ WORKDIR /web
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
-# Rewrites (/api, /media -> API) are fixed at build time; inside compose the API is reachable as http://api:8000
+# Rewrites (/api, /media, /ws -> API) are fixed at build time; inside compose the API is reachable as http://api:8000
 ARG VHI_API_INTERNAL=http://api:8000
 ENV VHI_API_INTERNAL=$VHI_API_INTERNAL NEXT_STANDALONE=1 NEXT_TELEMETRY_DISABLED=1
 RUN npx next build

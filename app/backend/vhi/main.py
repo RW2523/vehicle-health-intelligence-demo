@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     from . import seed
     from .ml.registry import ModelRegistry
     from .pipeline.processor import StreamProcessor
-    from .services.llm import LLM
+    from .services.llm import LLM, VLM
     from .sim.player import SessionManager
 
     r = build_runtime()
@@ -29,13 +29,15 @@ async def lifespan(app: FastAPI):
     r.models = ModelRegistry(r.settings)
     await asyncio.to_thread(r.models.ensure_trained)
     r.llm = LLM(r.settings)
+    r.vlm = VLM(r.settings)
     await r.bus.start()
     r.processor = StreamProcessor(r)
     r.player = SessionManager(r)
     await r.processor.start()
     from .services import fleet as fleet_svc
     warm = asyncio.create_task(asyncio.to_thread(fleet_svc.warm))  # pre-compute fleet analyses in the background
-    log.info("VHI API ready (db=%s, bus=%s, llm=%s)", r.settings.db_url.split(":")[0], r.bus.kind, r.llm.status()["backend"])
+    log.info("VHI API ready (db=%s, bus=%s, llm=%s, vlm=%s)", r.settings.db_url.split(":")[0], r.bus.kind,
+             r.llm.status()["backend"], r.vlm.status()["backend"])
     try:
         yield
     finally:

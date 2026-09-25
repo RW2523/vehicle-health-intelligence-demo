@@ -42,7 +42,7 @@ services:
     volumes:
       - ./data/curated:/data:ro
       - vhivar:/var/lib/vhi
-    ports: ["8000:8000"]   # the browser opens the live WebSocket on <host>:8000/ws
+    ports: ["8000:8000"]   # optional (API docs, lane integrations): browsers reach /api, /media and /ws through the web service
     restart: unless-stopped
 
   web:
