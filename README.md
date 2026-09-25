@@ -92,6 +92,7 @@ simulated lane streams (data/curated/sessions/S1–S3)          Next.js web apps
 - **Backend** `app/backend`: FastAPI, SQLAlchemy 2 and Pydantic settings (`VHI_*` environment variables). OpenAPI docs are at `/docs`.
 - **Frontend** `app/web`: Next.js 15, React 19 and Tailwind. The charts are custom SVG with no charting library.
 - **Data** `data/curated`: real public datasets plus a synthetic world and the session scripts. See `data/curated/README.md`, `CATALOG.md`, `PATTERNS.md` and `LICENSES.md`.
+- **Demo images** `data/curated/images/vehiclesense_demo`: the 26 source inspection images (full-resolution PNG + web JPG + the crops the app shows), de-duplicated. `manifest.json` / `README.md` there map each image to its original file name(s), the app capture, the fleet vehicles that use it, and its findings. They appear on the AI vision page under *Image library*, and at `GET /api/vision/library`. To add more: `python scripts/import_sam_img.py /path/to/sam_img`.
 
 ### Models (all run live; metrics are from held-out data)
 

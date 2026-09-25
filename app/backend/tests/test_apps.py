@@ -101,7 +101,11 @@ def test_regulator(client):
 
 def test_vision(client):
     caps = client.get("/api/vision/captures").json()["cases"]
-    assert len(caps) == 22
+    assert len(caps) == 23
+    # every capture links to its full-resolution source image in the demo library, and the files are served
+    assert all(c["source_image"] for c in caps)
+    lane2 = next(c for c in caps if c["title"] == "Lane 3 · Case 2")
+    assert lane2["source_image"]["library_id"] == "17" and client.get(lane2["ai_url"]).status_code == 200
     tyre = next(c for c in caps if "tyres" in c["cats"])
     r = client.post("/api/vision/analyse", json={"task": "tyre", "capture_id": tyre["id"]}).json()
     assert r["result"]["available"] and r["annotated_url"].startswith("/media/evidence/")
@@ -111,3 +115,18 @@ def test_vision(client):
     img = client.get(caps[0]["original_url"])
     up = client.post("/api/vision/upload", params={"task": "damage"}, files={"file": ("x.jpg", img.content, "image/jpeg")})
     assert up.status_code == 200 and up.json()["result"]["class"] in ("normal", "breakage", "crushed")
+
+
+def test_image_library_mapping(client):
+    lib = client.get("/api/vision/library").json()
+    assert lib["counts"]["images"] == 26 and lib["unmapped"] == []
+    assert set(lib["kinds"]) == {"comparison", "closeup", "progression"}
+    by_id = {e["id"]: e for e in lib["images"]}
+    # sam_img/1.png and its descriptively named duplicate map to one image, used by app capture #1 and fleet vehicle BPR 7730
+    assert by_id["01"]["source_files"] == ["1.png", "VehicleSense_Full_Demo/assets/ai_windshield_crack_inspection_comparison.png"]
+    assert by_id["01"]["app_capture"]["capture_id"] == 1 and "BPR 7730" in by_id["01"]["used_by_vehicles"]
+    assert by_id["i7"]["kind"] == "progression" and by_id["i7"]["used_by_vehicles"] == ["VJM 3287"]
+    for e in (by_id["01"], by_id["17"], by_id["i9"]):
+        for url in (e["full_url"], e["web_url"], *e["crop_urls"]):
+            assert client.get(url).status_code == 200, url
+    assert len(client.get("/api/vision/library", params={"kind": "closeup"}).json()["images"]) == 6

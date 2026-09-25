@@ -155,4 +155,22 @@ test.describe("AI vision", () => {
     await expect(page.getByRole("button", { name: "Run", exact: true })).toBeEnabled({ timeout: 60_000 });
     await expect(page.getByText(/onnx|YOLO|confidence|%/i).first()).toBeVisible();
   });
+
+  test("image library maps every source image to its case and fleet vehicles", async ({ page }) => {
+    await page.goto("/vision");
+    await expect(page.getByText("Image library · 26 source images")).toBeVisible();
+    await page.getByRole("tab", { name: "Month-by-month progression" }).click();
+    await page.getByRole("button", { name: "Library image i7" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("1/i7.png")).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "VJM 3287 history →" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Close" }).click();
+    // a capture opens its full-resolution source, and the library can jump back to a case
+    await page.getByRole("tab", { name: "All" }).first().click();
+    await page.getByRole("button", { name: "Library image 17" }).click();
+    await expect(page.getByRole("dialog").getByText("VehicleSense_Full_Demo/assets/split_screen_ai_vehicle_inspection.png")).toBeVisible();
+    await page.getByRole("button", { name: "Open this case in the viewer" }).click();
+    await expect(page.getByRole("heading", { name: "Lane 3 · Case 2" })).toBeVisible();
+    await expect(page.getByText("Right rear bumper (corner)")).toBeVisible();
+  });
 });

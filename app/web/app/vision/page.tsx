@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Shell } from "@/components/Shell";
-import { Card, Pill, Source, Tabs, toast } from "@/components/ui";
+import { Card, Modal, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useFetch } from "@/lib/live";
 
@@ -10,6 +10,7 @@ const FILTERS = [
   { id: "body", label: "Body" }, { id: "under", label: "Underbody" }, { id: "interior", label: "Cabin" }, { id: "tyres", label: "Tyres & lamps" },
 ];
 const SEV: Record<string, [string, string]> = { H: ["High · fail item", "#F87171"], M: ["Medium · advisory", "#FBBF24"], L: ["Low · cosmetic", "#93C5FD"] };
+const KIND: Record<string, string> = { comparison: "Inspection comparison", closeup: "Close-up", progression: "Month-by-month progression" };
 const TASKS = [{ id: "damage", label: "Body damage" }, { id: "tyre", label: "Tyre" }, { id: "corrosion", label: "Corrosion" }, { id: "plate", label: "Plate OCR" }];
 
 function outcome(c: any) {
@@ -23,6 +24,9 @@ function outcome(c: any) {
 export default function Vision() {
   const { data } = useFetch<any>("/api/vision/captures");
   const samples = useFetch<any>("/api/vision/samples");
+  const lib = useFetch<any>("/api/vision/library");
+  const [libKind, setLibKind] = useState("all");
+  const [zoom, setZoom] = useState<any>(null);
   const [filt, setFilt] = useState("all");
   const [sel, setSel] = useState(0);
   const [mode, setMode] = useState<"orig" | "ai" | "cmp">("ai");
@@ -144,6 +148,11 @@ export default function Vision() {
                 </div>
                 <Source kind="sample" />
               </div>
+              {cur.source_image && (
+                <button className="mt-2 text-left text-[12.5px] text-cyan hover:underline" onClick={() => setZoom(lib.data?.images.find((e: any) => e.id === cur.source_image.library_id) || cur.source_image)}>
+                  Full-resolution source · image {cur.source_image.library_id} ({cur.source_image.width}×{cur.source_image.height}) →
+                </button>
+              )}
               <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: outcome(cur).c + "77", background: outcome(cur).c + "12" }}>
                 <b style={{ color: outcome(cur).c }}>{outcome(cur).label}</b>
               </div>
@@ -198,6 +207,49 @@ export default function Vision() {
           </div>
         </div>
       )}
+      {lib.data?.images?.length > 0 && (
+        <Card className="mt-4" title={`Image library · ${lib.data.images.length} source images`}
+          right={<><Tabs size="sm" value={libKind} onChange={setLibKind} items={[{ id: "all", label: "All" }, ...lib.data.kinds.map((k: string) => ({ id: k, label: KIND[k] || k }))]} /><Source kind="sample" /></>}>
+          <p className="mb-3 text-[12.5px] text-fg-3">Every image from the demo image set, de-duplicated, with where it came from and where the app uses it (captures, fleet vehicle histories). Mapping file: data/curated/images/vehiclesense_demo/manifest.json.</p>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            {lib.data.images.filter((e: any) => libKind === "all" || e.kind === libKind).map((e: any) => (
+              <button key={e.id} onClick={() => setZoom(e)} className="flex flex-col overflow-hidden rounded-xl border border-ink-600 bg-ink-850 text-left hover:border-cyan" aria-label={`Library image ${e.id}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={e.web_url} alt={e.title} loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                <span className="flex flex-col gap-1 p-2.5">
+                  <span className="text-[12.5px] font-semibold leading-snug">{e.id} · {e.title}</span>
+                  <span className="flex flex-wrap gap-1">
+                    {e.app_capture && <span className="chip border-ink-500 text-[11px] text-fg-2">App case #{e.app_capture.capture_id}</span>}
+                    {e.used_by_vehicles.map((v: string) => <span key={v} className="chip border-ink-500 text-[11px] text-cyan">{v}</span>)}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+      <Modal open={!!zoom} onClose={() => setZoom(null)} title={zoom ? `Image ${zoom.library_id || zoom.id} · ${zoom.title}` : ""}>
+        {zoom && (
+          <div className="flex flex-col gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={zoom.full_url} alt={zoom.title} className="max-h-[62vh] w-full rounded-lg object-contain" />
+            <div className="grid grid-cols-1 gap-x-6 gap-y-1 text-[12.5px] md:grid-cols-2">
+              <div><span className="text-fg-3">Original file(s): </span>{(zoom.source_files || []).join(" · ")}</div>
+              <div><span className="text-fg-3">Size: </span>{zoom.width}×{zoom.height}{zoom.kind ? ` · ${KIND[zoom.kind] || zoom.kind}` : ""}</div>
+              {zoom.app_capture && <div><span className="text-fg-3">App capture: </span>#{zoom.app_capture.capture_id} ({zoom.app_capture.original}, {zoom.app_capture.ai})</div>}
+              {zoom.used_by_vehicles?.length > 0 && <div><span className="text-fg-3">Fleet vehicles: </span>{zoom.used_by_vehicles.join(", ")}</div>}
+              {zoom.findings?.length > 0 && <div className="md:col-span-2"><span className="text-fg-3">Findings: </span>{zoom.findings.map((f: any) => `${f.name} (${f.location})`).join("; ")}</div>}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a className="btn btn-sm" href={zoom.full_url} target="_blank" rel="noreferrer">Open full resolution</a>
+              {zoom.app_capture && cases.some((c) => c.id === zoom.app_capture.capture_id) && (
+                <button className="btn btn-sm btn-primary" onClick={() => { setFilt("all"); setSel(cases.findIndex((c) => c.id === zoom.app_capture.capture_id)); setMode("ai"); setLive(null); setZoom(null); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Open this case in the viewer</button>
+              )}
+              {zoom.used_by_vehicles?.map((v: string) => <a key={v} className="btn btn-sm" href={`/fleet/vehicle/${encodeURIComponent(v)}`}>{v} history →</a>)}
+            </div>
+          </div>
+        )}
+      </Modal>
     </Shell>
   );
 }
