@@ -3,6 +3,7 @@
    then applies WebSocket messages as they arrive. Used by the lane and examiner consoles. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
+import { laneOf } from "./format";
 import { useLive } from "./live";
 
 export type Live = {
@@ -42,6 +43,12 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
       const d = id
         ? await api.get(`/api/inspections/${id}`)
         : await api.get("/api/inspections/latest", { lane_id: opts.lane, session_id: opts.session });
+      if (!d) {  // nothing has run on this lane / session yet
+        idRef.current = null;
+        setNotFound(true);
+        setS(empty());
+        return;
+      }
       idRef.current = d.inspection_id;
       setNotFound(false);
       const [en, obd, pn, br] = await Promise.all(
@@ -73,7 +80,8 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
     loadFull(opts.id);
   }, [loadFull, opts.id]);
 
-  const lane = s.insp?.lane_id || opts.lane;
+  // before the first run there is no inspection yet: listen on the session's lane so the page fills in when it starts
+  const lane = s.insp?.lane_id || opts.lane || laneOf(opts.session);
   const channels = [lane ? `lane:${lane}` : "", idRef.current ? `inspection:${idRef.current}` : ""].filter(Boolean);
   const connected = useLive(channels, (m) => {
     const d = m.data;

@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { GuideCard } from "@/components/Guide";
+import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
-import { Card, Pill, Source, toast } from "@/components/ui";
+import { Card, PageHeader, Pill, Source } from "@/components/ui";
 import { api } from "@/lib/api";
-import { STEP_LABEL, fmtN, llmLabel } from "@/lib/format";
-import { useLive } from "@/lib/live";
+import { fmtN, llmLabel } from "@/lib/format";
 
 const LINKS: Record<string, { href: string; label: string }[]> = {
   S1: [{ href: "/lane?lane=BR00-L3", label: "Lane console" }, { href: "/examiner?session=S1", label: "Examiner" }],
@@ -20,109 +21,24 @@ const FEATURES: Record<string, string> = {
   S4: "23, 26, 31", S5: "20, 27–30", S6: "1–4, 25",
 };
 
-function PlayerControls({ s, onState }: { s: any; onState: (p: any) => void }) {
-  const p = s.player;
-  const sid = s.session_id;
-  const [busy, setBusy] = useState(false);
-  const call = async (path: string, body?: any, msg?: string) => {
-    setBusy(true);
-    try {
-      const r = await api.post(`/api/sessions/${sid}/${path}`, body);
-      onState(r);
-      if (msg) toast(msg);
-    } catch (e: any) {
-      toast(e.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  const status = p?.status || "idle";
-  const t = p?.t || 0, dur = p?.duration || 480;
-  const presets: any[] = s.presets || [];
-  const active = (id: string) => {
-    const pr = presets.find((x) => x.id === id);
-    return pr && Object.entries(pr.overrides).every(([k, v]) => p?.overrides?.[k] === v);
-  };
-  return (
-    <div className="mt-3 flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <button className="btn btn-primary" disabled={busy} onClick={() => call("start", { speed: p?.speed || 1, overrides: p?.overrides || {} }, `${sid} started`)}>
-          {status === "idle" || status === "finished" ? "Start" : "Restart"}
-        </button>
-        {status === "playing" && <button className="btn" disabled={busy} onClick={() => call("pause")}>Pause</button>}
-        {status === "paused" && <button className="btn" disabled={busy} onClick={() => call("resume")}>Resume</button>}
-        <button className="btn" disabled={busy} onClick={() => call("start", { fast: true, overrides: p?.overrides || {} }, `${sid} completed instantly`)}>
-          Fast-forward
-        </button>
-        <label className="flex items-center gap-2 text-[12.5px] text-fg-3">
-          Speed
-          <select aria-label="Speed" className="input py-1.5" value={p?.speed || 1} onChange={(e) => call("speed", { speed: Number(e.target.value) })}>
-            {[0.5, 1, 2, 4, 8, 16].map((x) => <option key={x} value={x}>{x}×</option>)}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-[12.5px] text-fg-3">
-          Jump to
-          <select aria-label="Jump to step" className="input py-1.5" value="" onChange={(e) => e.target.value && call("seek", { step: e.target.value })}>
-            <option value="">step…</option>
-            {(p?.timeline || []).map((st: any) => <option key={st.step} value={st.step}>{STEP_LABEL[st.step] || st.step}</option>)}
-          </select>
-        </label>
-      </div>
-      <div>
-        <div className="mb-1 flex justify-between text-[12px] text-fg-3">
-          <span>{status === "idle" ? "Not started" : `${STEP_LABEL[p?.step] || p?.step || "–"} · ${status}`}</span>
-          <span className="font-mono">{Math.round(t)} / {dur} s</span>
-        </div>
-        <div className="h-2 rounded bg-ink-600"><div className="h-2 rounded bg-cyan transition-all" style={{ width: `${Math.min(100, (100 * t) / dur)}%` }} /></div>
-      </div>
-      {presets.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[12px] text-fg-3">Change live:</span>
-          {presets.map((pr) => (
-            <button key={pr.id} className={`btn btn-sm ${active(pr.id) ? "border-cyan bg-cyan/10" : ""}`} aria-pressed={active(pr.id)}
-              onClick={() => {
-                const ov = { ...(p?.overrides || {}) };
-                if (active(pr.id)) Object.keys(pr.overrides).forEach((k) => delete ov[k]);
-                else Object.assign(ov, pr.overrides);
-                call("overrides", { overrides: ov, replace: true }, active(pr.id) ? `Removed: ${pr.label}` : `Applied: ${pr.label} (affects values from now on)`);
-              }}>
-              {pr.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function DemoControl() {
-  const [sessions, setSessions] = useState<any[]>([]);
+  const { sessions, setPlayer } = useSessions();
   const [status, setStatus] = useState<any>(null);
-  const load = useCallback(() => {
-    api.get("/api/sessions").then(setSessions).catch(() => {});
-    api.get("/api/system/status").then(setStatus).catch(() => setStatus(null));
-  }, []);
+  const [checked, setChecked] = useState(false);
   useEffect(() => {
+    const load = () => api.get("/api/system/status").then(setStatus).catch(() => setStatus(null)).finally(() => setChecked(true));
     load();
-    const t = setInterval(() => api.get("/api/system/status").then(setStatus).catch(() => {}), 4000);
+    const t = setInterval(load, 4000);
     return () => clearInterval(t);
-  }, [load]);
-  useLive(["player"], (m) => {
-    if (m.type === "state") setSessions((ss) => ss.map((s) => (s.session_id === m.data.session_id ? { ...s, player: m.data } : s)));
-  });
-  const setPlayer = (p: any) => setSessions((ss) => ss.map((s) => (s.session_id === p.session_id ? { ...s, player: p } : s)));
+  }, []);
 
   return (
     <Shell>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[28px] font-semibold">Demo control</h1>
-          <p className="text-[14px] text-fg-3">Six scripted sessions. Lane sessions replay real-time sensor streams; every result downstream is computed live.</p>
-        </div>
-        <div className="flex gap-2"><Source kind="simulated" text="Sensor streams: simulated" /><Source kind="live_model" /><Source kind="real" /></div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <PageHeader title="Demo control" sub="Six scripted sessions. Lane sessions replay real-time sensor streams; every result downstream is computed live."
+        actions={<><Source kind="simulated" text="Sensor streams: simulated" /><Source kind="live_model" /><Source kind="real" /></>} />
+      <GuideCard s1Player={sessions.find((s) => s.session_id === "S1")?.player} />
+      <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div id="sessions" className="grid scroll-mt-20 grid-cols-1 gap-4 lg:grid-cols-2">
           {sessions.map((s) => (
             <Card key={s.session_id} className="flex flex-col">
               <div className="flex items-start justify-between gap-3">
@@ -157,7 +73,7 @@ export default function DemoControl() {
         </div>
         <Card title="Under the hood" right={<Source kind="real" text="Live pipeline status" />}>
           {!status ? (
-            <p className="text-[13px] text-bad">The API is not reachable. Start the backend (see README).</p>
+            <p className={`text-[13px] ${checked ? "text-bad" : "text-fg-3"}`}>{checked ? "The API is not reachable. Start the backend (see README)." : "Loading…"}</p>
           ) : (
             <div className="flex flex-col gap-4 text-[13px]">
               <div className="grid grid-cols-2 gap-2">

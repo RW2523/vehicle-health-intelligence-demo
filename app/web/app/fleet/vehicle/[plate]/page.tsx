@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { LineChart } from "@/components/charts";
-import { FleetShell } from "@/components/FleetShell";
-import { Bar, Modal, Pill, Source, toast } from "@/components/ui";
+import { Icon } from "@/components/icons";
+import { Shell } from "@/components/Shell";
+import { Bar, Modal, PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dmy, fmtN, riskColor, scoreColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
@@ -57,13 +58,16 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
   const [zoom, setZoom] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => setMetric(null), [plate]);
+  useEffect(() => {
+    document.querySelector('[data-plate-strip] [aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [plate, ov.data]);
   const m = d ? (d.metrics.find((x: any) => x.metric === metric) || d.primary) : null;
   const v = d?.vehicle;
   const send = async () => {
     setBusy(true);
     try {
       await api.post(`/api/fleet/vehicles/${encodeURIComponent(plate)}/report`);
-      toast(`Pattern report for ${plate} sent to ${v.operator} and the driver app`);
+      toast(`Pattern report for ${plate} sent to ${v.operator} and the driver app`, "ok");
       reload();
     } finally { setBusy(false); }
   };
@@ -71,7 +75,7 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
     setBusy(true);
     try {
       const [b] = await api.post("/api/fleet/bookings", { plates: [plate] });
-      toast(b.status ? `${plate}: inspection booked ${dmy(b.date)} ${b.slot}, before the forecast fail date` : b.error);
+      toast(b.status ? `${plate}: inspection booked ${dmy(b.date)} ${b.slot}, before the forecast fail date` : b.error, b.status ? "ok" : "err");
       reload();
     } finally { setBusy(false); }
   };
@@ -79,13 +83,10 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
   const anoms = m ? m.anomalies.filter((a: any) => a.kind !== "repair") : [];
   const fc = m?.forecast;
   return (
-    <FleetShell pill="VEHICLE HISTORY">
-      <div className="mb-3 flex flex-wrap items-center gap-4">
-        <Link href="/fleet" className="btn btn-sm">‹ Fleet Intelligence</Link>
-        <h1 className="font-display text-[26px] font-semibold">Vehicle history &amp; degradation</h1>
-        <span className="text-[13px] text-fg-3">History, anomalies, time-to-failure forecast and the pattern report for each flagged vehicle</span>
-      </div>
-      <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+    <Shell context={<span className="chip hidden border-ink-500 text-fg-2 xl:inline-flex">Fleet manager view</span>}>
+      <PageHeader title={`Vehicle history · ${plate}`} sub="Twelve months of readings, anomalies, a time-to-limit forecast and the pattern report the operator receives."
+        actions={<Link href="/fleet" className="btn">‹ All flagged vehicles</Link>} />
+      <div data-plate-strip className="mb-3 flex gap-2 overflow-x-auto pb-1">
         {(ov.data?.attention || []).map((r: any) => (
           <Link key={r.plate} href={`/fleet/vehicle/${encodeURIComponent(r.plate)}`} aria-current={r.plate === plate ? "page" : undefined}
             className={`chip shrink-0 px-3 py-1.5 text-[12.5px] ${r.plate === plate ? "border-cyan bg-cyan/10 text-fg" : "border-ink-500 bg-ink-800 text-fg-2"}`}>
@@ -99,7 +100,7 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
             {v.photo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={`/media/assets/${v.photo}`} alt={v.model} className="h-24 w-36 rounded-xl object-cover" />
-            ) : <span className="flex h-24 w-36 items-center justify-center rounded-xl bg-ink-700 text-fg-4">{v.vtype}</span>}
+            ) : <span className="flex h-24 w-36 flex-col items-center justify-center gap-1 rounded-xl bg-ink-700 text-[12px] text-fg-4"><Icon name="car" size={34} />{v.vtype}</span>}
             <div className="flex min-w-[190px] flex-col gap-1">
               <span className="font-display text-[24px] font-bold">{v.plate}</span>
               <span className="text-[14px] text-fg-2">{v.make} {v.model} · {v.vtype} · {v.year}</span>
@@ -179,7 +180,7 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
                 </tbody>
               </table>
               <div className="mt-3">
-                <div className="mb-1.5 flex justify-between text-[13px]"><b>{d.photos.length ? "Visual history: same spot over time" : "Evidence photos"}</b><span className="text-[11px] text-fg-3">Click to enlarge</span></div>
+                <div className="mb-1.5 flex justify-between text-[13px]"><b>{d.photos.length ? "Visual history: same spot over time" : "Evidence photos"}</b>{(d.photos.length > 0 || (v.evidence || []).length > 0) && <span className="text-[11px] text-fg-3">Click to enlarge</span>}</div>
                 <div className="flex gap-2">
                   {(d.photos.length ? d.photos.map((p: any) => ({ src: `/media/assets/${p.photo}`, l: lab(p.date), v: `${p.value} ${p.unit}` }))
                     : (v.evidence || []).map((e: string, i: number) => ({ src: `/media/assets/${e}`, l: i === 0 ? "Close-up (AI)" : "Lane camera", v: "" }))).map((p: any, i: number) => (
@@ -213,7 +214,7 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
               <p className="text-[11.5px] text-fg-3">{d.report.rule}</p>
               <div className="mt-auto flex gap-2">
                 <button className="btn btn-primary flex-1" disabled={busy} onClick={send}>{d.report.sent_at ? "Report sent ✓ · send again" : "Send report now"}</button>
-                <button className="btn flex-1 border-[#2F7BFF] text-[#9CC3FF]" disabled={busy || !!v.booked} onClick={book}>{v.booked ? `Booked ${dmy(v.booked.date)}` : "Book inspection"}</button>
+                <button className="btn flex-1" disabled={busy || !!v.booked} onClick={book}>{v.booked ? `Booked ${dmy(v.booked.date)}` : "Book inspection"}</button>
               </div>
             </section>
           </div>
@@ -223,7 +224,6 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {zoom && <img src={zoom.src} alt={zoom.l} className="max-h-[75vh] rounded-lg" />}
       </Modal>
-      <span className="hidden"><Pill>.</Pill></span>
-    </FleetShell>
+    </Shell>
   );
 }

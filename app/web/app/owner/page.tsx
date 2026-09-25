@@ -1,10 +1,10 @@
 "use client";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Shell } from "@/components/Shell";
-import { Pill, Source, toast } from "@/components/ui";
+import { Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { dmy, fmtN, llmLabel, scoreColor } from "@/lib/format";
+import { dmy, fmtN, llmLabel } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 type Tab = "passport" | "book" | "check" | "chat";
@@ -70,10 +70,10 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
       const b = await api.post("/api/owner/bookings", { plate, branch_id: branch, date, slot: slot.time, inspection_type: itype, gear: !!slot.gear });
       const paid = await api.post(`/api/owner/bookings/${b.booking_id}/pay`, { method: "FPX" });
       setBooking(paid);
-      toast(`Booked and paid (mock FPX ${paid.payment_ref})`);
+      toast(`Booked and paid (mock FPX ${paid.payment_ref})`, "ok");
       onBooked();
     } catch (e: any) {
-      toast(e.message);
+      toast(e.message, "err");
     }
   };
   if (booking)
@@ -138,7 +138,7 @@ function SelfCheck({ plate, onDone }: { plate: string; onDone: () => void }) {
       setRes(r);
       onDone();
     } catch (e: any) {
-      toast(e.message);
+      toast(e.message, "err");
     } finally {
       setBusy(false);
     }
@@ -196,13 +196,16 @@ function Chat() {
     end.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs]);
   const send = async (t: string) => {
-    if (!t.trim()) return;
+    if (!t.trim() || busy) return;
     setMsgs((m) => [...m, { role: "user", text: t }]);
     setText("");
     setBusy(true);
     try {
       const r = await api.post("/api/owner/assistant", { conversation: conv, text: t });
       setMsgs((m) => [...m, { role: "assistant", text: r.answer, source: r.source, tool: r.tool, kb: r.kb_item, lang: r.lang }]);
+    } catch (e: any) {
+      setMsgs((m) => [...m, { role: "assistant", text: "Sorry, I can't answer right now. Please try again in a moment.", source: "" }]);
+      toast(e.message, "err");
     } finally {
       setBusy(false);
     }
@@ -228,27 +231,56 @@ function Chat() {
       </div>
       <form className="flex gap-2 bg-[#F0F0F0] p-2" onSubmit={(e) => { e.preventDefault(); send(text); }}>
         <input aria-label="Message" className="flex-1 rounded-full border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-900" value={text} onChange={(e) => setText(e.target.value)} placeholder="Tanya apa-apa…" />
-        <button className="rounded-full bg-[#128C7E] px-4 text-[13px] font-semibold text-white">Send</button>
+        <button disabled={busy} className="rounded-full bg-[#128C7E] px-4 text-[13px] font-semibold text-white disabled:opacity-50">Send</button>
       </form>
     </div>
   );
 }
 
+const STEPS: { tab: Tab; title: string; sub: string }[] = [
+  { tab: "chat", title: "Ask the assistant", sub: "In BM, English or Chinese: which inspection do I need? Any slots tomorrow?" },
+  { tab: "check", title: "Run the self-check", sub: "Tint and headlamp fail first; run it again after fixing" },
+  { tab: "book", title: "Book and pay", sub: "Pick a GEAR slot, pay (mock FPX), get the check-in QR" },
+  { tab: "passport", title: "See the passport", sub: "The timeline now shows the self-check and the booking" },
+];
+
 function OwnerApp() {
   const sp = useSearchParams();
+  const router = useRouter();
   const plate = sp.get("plate") || "DMO 9006";
-  const [tab, setTab] = useState<Tab>((sp.get("tab") as Tab) || "passport");
+  const [tab, setTabState] = useState<Tab>((sp.get("tab") as Tab) || "passport");
   const [k, setK] = useState(0);
+  const status = useFetch<any>("/api/system/status");
+  const llm = llmLabel(status.data?.llm?.backend);
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    router.replace(`/owner?plate=${encodeURIComponent(plate)}&tab=${t}`, { scroll: false });
+  };
   return (
     <Shell>
       <div className="flex flex-wrap items-start justify-center gap-8">
-        <div className="max-w-[360px] pt-6">
-          <h1 className="font-display text-[26px] font-semibold">Owner app</h1>
-          <p className="mt-2 text-[13.5px] text-fg-2">Session S6: an owner asks the assistant in BM which inspection they need, books a GEAR slot, runs a self-check (tint and headlamp fail, then pass after fixing) and sees the Health Passport update.</p>
-          <div className="mt-3 flex flex-wrap gap-2"><Source kind="live_model" text="Tyre + engine-sound models" /><Source kind="template" text="Assistant: LLM or template" /><Source kind="mock" text="Payment: mock gateway" /></div>
-          <p className="mt-3 text-[12px] text-fg-3">Vehicle: <Pill color="#22D3EE">{plate}</Pill></p>
+        <div className="w-full max-w-[380px] lg:pt-4">
+          <h1 className="font-display text-[24px] font-semibold">Owner app</h1>
+          <p className="mt-1 text-[13.5px] text-fg-3">What a vehicle owner sees on their phone (session S6), for {plate}. Try these in order:</p>
+          <ol className="mt-4 flex flex-col gap-2">
+            {STEPS.map((st, i) => (
+              <li key={st.tab}>
+                <button onClick={() => setTab(st.tab)} aria-pressed={tab === st.tab}
+                  className={`flex w-full gap-3 rounded-xl border p-3 text-left transition hover:border-cyan/60 ${tab === st.tab ? "border-cyan bg-cyan/10" : "border-ink-600 bg-ink-850"}`}>
+                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${tab === st.tab ? "bg-cyan text-ink-900" : "bg-ink-600 text-fg-3"}`}>{i + 1}</span>
+                  <span><span className="block text-[13.5px] font-semibold">{st.title}</span><span className="block text-[12px] text-fg-3">{st.sub}</span></span>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Source kind="live_model" text="Tyre + engine-sound models" />
+            <Source kind={llm ? "llm" : "template"} text={llm ? `Assistant: ${llm}` : "Assistant: template engine"} />
+            <Source kind="mock" text="Payment: mock gateway" />
+          </div>
         </div>
-        <div className="flex h-[780px] w-[390px] flex-col overflow-hidden rounded-[36px] border-[10px] border-[#1A2233] bg-[#F5F7FA] shadow-2xl">
+        <div className="flex h-[780px] max-h-[calc(100vh-7rem)] min-h-[600px] w-full max-w-[390px] flex-col overflow-hidden rounded-[36px] border-[10px] border-[#1A2233] bg-[#F5F7FA] shadow-2xl"
+          style={{ colorScheme: "light" }}>
           <div className="flex items-center justify-between bg-white px-5 py-3 text-slate-900">
             <span className="font-display text-[15px] font-bold">VehicleSense</span>
             <span className="text-[12px] text-slate-500">{plate}</span>
@@ -259,7 +291,7 @@ function OwnerApp() {
             {tab === "check" && <SelfCheck plate={plate} onDone={() => setK((x) => x + 1)} />}
             {tab === "chat" && <Chat />}
           </div>
-          <nav className="grid grid-cols-4 border-t border-slate-200 bg-white">
+          <nav className="grid grid-cols-4 border-t border-slate-200 bg-white" aria-label="Owner app tabs">
             {TABS.map((t) => (
               <button key={t.id} onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
                 className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${tab === t.id ? "text-sky-700" : "text-slate-500"}`}>
@@ -269,7 +301,6 @@ function OwnerApp() {
           </nav>
         </div>
       </div>
-      <span className="hidden" style={{ color: scoreColor(0) }} />
     </Shell>
   );
 }

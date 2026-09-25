@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { Icon } from "@/components/icons";
 import { Shell } from "@/components/Shell";
-import { Card, Empty, Pill, ScoreRing, Source } from "@/components/ui";
+import { Card, Empty, PageHeader, Pill, ScoreRing, Source, toast } from "@/components/ui";
 import { dmy, fmtN, llmLabel, pct, scoreColor } from "@/lib/format";
-import { useFetch } from "@/lib/live";
+import { useFetch, useLive } from "@/lib/live";
 
 const VCOL: Record<string, string> = { PASS: "#34D399", FAIL: "#F87171", CONDITIONAL: "#FBBF24", REFERRED: "#60A5FA" };
 
@@ -16,33 +17,46 @@ function ReportView() {
   const rid = id || list.data?.[0]?.report_id || null;
   const rep = useFetch<any>(rid ? `/api/reports/${rid}` : null);
   const chain = useFetch<any>("/api/evidence/verify", undefined, [rid]);
+  useLive(["inspections"], (m) => {
+    if (m.type !== "reported") return;
+    list.reload();
+    toast(`New report issued: ${m.data.verdict}${id ? " (see the list above)" : ""}`, "ok");
+  });
   const r = rep.data;
   const d = r?.data || {};
+  const loading = !list.data && !list.error;
   return (
     <Shell>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-[24px] font-semibold">Inspection report</h1>
-        <div className="flex flex-wrap gap-2">
-          {(list.data || []).slice(0, 8).map((x) => (
-            <Link key={x.report_id} href={`/report?id=${x.report_id}`} className={`chip ${x.report_id === rid ? "border-cyan text-fg" : "border-ink-500 text-fg-3"}`}>
-              {x.plate} · <span style={{ color: VCOL[x.verdict] }}>{x.verdict}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
+      <PageHeader title="Inspection reports" sub="The issued result in plain words, every finding with the examiner's decision, and the QR code a buyer scans to check it."
+        actions={<Link className="btn" href={r ? `/examiner?id=${r.inspection_id}` : "/examiner"}>{r ? "This inspection in the examiner console" : "Examiner console"}<Icon name="arrow" size={15} /></Link>}>
+        {(list.data || []).length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2" aria-label="Issued reports">
+            {(list.data || []).slice(0, 10).map((x) => (
+              <Link key={x.report_id} href={`/report?id=${x.report_id}`} aria-current={x.report_id === rid ? "page" : undefined}
+                className={`chip ${x.report_id === rid ? "border-cyan bg-cyan/10 text-fg" : "border-ink-500 text-fg-3 hover:border-cyan/60"}`}>
+                {x.plate} · <span style={{ color: VCOL[x.verdict] }}>{x.verdict}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </PageHeader>
       {!r ? (
-        <Empty>No reports yet. Decide the alerts in the examiner console and press “Issue report”.</Empty>
+        loading || (rid && !rep.error) ? <Empty>Loading…</Empty> : (
+          <Empty title="No reports yet" actions={<><Link className="btn btn-primary" href="/examiner?session=S1">Go to the examiner console<Icon name="arrow" size={15} /></Link><Link className="btn" href="/#guide">Guided demo</Link></>}>
+            A report is issued from the examiner console once the lane has finished and every high-severity alert has a decision. Run S1 first if you have not.
+          </Empty>
+        )
       ) : (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="flex flex-col gap-4">
             <Card className="relative overflow-hidden">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
                   <div className="label">{r.kind}</div>
                   <h2 className="mt-1 font-display text-[26px] font-bold">{r.plate} · {d.vehicle?.make} {d.vehicle?.model} {d.vehicle?.year || ""}</h2>
                   <p className="text-[13px] text-fg-3">{d.branch} · {d.lane} · issued {dmy(d.issued_at)} by {d.examiner?.name} ({d.examiner?.id}{d.examiner?.senior ? ", senior" : ""})</p>
                 </div>
-                <div className="rounded-2xl border-2 px-5 py-3 text-center" style={{ borderColor: VCOL[r.verdict], color: VCOL[r.verdict] }}>
+                <div className="shrink-0 rounded-2xl border-2 px-5 py-3 text-center" style={{ borderColor: VCOL[r.verdict], color: VCOL[r.verdict] }}>
                   <div className="font-display text-[26px] font-bold">{r.verdict}</div>
                   <div className="text-[11px]">{r.verdict === "CONDITIONAL" ? "EV Health Certificate" : "Result"}</div>
                 </div>

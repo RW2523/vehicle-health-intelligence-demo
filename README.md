@@ -91,6 +91,8 @@ Start from **Demo control** (`/`). Lane sessions replay real-time sensor streams
 
 ### Suggested 10-minute walkthrough
 
+Demo control shows this walkthrough as a **guided demo** with live progress, and every page's header links to the next step. The navigation groups the apps by who uses them: *inspection lane* (lane, examiner, reports, AI vision), *fleets and owners* (fleet intelligence, vehicle history, owner app) and *oversight* (HQ, regulator). It becomes an icon rail on small laptops and a menu drawer on phones and tablets.
+
 1. Demo control: start **S1** at 4×.
 2. Open the **Lane** console and watch the sensors and alerts arrive.
 3. Go to the **Examiner** console:
@@ -160,7 +162,7 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 ```bash
 make test                                                          # 31 backend tests (SQLite)
 VHI_DATABASE_URL=postgresql+psycopg://... make test                # the same suite on PostgreSQL (add VHI_MQTT_URL=... for MQTT)
-make e2e                                                           # 14 Playwright end-to-end tests (needs `make start`;
+make e2e                                                           # 16 Playwright end-to-end tests (needs `make start`;
                                                                    # first time: cd app/web && npx playwright install chromium)
 ```
 
@@ -171,6 +173,7 @@ The end-to-end tests drive the real UI through all six sessions:
 - **S5:** fleet pattern report and booking, FLEET07 risk, the regulator view.
 - **S6:** assistant, self-check and paid booking.
 - The live vision model, the live WebSocket through the web port, and the photo explanation (when a vision-language model is configured).
+- The guided demo's next-step links, and the phone menu drawer (no sideways scrolling at 390 px).
 
 ## Troubleshooting
 

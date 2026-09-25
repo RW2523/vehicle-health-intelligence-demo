@@ -53,14 +53,35 @@ export function Kpi({ label, value, sub, color, right }: { label: string; value:
 
 export function Pill({ children, color = "#9AA8BF", solid = false }: { children: ReactNode; color?: string; solid?: boolean }) {
   return (
-    <span className="chip" style={{ borderColor: color, color: solid ? "#06202A" : color, background: solid ? color : color + "18" }}>
+    <span className="chip max-w-full whitespace-normal" style={{ borderColor: color, color: solid ? "#06202A" : color, background: solid ? color : color + "18" }}>
       {children}
     </span>
   );
 }
 
-export function Empty({ children }: { children: ReactNode }) {
-  return <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-ink-500 p-6 text-center text-[13px] text-fg-3">{children}</div>;
+/** Nothing to show yet: say why, and offer the next action instead of a dead end. */
+export function Empty({ children, title, actions }: { children?: ReactNode; title?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-ink-500 bg-ink-850/40 px-6 py-10 text-center">
+      {title && <div className="font-display text-[18px] font-semibold text-fg">{title}</div>}
+      {children && <div className="max-w-[560px] text-[13.5px] leading-relaxed text-fg-3">{children}</div>}
+      {actions && <div className="mt-3 flex flex-wrap justify-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+/** Title, one line on what the page is for, and the page's actions - the same on every screen. */
+export function PageHeader({ title, sub, actions, children }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; children?: ReactNode }) {
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div className="min-w-0">
+        <h1 className="font-display text-[24px] font-semibold leading-tight">{title}</h1>
+        {sub && <p className="mt-1 max-w-[760px] text-[13.5px] text-fg-3">{sub}</p>}
+        {children}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  );
 }
 
 export function Tabs({ value, onChange, items, size = "md" }: { value: string; onChange: (v: any) => void; items: { id: string; label: ReactNode }[]; size?: "sm" | "md" }) {
@@ -81,22 +102,26 @@ export function Tabs({ value, onChange, items, size = "md" }: { value: string; o
   );
 }
 
-let pushToast: (m: string) => void = () => {};
-export const toast = (m: string) => pushToast(m);
+type ToastKind = "info" | "ok" | "err";
+let pushToast: (m: string, kind: ToastKind) => void = () => {};
+/** Short confirmation in the corner; errors in red. At most three stay on screen. */
+export const toast = (m: string, kind: ToastKind = "info") => pushToast(m, kind);
+const TOAST_COL: Record<ToastKind, string> = { info: "#22D3EE", ok: "#34D399", err: "#F87171" };
 
 export function Toaster() {
-  const [msgs, setMsgs] = useState<{ id: number; m: string }[]>([]);
+  const [msgs, setMsgs] = useState<{ id: number; m: string; kind: ToastKind }[]>([]);
   useEffect(() => {
-    pushToast = (m: string) => {
+    pushToast = (m, kind) => {
       const id = Date.now() + Math.random();
-      setMsgs((x) => [...x, { id, m }]);
-      setTimeout(() => setMsgs((x) => x.filter((y) => y.id !== id)), 3600);
+      setMsgs((x) => [...x.filter((y) => y.m !== m), { id, m, kind }].slice(-3));
+      setTimeout(() => setMsgs((x) => x.filter((y) => y.id !== id)), kind === "err" ? 6000 : 3200);
     };
   }, []);
   return (
-    <div className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2">
+    <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
       {msgs.map((t) => (
-        <div key={t.id} role="status" className="rounded-xl bg-fg px-4 py-3 text-[13.5px] font-medium text-ink-900 shadow-2xl">
+        <div key={t.id} role="status" className="toast-in flex max-w-[420px] items-start gap-2.5 rounded-xl border border-ink-500 bg-ink-750 px-4 py-3 text-[13px] font-medium text-fg shadow-2xl"
+          style={{ borderLeft: `3px solid ${TOAST_COL[t.kind]}` }}>
           {t.m}
         </div>
       ))}
@@ -105,19 +130,20 @@ export function Toaster() {
 }
 
 export function ScoreRing({ value, size = 120, label = "Health" }: { value: number | null | undefined; size?: number; label?: string }) {
-  const r = size / 2 - 9;
+  const sw = size >= 100 ? 10 : 7;
+  const r = size / 2 - sw + 1;
   const c = 2 * Math.PI * r;
   const v = value ?? 0;
   const col = value == null ? "#2A3957" : v < 50 ? "#F87171" : v < 70 ? "#FBBF24" : "#34D399";
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1F2B44" strokeWidth="10" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(c * v) / 100} ${c}`} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1F2B44" strokeWidth={sw} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${(c * v) / 100} ${c}`} />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-[30px] font-semibold" style={{ color: col }}>{value == null ? "–" : Math.round(v)}</span>
-        <span className="text-[11px] text-fg-3">{label}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+        <span className="font-display font-semibold" style={{ color: col, fontSize: Math.round(size * 0.26) }}>{value == null ? "–" : Math.round(v)}</span>
+        {size >= 96 && <span className="mt-1 text-[11px] text-fg-3">{label}</span>}
       </div>
     </div>
   );
@@ -132,6 +158,12 @@ export function Bar({ value, max = 100, color }: { value: number; max?: number; 
 }
 
 export function Modal({ open, onClose, children, title }: { open: boolean; onClose: () => void; children: ReactNode; title?: string }) {
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [open, onClose]);
   if (!open) return null;
   return (
     <div role="dialog" aria-label={title} className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-6" onClick={onClose}>

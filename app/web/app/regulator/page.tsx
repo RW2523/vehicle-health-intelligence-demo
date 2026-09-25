@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Bars, LineChart } from "@/components/charts";
 import { Shell } from "@/components/Shell";
-import { Card, Kpi, Source, toast } from "@/components/ui";
+import { Card, Kpi, PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { fmtN, pct } from "@/lib/format";
 import { useFetch } from "@/lib/live";
@@ -48,21 +48,23 @@ export default function Regulator() {
   const [busy, setBusy] = useState(false);
   const refresh = async () => {
     setBusy(true);
-    const res = await api.post("/api/regulator/refresh-web").finally(() => setBusy(false));
-    toast(res.updated.length ? `Updated from data.gov.my: ${res.updated.join(", ")}` : `Offline - kept the snapshot (${Object.keys(res.errors).length} feeds unreachable)`);
-    reload();
+    try {
+      const res = await api.post("/api/regulator/refresh-web");
+      toast(res.updated.length ? `Live from data.gov.my: ${res.updated.join(", ").replaceAll("_", " ")} (see "Live public data" below)`
+        : `data.gov.my is unreachable - kept the snapshot (${Object.keys(res.errors).length} feeds)`, res.updated.length ? "ok" : "err");
+      reload();
+    } catch (e: any) {
+      toast(e.message, "err");
+    } finally {
+      setBusy(false);
+    }
   };
   const reg = r?.registrations;
   const fuel = r?.web?.fuelprice?.records?.[0] || r?.web?.fuelprice?.records?.data?.[0];
   return (
     <Shell>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[26px] font-semibold">Regulator view · JPJ / DOE</h1>
-          <p className="text-[13px] text-fg-3">Registrations, defect trends, emissions and EV incidents (session S5).</p>
-        </div>
-        <button className="btn" disabled={busy} onClick={refresh}>{busy ? "Refreshing…" : "Refresh live data.gov.my feeds"}</button>
-      </div>
+      <PageHeader title="Regulator view · JPJ / DOE" sub="Registrations, defect trends, roadside emissions and EV incidents across Malaysia (session S5)."
+        actions={<button className="btn" disabled={busy} onClick={refresh}>{busy ? "Refreshing…" : "Refresh live data.gov.my feeds"}</button>} />
       {!r ? <p className="text-fg-3">Loading…</p> : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">

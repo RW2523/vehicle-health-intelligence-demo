@@ -34,15 +34,17 @@ test.describe("S1 lane → examiner → report → public verification", () => {
 
     await page.goto("/examiner?session=S1");
     await expect(page.getByRole("heading", { name: "Examiner console" })).toBeVisible();
-    await expect(page.getByText("Vehicle Health Score")).toBeVisible();
+    await expect(page.getByText("Why this health score")).toBeVisible();
     await expect(page.getByText(/Ranked alerts \(\d+\)/)).toBeVisible();
+    await expect(page.getByRole("tab", { name: "S1 · DMO 9001" })).toHaveAttribute("aria-selected", "true");
 
     // dismissing without a reason is refused
     await page.getByRole("button", { name: "Dismiss", exact: true }).first().click();
     await expect(page.getByText("Add a short reason to dismiss or defer.")).toBeVisible();
 
     await confirmAll(page);
-    const issue = page.getByRole("button", { name: "Issue report →" });
+    await expect(page.getByText(/(\d+) of \1 alerts/)).toBeVisible();
+    const issue = page.getByRole("button", { name: "Issue report", exact: true });
     await expect(issue).toBeEnabled();
     await issue.click();
     await expect(page).toHaveURL(/\/report\?id=/);
@@ -61,13 +63,13 @@ test.describe("S2 flood + EV and S3 identity", () => {
     await page.goto("/examiner?session=S2");
     await expect(page.getByText("DMO 9002").first()).toBeVisible();
     await expect(page.getByText(/flood/i).first()).toBeVisible();
-    await expect(page.getByText("Vehicle Health Score")).toBeVisible();
+    await expect(page.getByText("Why this health score")).toBeVisible();
   });
 
   test("S3 identity mismatch routes the inspection to a senior examiner", async ({ page, request }) => {
     await fastForward(request, "S3");
     await page.goto("/examiner?session=S3");
-    await expect(page.getByText("Identity flags: a senior examiner must sign off.")).toBeVisible();
+    await expect(page.getByText(/only a senior examiner can sign this off/)).toBeVisible();
     await page.getByRole("button", { name: "Route to senior examiner" }).click();
     await expect(page.getByRole("combobox", { name: "Examiner" })).toHaveValue("VE001");
   });
@@ -171,5 +173,35 @@ test.describe("GPU models and live updates", () => {
     await page.getByRole("button", { name: /Explain in plain words/ }).click();
     await expect(page.getByText("In plain words")).toBeVisible({ timeout: 90_000 });
     await expect(page.getByText(/Vision-language model · vLLM/)).toBeVisible();
+  });
+});
+
+test.describe("Orientation and navigation", () => {
+  test("the guided demo lists the steps and every page points to the next one", async ({ page }) => {
+    await page.goto("/");
+    const guide = page.locator("#guide");
+    await expect(guide.getByRole("heading", { name: /Guided demo/ })).toBeVisible();
+    await expect(guide.getByRole("listitem")).toHaveCount(7);
+    // the primary action is "Start S1 ..." on a fresh demo and "Continue: <next step>" afterwards; either leads on
+    await guide.getByRole("button", { name: /Start S1 at 4×/ }).or(guide.getByRole("link", { name: /Continue:/ })).first().click();
+    await expect(page).not.toHaveURL(/\/$/);
+    await page.goto("/lane?lane=BR00-L3");
+    await expect(page.getByRole("link", { name: /Next:\s*Decide the alerts/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Examiner console", exact: true })).toBeVisible();
+    await page.goto("/examiner?session=S1");
+    await expect(page.getByRole("link", { name: /Next:\s*Read the report/ })).toBeVisible();
+  });
+
+  test("on a phone the menu drawer reaches every app", async ({ browser }) => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(process.env.E2E_BASE_URL ? `${process.env.E2E_BASE_URL}/` : "http://localhost:3000/");
+    await page.getByRole("button", { name: "Open menu" }).click();
+    const drawer = page.getByRole("dialog", { name: "Navigation" });
+    await expect(drawer.getByRole("link", { name: /Fleet intelligence/ })).toBeVisible();
+    await drawer.getByRole("link", { name: /Regulator/ }).click();
+    await expect(page).toHaveURL(/\/regulator/);
+    await expect(page.getByRole("dialog", { name: "Navigation" })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+    await page.close();
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Shell } from "@/components/Shell";
-import { Card, Pill, Source, Tabs, toast } from "@/components/ui";
+import { Card, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { llmLabel } from "@/lib/format";
 import { useFetch } from "@/lib/live";
@@ -46,7 +46,7 @@ export default function Vision() {
     try {
       show({ ...(await api.post("/api/vision/analyse", body)), req: body });
     } catch (e: any) {
-      toast(e.message);
+      toast(e.message, "err");
     } finally {
       setBusy(false);
     }
@@ -58,7 +58,7 @@ export default function Vision() {
       const r = await api.upload(`/api/vision/upload?task=${task}`, f);
       show({ ...r, req: { task, upload_id: r.upload_id } });
     } catch (e: any) {
-      toast(e.message);
+      toast(e.message, "err");
     } finally {
       setBusy(false);
     }
@@ -68,7 +68,7 @@ export default function Vision() {
     try {
       setExpl(await api.post("/api/vision/explain", live.req));
     } catch (e: any) {
-      toast(e.message);
+      toast(e.message, "err");
     } finally {
       setExplaining(false);
     }
@@ -76,15 +76,10 @@ export default function Vision() {
   const clip = mode === "ai" ? 100 : mode === "orig" ? 0 : split;
   return (
     <Shell>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[24px] font-semibold">AI vision inspection</h1>
-          <p className="text-[13px] text-fg-3">{cases.length} captures · {cases.reduce((a, c) => a + c.findings.length, 0)} findings</p>
-        </div>
-        <Source kind="sample" text="Sample images · AI boxes pre-drawn" />
-      </div>
+      <PageHeader title="AI vision inspection" sub={`Lane and close-up captures with their findings (${cases.length} captures · ${cases.reduce((a, c) => a + c.findings.length, 0)} findings). Run the live image models on any of them, on a curated photo, or on your own upload.`}
+        actions={<Source kind="sample" text="Sample images · AI boxes pre-drawn" />} />
       {cur && (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,520px)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_minmax(320px,0.9fr)]">
           <Card className="flex max-h-[860px] flex-col">
             <div className="mb-3 flex flex-wrap gap-1.5">
               {FILTERS.map((f) => (

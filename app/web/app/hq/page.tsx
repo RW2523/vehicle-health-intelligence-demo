@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bars, LineChart, Scatter } from "@/components/charts";
 import { Shell } from "@/components/Shell";
-import { Card, Kpi, Pill, Source, toast } from "@/components/ui";
+import { Card, Kpi, PageHeader, Pill, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dmy, fmtN, pct } from "@/lib/format";
-import { useFetch } from "@/lib/live";
+import { useFetch, useLive } from "@/lib/live";
 
 export default function HQ() {
   const integ = useFetch<any>("/api/hq/integrity");
@@ -18,6 +18,20 @@ export default function HQ() {
   const [devIdx, setDevIdx] = useState(0);
   const [tamper, setTamper] = useState<any>(null);
   const [examinerSel, setExaminerSel] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // decisions and reports made on other screens add evidence entries: keep the audit and the counts current
+  useLive(["inspections"], () => {
+    audit.reload();
+    ops.reload();
+  });
+  useEffect(() => {
+    const t = setInterval(() => {
+      audit.reload();
+      ops.reload();
+    }, 8000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const I = integ.data;
   const light = (I?.examiners || []).filter((e: any) => e.vehicle_class === "heavy");
@@ -25,20 +39,26 @@ export default function HQ() {
   const dev = eq.data?.devices?.[devIdx];
   const D = dem.data;
   const runTamper = async () => {
-    const t = await api.post("/api/evidence/tamper-test");
-    setTamper(t);
-    toast(t.detected ? `Tamper detected at entry #${t.edited_seq}; record restored` : "Tamper test could not run");
-    audit.reload();
+    setBusy(true);
+    try {
+      const t = await api.post("/api/evidence/tamper-test");
+      if (!t.ran) {
+        toast("The evidence log is empty: run a lane session first (Demo control), then try again.", "err");
+        return;
+      }
+      setTamper(t);
+      toast(t.detected ? `Tamper detected at entry #${t.edited_seq}; record restored` : "The edit was not detected", t.detected ? "ok" : "err");
+      audit.reload();
+    } catch (e: any) {
+      toast(e.message, "err");
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <Shell>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[26px] font-semibold">HQ operations</h1>
-          <p className="text-[13px] text-fg-3">Integrity analytics, demand planning, lane equipment and the evidence audit (session S4 and S5).</p>
-        </div>
-        <Source kind="synthetic" text="History: synthetic (80 examiners, 20 branches)" />
-      </div>
+      <PageHeader title="HQ operations" sub="Examiner integrity, lane demand, equipment health and the tamper-evident evidence log, across all branches (sessions S4 and S5)."
+        actions={<Source kind="synthetic" text="History: synthetic (80 examiners, 20 branches)" />} />
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Kpi label="Flagged examiners" value={I ? I.flagged.length : "–"} sub={I ? I.flagged.join(", ") : ""} color="#F87171" />
         <Kpi label="Equipment below 50% health" value={eq.data ? eq.data.devices.filter((d: any) => d.health < 50).length : "–"} sub="of all lane devices" color="#FBBF24" />
@@ -130,8 +150,8 @@ export default function HQ() {
           )}
         </Card>
       </div>
-      <Card title="Evidence audit" right={<><Source kind="live_logic" text="SHA-256 hash chain" /><button className="btn btn-sm" onClick={runTamper}>Run tamper test</button></>}>
-        <div id="audit" className="mb-3 flex flex-wrap items-center gap-3 text-[13px]">
+      <Card title="Evidence audit" right={<><Source kind="live_logic" text="SHA-256 hash chain" /><button className="btn btn-sm btn-primary" disabled={busy} onClick={runTamper}>{busy ? "Testing…" : "Run tamper test"}</button></>}>
+        <div id="audit" className="mb-3 flex scroll-mt-24 flex-wrap items-center gap-3 text-[13px]">
           <Pill color={audit.data?.verify.intact ? "#34D399" : "#F87171"}>{audit.data?.verify.intact ? "All records intact" : "Chain broken"}</Pill>
           <span className="text-fg-3">{fmtN(audit.data?.verify.checked)} entries · head {audit.data?.verify.head?.slice(0, 16)}…</span>
           {tamper && (

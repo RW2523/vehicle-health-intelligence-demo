@@ -56,6 +56,7 @@ def list_inspections(status: str | None = None, lane_id: str | None = None, limi
 
 @router.get("/latest")
 def latest(lane_id: str | None = None, session_id: str | None = None):
+    """The newest inspection on a lane or for a session; null before the first run (not an error for the apps)."""
     with session_scope() as s:
         q = select(LiveInspection).order_by(LiveInspection.started_at.desc())
         if lane_id:
@@ -64,7 +65,7 @@ def latest(lane_id: str | None = None, session_id: str | None = None):
             q = q.where(LiveInspection.session_id == session_id.upper())
         li = s.execute(q.limit(1)).scalar_one_or_none()
         if li is None:
-            raise HTTPException(404, "no inspections yet - start a session from Demo control")
+            return None
         return get_inspection(li.inspection_id)
 
 

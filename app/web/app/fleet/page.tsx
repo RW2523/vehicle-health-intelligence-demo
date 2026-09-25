@@ -3,8 +3,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { Donut, LineChart, Spark } from "@/components/charts";
-import { FleetShell, ICONS } from "@/components/FleetShell";
-import { Source, toast } from "@/components/ui";
+import { Icon } from "@/components/icons";
+import { Shell } from "@/components/Shell";
+import { PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dmy, monthLabel, pct, riskColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
@@ -43,7 +44,7 @@ function FleetOverview() {
   const book = async () => {
     const plates = Object.keys(sel).filter((k) => sel[k]);
     const res = await api.post("/api/fleet/bookings", { plates });
-    toast(`${res.filter((b: any) => b.status).length} inspection(s) booked before each forecast fail date`);
+    toast(`${res.filter((b: any) => b.status).length} inspection(s) booked before each forecast fail date`, "ok");
     setSel({});
     reload();
   };
@@ -60,14 +61,9 @@ function FleetOverview() {
     rf === "all" ? true : rf === "acc" ? ["Accelerating", "Spike, then faster rise"].includes(r.issue?.pattern) : rf === "photo" ? r.evidence?.length > 0 : r.issue?.risk === rf);
   const fleetBranches = new Set((o?.fleets || []).map((f: any) => f.branch_id));
   return (
-    <FleetShell pill="FLEET INTELLIGENCE">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[32px] font-semibold">Fleet Intelligence</h1>
-          <p className="text-[15px] text-[#A9BAD3]">Total fleet visibility • Predict issues • Minimise downtime • Drive safer roads</p>
-        </div>
-        <button className="btn border-[#2F7BFF] text-[#9CC3FF]" onClick={exportCsv}>Export report</button>
-      </div>
+    <Shell context={<span className="chip hidden border-ink-500 text-fg-2 xl:inline-flex">Fleet manager view</span>}>
+      <PageHeader title="Fleet intelligence" sub="Each operator's vehicles: health, emerging problems and when each one will reach its fail limit, so it is fixed before the test."
+        actions={<><Source kind="synthetic" text="Synthetic fleets" /><button className="btn" onClick={exportCsv} disabled={!o}>Export CSV</button></>} />
       <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
         <Select label="Operator" value={fleet} onChange={(v) => q({ fleet: v })} options={[{ v: "", l: "All operators" }, ...(o?.fleets || []).map((f: any) => ({ v: f.fleet_id, l: f.name }))]} />
         <Select label="Vehicle type" value={vtype} onChange={(v) => q({ type: v })} options={[{ v: "", l: "All vehicle types" }, ...Object.keys(TYPE_COL).map((t) => ({ v: t, l: t }))]} />
@@ -126,7 +122,7 @@ function FleetOverview() {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1100px] text-left text-[13px]">
-                <thead className="border-y border-ink-600 bg-[#0C1628] text-[12.5px] text-[#A9BAD3]">
+                <thead className="border-y border-ink-600 bg-ink-850 text-[12.5px] text-[#A9BAD3]">
                   <tr><th className="w-10 px-4 py-2"></th><th>Vehicle</th><th>Issue</th><th>Trend</th><th>Evidence</th><th>Time to fail limit</th><th>Last check</th><th>Risk</th><th>Action</th></tr>
                 </thead>
                 <tbody>
@@ -140,13 +136,13 @@ function FleetOverview() {
                             {r.photo ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={`/media/assets/${r.photo}`} alt="" className="h-11 w-16 rounded-md object-cover" />
-                            ) : <span className="flex h-11 w-16 items-center justify-center rounded-md bg-ink-700 text-[10px] text-fg-4">{r.vtype}</span>}
+                            ) : <span className="flex h-11 w-16 shrink-0 flex-col items-center justify-center rounded-md bg-ink-700 text-[9.5px] text-fg-4"><Icon name="car" size={18} />{r.vtype}</span>}
                             <span className="flex flex-col"><b className="text-[14px]">{r.plate}</b><span className="text-[11.5px] text-[#B7C5DA]">{r.make} {r.model}</span><span className="text-[11.5px] text-fg-3">{r.vtype} · {r.operator}</span></span>
                           </div>
                         </td>
                         <td>
                           <div className="flex items-center gap-2.5">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ICONS[r.issue.icon]} /></svg>
+                            <Icon name={r.issue.icon} size={24} color={c} />
                             <span className="flex flex-col"><b className="text-[13.5px]">{r.issue.name}</b><span className="text-[11.5px] text-fg-3">{r.issue.value} {r.issue.unit} · limit {r.issue.limit} {r.issue.unit}</span></span>
                           </div>
                         </td>
@@ -163,7 +159,7 @@ function FleetOverview() {
                         <td><div className="flex flex-col"><b style={{ color: c }}>{r.issue.weeks_label}</b><span className="text-[11.5px] text-fg-3">{r.issue.date ? `by ${dmy(r.issue.date)}` : "drift is slow"}</span></div></td>
                         <td className="text-[12.5px] text-fg-2">{r.booked ? <span className="text-ok">Booked {dmy(r.booked.date)}</span> : dmy(r.last_check)}</td>
                         <td><span className="chip" style={{ borderColor: c, color: c, background: c + "1F" }}>{r.issue.risk}</span></td>
-                        <td><Link href={`/fleet/vehicle/${encodeURIComponent(r.plate)}`} className="btn btn-sm border-[#2F7BFF] text-[#9CC3FF]">Details ›</Link></td>
+                        <td className="pr-4"><Link href={`/fleet/vehicle/${encodeURIComponent(r.plate)}`} className="btn btn-sm">Details ›</Link></td>
                       </tr>
                     );
                   })}
@@ -204,7 +200,7 @@ function FleetOverview() {
           <p className="mt-2 text-[11.5px] text-fg-4">{o.insights.method}</p>
         </>
       )}
-    </FleetShell>
+    </Shell>
   );
 }
 

@@ -49,3 +49,19 @@ export const llmLabel = (backend?: string | null) => {
   const model = i < 0 ? "" : backend.slice(i + 1).split("/").pop();
   return [LLM_ENGINES[engine] || engine, model].filter(Boolean).join(" · ");
 };
+
+/** The scripted lane sessions and the lane each one runs on. */
+export const LANE_SESSIONS = [
+  { session: "S1", lane: "BR00-L3", label: "Alam Megah · Lane 3", plate: "DMO 9001" },
+  { session: "S2", lane: "BR01-L2", label: "Glenmarie · Lane 2", plate: "DMO 9002" },
+  { session: "S3", lane: "BR02-L1", label: "Batu Caves · Lane 1", plate: "DMO 9003" },
+];
+export const laneOf = (session?: string | null) => LANE_SESSIONS.find((s) => s.session === session)?.lane;
+export const laneSession = (lane?: string | null) => LANE_SESSIONS.find((s) => s.lane === lane);
+
+export const STATUS_LABEL: Record<string, string> = {
+  in_lane: "In the lane",
+  review: "Awaiting examiner review",
+  decided: "Decisions made",
+  reported: "Report issued",
+};

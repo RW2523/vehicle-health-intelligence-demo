@@ -2,46 +2,54 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { Icon } from "@/components/icons";
+import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
 import { AlertMini, BrakeChart, ENoseChart, Frames, Instruments, OBDChart, PNChart, Timeline } from "@/components/lanebits";
-import { Card, Empty, Modal, Pill, Source, Tabs, toast } from "@/components/ui";
-import { api } from "@/lib/api";
-import { fmtN } from "@/lib/format";
+import { Card, Empty, Modal, PageHeader, Pill, Source, Tabs } from "@/components/ui";
+import { LANE_SESSIONS, STATUS_LABEL, fmtN } from "@/lib/format";
 import { useInspection } from "@/lib/inspection";
 
-const LANES = [
-  { id: "BR00-L3", label: "Alam Megah · Lane 3", session: "S1" },
-  { id: "BR01-L2", label: "Glenmarie · Lane 2", session: "S2" },
-  { id: "BR02-L1", label: "Batu Caves · Lane 1", session: "S3" },
-];
+const LANES = LANE_SESSIONS.map((l) => ({ id: l.lane, label: l.label, session: l.session, plate: l.plate }));
+const STORY: Record<string, string> = {
+  S1: "a tampered diesel prime mover: removed DPF, ammonia slip, a hot brake hub and a damaged tyre",
+  S2: "a used EV with flood history, for sale with a bank loan: battery health, flood evidence, EV fault codes",
+  S3: "a sedan changing owner whose chassis plate, odometer and engine sound disagree with its history",
+};
 
 function LaneConsole() {
   const sp = useSearchParams();
   const router = useRouter();
-  const lane = sp.get("lane") || "BR00-L3";
+  const laneInfo = LANES.find((l) => l.id === sp.get("lane")) || LANES[0];
+  const lane = laneInfo.id;
   const L = useInspection({ lane });
+  const { sessions, setPlayer } = useSessions();
+  const sess = sessions.find((x) => x.session_id === laneInfo.session);
   const [zoom, setZoom] = useState<any>(null);
   const insp = L.insp;
   const r = L.results;
-  const laneInfo = LANES.find((l) => l.id === lane)!;
-  const start = async () => {
-    await api.post(`/api/sessions/${laneInfo.session}/start`, { speed: 2 });
-    toast(`${laneInfo.session} started at 2× on ${lane}`);
-  };
+  const controls = sess ? <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} /> : null;
   return (
     <Shell context={<Pill color={L.connected ? "#34D399" : "#9AA8BF"}>{L.connected ? "Live" : "Connecting…"}</Pill>}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
-          <h1 className="font-display text-[24px] font-semibold">Lane console</h1>
-          <Tabs value={lane} onChange={(v) => router.replace(`/lane?lane=${v}`)} items={LANES.map((l) => ({ id: l.id, label: l.label }))} />
+      <PageHeader title="Lane console" sub="What the lane sees as it happens: sensor streams, AI results and alerts. The examiner decides them next."
+        actions={insp ? <>{controls}<Link className="btn" href={`/examiner?session=${laneInfo.session}`}>Examiner console<Icon name="arrow" size={15} /></Link></> : null}>
+        <div className="mt-3"><Tabs value={lane} onChange={(v) => router.replace(`/lane?lane=${v}`)} items={LANES.map((l) => ({ id: l.id, label: `${l.label} · ${l.session}` }))} /></div>
+      </PageHeader>
+      {insp && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-ink-600 bg-ink-850 px-4 py-2.5 text-[13px]">
+          <b>{insp.plate}</b>
+          <span className="text-fg-3">{insp.vehicle?.make} {insp.vehicle?.model}</span>
+          <span className="text-fg-3">·</span>
+          <span>{STATUS_LABEL[insp.status] || insp.status}</span>
+          {insp.status === "in_lane" && L.player?.status === "playing" && <span className="flex items-center gap-1.5 text-ok"><span className="h-2 w-2 rounded-full bg-ok pulse-dot" />streaming</span>}
+          {insp.status !== "in_lane" && !insp.report && <Link href={`/examiner?session=${laneInfo.session}`} className="text-cyan hover:underline">The lane is done: decide the alerts in the examiner console →</Link>}
+          {insp.report && <Link href={`/report?id=${insp.report.report_id}`} className="text-cyan hover:underline">View the report ({insp.report.verdict}) →</Link>}
         </div>
-        <div className="flex items-center gap-2">
-          {insp && <Link className="btn" href={`/examiner?id=${insp.inspection_id}`}>Open in examiner console →</Link>}
-          <button className="btn btn-primary" onClick={start}>Run {laneInfo.session} on this lane</button>
-        </div>
-      </div>
+      )}
       {!insp ? (
-        <Empty>No inspection on {lane} yet. Start {laneInfo.session} here or from Demo control.</Empty>
+        <Empty title={`${laneInfo.label} is idle`} actions={controls}>
+          {laneInfo.session} drives {laneInfo.plate} through this lane: {STORY[laneInfo.session]}. Start it to watch the sensors and AI live, or fast-forward to the finished result.
+        </Empty>
       ) : (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex flex-col gap-4">
