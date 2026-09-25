@@ -1,6 +1,8 @@
 """Owner, fleet, HQ, regulator and vision APIs."""
 import datetime as dt
 
+from vhi.config import get_settings
+
 
 def test_owner_booking_gear_and_payment(client):
     t = client.get("/api/owner/inspection-types", params={"selling": True, "buyer_loan": True}).json()
@@ -17,6 +19,13 @@ def test_owner_booking_gear_and_payment(client):
                                                       "slot": g["slots"][0], "inspection_type": "B5", "gear": True})
     assert again.status_code == 409
     assert client.get(f"/api/owner/checkin/{p['checkin_token']}").json()["booking_id"] == b["booking_id"]
+    # the check-in QR points to the address the visitor used; a malformed forwarded host is ignored
+    lan = client.get(f"/api/owner/checkin/{p['checkin_token']}", headers={"x-forwarded-host": "10.0.0.87:3120"}).json()
+    assert lan["checkin_url"] == f"http://10.0.0.87:3120/checkin/{p['checkin_token']}"
+    bad = client.get(f"/api/owner/checkin/{p['checkin_token']}", headers={"x-forwarded-host": "evil.example/phish"}).json()
+    assert bad["checkin_url"].startswith(get_settings().public_base_url + "/checkin/")
+    st = client.get("/api/system/status", headers={"x-forwarded-host": "demo.trycloudflare.com", "x-forwarded-proto": "https"})
+    assert st.json()["public_base_url"] == "https://demo.trycloudflare.com"
 
 
 def test_assistant_three_languages(client):

@@ -1,5 +1,6 @@
 """End-to-end: scripted lane sessions S1-S3 through player -> bus -> processor -> models -> alerts -> fusion ->
 examiner decisions -> report -> public verify."""
+from vhi.config import get_settings
 
 
 def codes(insp):
@@ -59,11 +60,16 @@ def test_report_requires_decisions_then_verifies(client, s1):
         assert r.status_code == 200, r.text
     rep = client.post(f"/api/inspections/{iid}/report", json={"examiner_id": "VE012"}).json()
     assert rep["verdict"] == "FAIL"
-    assert rep["summary"] and rep["summary_source"] in ("template",) or rep["summary_source"].startswith("ollama")
+    assert rep["summary"] and (rep["summary_source"] == "template" or ":" in rep["summary_source"])  # engine:model
     v = client.get(f"/api/verify/{rep['verify_token']}").json()
     assert v["valid"] is True and v["verdict"] == "FAIL" and v["chain"]["anchored"]
     qr = client.get(f"/api/reports/{rep['report_id']}/qr.svg")
     assert qr.status_code == 200 and b"<svg" in qr.content
+    # the verify link follows the address the visitor used (forwarded by the web server or a tunnel)
+    fwd = {"x-forwarded-host": "demo.trycloudflare.com", "x-forwarded-proto": "https"}
+    assert client.get(f"/api/reports/{rep['report_id']}", headers=fwd).json()["verify_url"] == \
+        f"https://demo.trycloudflare.com/verify/{rep['verify_token']}"
+    assert rep["verify_url"] == f"{get_settings().public_base_url}/verify/{rep['verify_token']}"
     # decisions are locked after the report
     assert client.post(f"/api/inspections/alerts/{first['alert_id']}/decision",
                        json={"action": "dismiss", "reason": "late change"}).status_code == 409

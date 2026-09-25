@@ -7,7 +7,7 @@ import secrets
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from ..config import get_settings
+from ..config import public_base_url
 from ..db import session_scope
 from ..pipeline.processor import alert_dict
 from ..tables import Alert, Branch, Examiner, LiveInspection, Report
@@ -152,10 +152,9 @@ def issue(inspection_id: str, examiner_id: str, llm: LLM, senior_signed: bool = 
 
 
 def report_dict(r: Report) -> dict:
-    s = get_settings()
     return {"report_id": r.report_id, "inspection_id": r.inspection_id, "plate": r.plate, "kind": r.kind, "verdict": r.verdict,
             "summary": r.summary, "summary_source": r.narrative_source, "verify_token": r.verify_token,
-            "verify_url": f"{s.public_base_url}/verify/{r.verify_token}", "chain_hash": r.chain_hash, "data": r.data,
+            "verify_url": f"{public_base_url()}/verify/{r.verify_token}", "chain_hash": r.chain_hash, "data": r.data,
             "created_at": r.created_at.isoformat() if r.created_at else None}
 
 

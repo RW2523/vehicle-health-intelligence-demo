@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .config import get_settings
+from .config import base_url_from, get_settings, request_base_url
 from .runtime import build_runtime
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -47,6 +47,24 @@ async def lifespan(app: FastAPI):
         await r.bus.stop()
 
 
+class RequestBaseURL:
+    """Links and QR codes point to the address the visitor used: the web server forwards it as X-Forwarded-Host (and a
+    Cloudflare tunnel adds X-Forwarded-Proto: https). Direct API calls fall back to VHI_PUBLIC_BASE_URL."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        h = {k.lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        token = request_base_url.set(base_url_from(h.get(b"x-forwarded-host"), h.get(b"x-forwarded-proto")))
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            request_base_url.reset(token)
+
+
 def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(title="Vehicle Health Intelligence API", version="1.0.0", lifespan=lifespan,
@@ -54,6 +72,7 @@ def create_app() -> FastAPI:
                               "live logic, real public data or simulated.")
     app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in s.cors_origins.split(",")],
                        allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(RequestBaseURL)
     from .api import (evidence, fleet, hq, inspections, owner, reference, regulator, reports, sessions, system,
                       vision)
     for m in (system, reference, sessions, inspections, reports, evidence, vision, owner, fleet, hq, regulator):

@@ -6,6 +6,7 @@ import time
 from fastapi import APIRouter, Query, WebSocket
 from sqlalchemy import func, select
 
+from ..config import public_base_url
 from ..db import session_scope
 from ..runtime import rt
 from ..tables import EvidenceEntry, LiveInspection, Reading
@@ -33,6 +34,7 @@ def status():
         "websocket": {"clients": len(r.hub.clients), "sent": r.hub.sent},
         "llm": r.llm.status() if r.llm else {"backend": "none"},
         "vlm": r.vlm.status() if r.vlm else {"backend": None},
+        "public_base_url": public_base_url(),
         "models": models,
         "player": r.player.state_all() if r.player else [],
         "processor": r.processor.stats() if r.processor else {},

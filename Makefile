@@ -1,5 +1,5 @@
 # VehicleSense AI demo - common tasks. `make` or `make help` lists them.
-.PHONY: help setup start stop restart status seed reset train train-vision test test-pg e2e logs up up-llm down docker-logs spark spark-status
+.PHONY: help setup start stop restart status seed reset train train-vision test test-pg e2e logs up up-llm down docker-logs spark spark-status spark-tunnel
 
 help:
 	@echo "Local (no Docker):"
@@ -13,6 +13,7 @@ help:
 	@echo "  make test          backend tests (SQLite)      make e2e   Playwright tests against the running app"
 	@echo "DGX Spark, always on (systemd user services, GPU LLM + vision-language model):"
 	@echo "  make spark         install / refresh the services (scripts/spark.sh)   make spark-status"
+	@echo "  make spark-tunnel  public https URL through a Cloudflare quick tunnel (scripts/spark.sh url shows it)"
 	@echo "Docker (DGX Spark):"
 	@echo "  make up            TimescaleDB + Mosquitto + API + web      make up-llm   ... plus Ollama on the GPU"
 	@echo "  make down | docker-logs"
@@ -44,6 +45,7 @@ train-vision:
 
 spark:        ; scripts/spark.sh install
 spark-status: ; scripts/spark.sh status
+spark-tunnel: ; scripts/spark.sh tunnel
 
 up:          ; docker compose up -d --build
 up-llm:      ; docker compose --profile llm up -d --build && docker compose exec ollama ollama pull $${VHI_OLLAMA_MODEL:-qwen3:32b}

@@ -1,6 +1,8 @@
 """Runtime configuration. Every value can be overridden with an environment variable (prefix VHI_)."""
 from __future__ import annotations
 
+import re
+from contextvars import ContextVar
 from functools import lru_cache
 from pathlib import Path
 
@@ -42,7 +44,7 @@ class Settings(BaseSettings):
     player_speed: float = 1.0
     player_tick_s: float = 0.25
 
-    # Public base URL used inside QR codes (the verify page).
+    # Public base URL used inside QR codes (the verify page) when a request does not say which address the visitor used.
     public_base_url: str = "http://localhost:3000"
     cors_origins: str = "*"
 
@@ -79,3 +81,22 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+# The address the current request came in on, set by vhi.main.RequestBaseURL.
+request_base_url: ContextVar[str | None] = ContextVar("request_base_url", default=None)
+HOST_RE = re.compile(r"[A-Za-z0-9.-]+(:\d{1,5})?")
+
+
+def base_url_from(host: str | None, proto: str | None) -> str | None:
+    """"https://abc.trycloudflare.com" from forwarded host/proto headers; None when they are missing or malformed."""
+    proto = (proto or "http").split(",")[0].strip().lower()
+    if not host or not HOST_RE.fullmatch(host) or proto not in ("http", "https"):
+        return None
+    return f"{proto}://{host}"
+
+
+def public_base_url() -> str:
+    """Base URL for links and QR codes: the address the visitor used (LAN, Tailscale or a public tunnel), else
+    VHI_PUBLIC_BASE_URL."""
+    return request_base_url.get() or get_settings().public_base_url

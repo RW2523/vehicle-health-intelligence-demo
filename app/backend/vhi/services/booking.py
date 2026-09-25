@@ -8,7 +8,7 @@ import random
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from ..config import get_settings
+from ..config import get_settings, public_base_url
 from ..db import session_scope
 from ..tables import Booking, Branch
 
@@ -101,11 +101,10 @@ def pay(booking_id: str, method: str = "FPX") -> dict:
 
 
 def booking_dict(b: Booking) -> dict:
-    s = get_settings()
     return {"booking_id": b.booking_id, "plate": b.plate, "branch_id": b.branch_id, "date": b.date, "slot": b.slot,
             "inspection_type": b.inspection_type, "type_label": TYPES.get(b.inspection_type, {}).get("label", b.inspection_type),
             "gear": b.gear, "price_rm": b.price_rm, "status": b.status, "payment_ref": b.payment_ref,
-            "checkin_token": b.checkin_token, "checkin_url": f"{s.public_base_url}/checkin/{b.checkin_token}",
+            "checkin_token": b.checkin_token, "checkin_url": f"{public_base_url()}/checkin/{b.checkin_token}",
             "source": b.source, "fleet_id": b.fleet_id}
 
 

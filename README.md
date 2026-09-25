@@ -32,9 +32,15 @@ Open `http://<spark-host>:3120` (LAN or Tailscale address). The services start a
 
 - **Assistant and report summaries:** `nvidia/Qwen3-30B-A3B-FP4` (NVFP4 mixture-of-experts) on TensorRT-LLM (`trtllm-serve`, port 8355), about 1-2 s per answer in BM, English or Chinese. Any OpenAI-compatible server works (vLLM, NIM): set `VHI_LLM_URL` and `VHI_LLM_MODEL`.
 - **Photo explanations:** a vision-language model (`Qwen2.5-VL-7B-Instruct` on vLLM) gives a plain-words second opinion next to the image classifiers on the AI vision page. Set `VHI_VLM_URL` and `VHI_VLM_MODEL`, or leave them empty to switch it off.
-- **Report QR codes:** `VHI_PUBLIC_BASE_URL` is set to the Spark's Tailscale address, so a phone on the tailnet can scan them.
+- **Report QR codes:** links and QR codes use the address the visitor opened (LAN, Tailscale or the public URL below); the web server forwards it to the API. `VHI_PUBLIC_BASE_URL` (the Spark's Tailscale address) is the fallback for direct API calls.
 
 If a model server is down, the assistant and reports fall back to the template engine and the photo explanation is not offered. The UI labels which one answered.
+
+**Public URL.** `scripts/spark.sh tunnel` (or `make spark-tunnel`) adds a third always-on service: a Cloudflare quick tunnel that serves the apps at a public `https://<random-words>.trycloudflare.com` address, with the live WebSocket and QR codes working through it. No Cloudflare account is needed.
+
+- `scripts/spark.sh url` prints the current address and checks it end to end; `scripts/spark.sh tunnel off` removes it.
+- The hostname changes whenever the tunnel service restarts, for example after a reboot. Restarting the API or web keeps it. A fixed hostname needs a named tunnel on your own Cloudflare domain.
+- Anyone with the link can use the demo; there is no login. `scripts/spark.sh reset` clears what visitors did (reports, bookings, lane sessions, evidence) and keeps the seeded world.
 
 ## On the DGX Spark (Docker)
 
@@ -55,7 +61,7 @@ Open `http://<spark-host>:3000`. The web server also proxies the live WebSocket 
   No NGC base image is needed, because inference runs on onnxruntime, LightGBM and scikit-learn.
 - **Ollama and the GPU.** The Ollama service reserves the GPU through the NVIDIA container runtime, which is preinstalled on DGX OS.
 - **Using a different Ollama.** Set `VHI_OLLAMA_URL` (for example `http://host.docker.internal:11434`) and `VHI_OLLAMA_MODEL` in a `.env` file next to `docker-compose.yml`.
-- **Report QR codes.** The QR codes on reports point to `VHI_PUBLIC_BASE_URL`. Set it to `http://<spark-host>:3000` so a phone can scan them.
+- **Report QR codes.** The QR codes on reports point to the address the page was opened at (the web service forwards it), so open the apps at `http://<spark-host>:3000` rather than `localhost` when a phone should scan them. `VHI_PUBLIC_BASE_URL` is the fallback.
 - **Lane sensors.** Real or simulated lane sensors can publish JSON to the broker on port 1883, on topics `lane/<lane_id>/<sensor>`. The player uses the same topics.
 - **Retraining the vision models on the GPU.** Use a separate environment with the CUDA build of PyTorch (arm64, CUDA 13 on the GB10):
 
@@ -144,7 +150,7 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 | `VHI_LLM_URL` / `VHI_LLM_MODEL` | none | OpenAI-compatible LLM server on the GPU (TensorRT-LLM, vLLM, NIM), e.g. `http://127.0.0.1:8355/v1` / `nvidia/Qwen3-30B-A3B-FP4`; takes precedence over Ollama |
 | `VHI_OLLAMA_URL` / `VHI_OLLAMA_MODEL` | none / `qwen3:32b` | local LLM for the assistant and report summaries; falls back to the template engine (labelled in the UI) |
 | `VHI_VLM_URL` / `VHI_VLM_MODEL` | none | optional vision-language model (OpenAI-compatible) for photo explanations on the AI vision page |
-| `VHI_PUBLIC_BASE_URL` | `http://localhost:3000` | base URL encoded in report QR codes |
+| `VHI_PUBLIC_BASE_URL` | `http://localhost:3000` | base URL for report and check-in links and QR codes when a request does not carry the visitor's address (the web server forwards it) |
 | `VHI_DATA_DIR`, `VHI_VAR_DIR` | repo `data/curated`, `app/backend/var` | data and runtime-state locations |
 | `VHI_API_INTERNAL` | `http://127.0.0.1:8000` | where the web server forwards `/api` (fixed at `next build` time) |
 | `NEXT_PUBLIC_WS_URL` | `ws://<page host>/ws` (proxied to the API by the web server) | override the WebSocket address |
