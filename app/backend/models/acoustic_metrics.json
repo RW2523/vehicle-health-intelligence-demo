@@ -1,0 +1,29 @@
+{
+ "clips": 816,
+ "classes": {
+  "belt_or_accessory": 15,
+  "brake_noise": 5,
+  "engine_knock": 185,
+  "exhaust_or_fuel": 20,
+  "lane_background": 32,
+  "normal_engine": 360,
+  "powertrain_other": 143,
+  "valve_tick": 5,
+  "wheel_bearing_or_suspension": 51
+ },
+ "cv_accuracy": 0.765,
+ "cv_macro_f1": 0.621,
+ "cv_f1_per_class": {
+  "belt_or_accessory": 0.5,
+  "brake_noise": 0.333,
+  "engine_knock": 0.851,
+  "exhaust_or_fuel": 0.586,
+  "lane_background": 0.512,
+  "normal_engine": 0.88,
+  "powertrain_other": 0.591,
+  "valve_tick": 0.727,
+  "wheel_bearing_or_suspension": 0.613
+ },
+ "fingerprint_threshold": 0.68,
+ "fingerprint_eer": 0.131
+}

@@ -1,0 +1,8 @@
+{"source":"https://api.data.gov.my/weather/forecast?contains=Shah Alam@location__location_name","captured":"2026-09-24","location":{"location_id":"Tn070","location_name":"Shah Alam"},"records":[
+{"date":"2026-09-24","morning":"Ribut petir","afternoon":"Hujan","night":"Tiada Hujan","summary":"Ribut petir","min_temp":25,"max_temp":34},
+{"date":"2026-09-25","morning":"Tiada Hujan","afternoon":"Mendung","night":"Tiada Hujan","summary":"Mendung","min_temp":25,"max_temp":34},
+{"date":"2026-09-26","morning":"Tiada Hujan","afternoon":"Ribut petir","night":"Tiada Hujan","summary":"Ribut petir","min_temp":25,"max_temp":34},
+{"date":"2026-09-27","morning":"Ribut petir","afternoon":"Tiada Hujan","night":"Tiada Hujan","summary":"Ribut petir","min_temp":25,"max_temp":34},
+{"date":"2026-09-28","morning":"Tiada Hujan","afternoon":"Ribut petir","night":"Tiada Hujan","summary":"Ribut petir","min_temp":25,"max_temp":34},
+{"date":"2026-09-29","morning":"Tiada Hujan","afternoon":"Ribut petir","night":"Tiada Hujan","summary":"Ribut petir","min_temp":25,"max_temp":34},
+{"date":"2026-09-30","morning":"Tiada Hujan","afternoon":"Ribut petir","night":"Tiada Hujan","summary":"Ribut petir","min_temp":25,"max_temp":34}]}

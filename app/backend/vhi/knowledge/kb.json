@@ -1,0 +1,118 @@
+{
+ "note": "Demo knowledge base for the owner assistant (BM / EN / 中文). Written for the concept demo; fees and rules are illustrative and must be replaced with the official SOP/FAQ before any real use.",
+ "items": [
+  {
+   "id": "which_inspection_sell",
+   "keywords": ["jual", "sell", "selling", "transfer", "tukar nama", "pindah milik", "卖", "过户", "ownership", "b5", "mv15", "buyer", "pembeli"],
+   "q": {"ms": "Saya nak jual kereta, pemeriksaan apa yang saya perlu?", "en": "I want to sell my car. Which inspection do I need?", "zh": "我想卖车，需要做什么检验？"},
+   "a": {
+    "ms": "Untuk tukar nama pemilik, anda perlu pemeriksaan **B5 (MV15)**. Jika pembeli mengambil pinjaman bank, pemeriksaan **B7 (sewa beli)** juga diperlukan. Kedua-duanya boleh dibuat dalam satu lawatan. Bawa geran/VOC dan kad pengenalan.",
+    "en": "To transfer ownership you need a **B5 (MV15)** inspection. If the buyer is taking a bank loan, a **B7 (hire-purchase)** inspection is also needed. Both can be done in one visit. Bring the registration card (VOC) and your IC.",
+    "zh": "过户需要做 **B5 (MV15)** 检验。如果买家申请银行贷款，还需要 **B7（分期付款）** 检验，两项可在同一次到访完成。请携带车辆注册卡 (VOC) 和身份证。"
+   },
+   "types": ["B5", "B7"]
+  },
+  {
+   "id": "gear_slot",
+   "keywords": ["esok", "tomorrow", "slot", "gear", "premium", "cepat", "urgent", "明天", "预约", "next day", "hari ini", "today"],
+   "q": {"ms": "Ada slot esok?", "en": "Is there a slot tomorrow?", "zh": "明天有时段吗？"},
+   "a": {
+    "ms": "Slot **GEAR** ialah slot premium hari berikutnya dengan caj tambahan. Saya boleh semak slot yang masih kosong di cawangan pilihan anda.",
+    "en": "**GEAR** slots are premium next-day slots with a surcharge. I can check which ones are still free at your branch.",
+    "zh": "**GEAR** 是次日加急时段，需要额外费用。我可以帮您查看所选分行还有哪些空位。"
+   },
+   "tool": "gear_slots"
+  },
+  {
+   "id": "fees",
+   "keywords": ["harga", "bayaran", "fee", "price", "cost", "berapa", "how much", "费用", "多少钱", "caj"],
+   "q": {"ms": "Berapa bayaran pemeriksaan?", "en": "How much does an inspection cost?", "zh": "检验费用是多少？"},
+   "a": {
+    "ms": "Harga demo: B5 RM 40, B7 RM 40, B5+B7 RM 70, sukarela RM 60, sijil kesihatan EV RM 120. Slot GEAR tambah RM 30. (Harga ilustrasi untuk demo.)",
+    "en": "Demo prices: B5 RM 40, B7 RM 40, B5+B7 RM 70, voluntary RM 60, EV Health Certificate RM 120. GEAR slots add RM 30. (Illustrative prices for the demo.)",
+    "zh": "演示价格：B5 RM 40，B7 RM 40，B5+B7 RM 70，自愿检验 RM 60，电动车健康证书 RM 120。GEAR 时段加收 RM 30。（演示用价格）"
+   }
+  },
+  {
+   "id": "tint",
+   "keywords": ["tint", "cermin", "gelap", "vlt", "filem", "隔热膜", "车窗", "window"],
+   "q": {"ms": "Berapa had tint cermin?", "en": "What is the window tint limit?", "zh": "车窗隔热膜的限制是多少？"},
+   "a": {
+    "ms": "Had cahaya boleh lalu (VLT): cermin depan sekurang-kurangnya 70%, tingkap sisi depan 50%, belakang 30%. Tint yang terlalu gelap akan gagal pemeriksaan.",
+    "en": "Visible light transmission (VLT) minimums: windscreen 70%, front side windows 50%, rear 30%. Tint darker than that fails the inspection.",
+    "zh": "透光率 (VLT) 最低要求：前挡风玻璃 70%，前侧窗 50%，后窗 30%。过深会导致检验不合格。"
+   }
+  },
+  {
+   "id": "self_check",
+   "keywords": ["self-check", "semak sendiri", "sebelum", "prepare", "persediaan", "lulus", "pass", "自检", "准备", "fail"],
+   "q": {"ms": "Macam mana nak pastikan kereta lulus?", "en": "How can I make sure my car passes?", "zh": "怎样确保我的车能通过检验？"},
+   "a": {
+    "ms": "Gunakan **semakan kendiri** dalam aplikasi: ambil gambar tint, lampu hadapan dan 4 tayar, dan rakam bunyi enjin 20 saat. Aplikasi akan beritahu apa yang perlu dibaiki dahulu.",
+    "en": "Use the **self-check** in the app: take photos of the tint, both headlamps and all 4 tyres, and record 20 seconds of engine sound. The app tells you what to fix first.",
+    "zh": "使用应用中的**自检**功能：拍摄车窗、两侧大灯和四个轮胎，并录制 20 秒引擎声音。应用会告诉您需要先修理什么。"
+   }
+  },
+  {
+   "id": "what_to_bring",
+   "keywords": ["bawa", "dokumen", "bring", "documents", "ic", "geran", "voc", "带", "文件"],
+   "q": {"ms": "Apa yang perlu dibawa?", "en": "What do I need to bring?", "zh": "需要带什么？"},
+   "a": {
+    "ms": "Bawa geran/VOC, kad pengenalan pemilik (atau surat kebenaran), dan kod QR tempahan dalam aplikasi untuk daftar masuk pantas.",
+    "en": "Bring the registration card (VOC), the owner's IC (or an authorisation letter), and the booking QR code in the app for fast check-in.",
+    "zh": "请携带车辆注册卡 (VOC)、车主身份证（或授权信），以及应用中的预约二维码以便快速登记。"
+   }
+  },
+  {
+   "id": "ev",
+   "keywords": ["ev", "elektrik", "electric", "bateri", "battery", "soh", "电动", "电池"],
+   "q": {"ms": "Bagaimana dengan kereta elektrik?", "en": "What about electric cars?", "zh": "电动车怎么检验？"},
+   "a": {
+    "ms": "Kereta EV mendapat **Sijil Kesihatan EV**: keadaan bateri (SOH), ujian penebatan voltan tinggi dan pemeriksaan titik panas. Berguna apabila menjual EV terpakai.",
+    "en": "EVs get an **EV Health Certificate**: battery state of health (SOH), a high-voltage isolation test and a hot-spot check. Useful when selling a used EV.",
+    "zh": "电动车可获得**电动车健康证书**：电池健康度 (SOH)、高压绝缘测试和热点检测。出售二手电动车时很有用。"
+   },
+   "types": ["EV"]
+  },
+  {
+   "id": "flood",
+   "keywords": ["banjir", "flood", "air", "tenggelam", "水浸", "泡水", "water"],
+   "q": {"ms": "Bagaimana nak tahu kereta pernah banjir?", "en": "How do I know if a car was flooded?", "zh": "怎么知道车是否泡过水？"},
+   "a": {
+    "ms": "Pemeriksaan kami menggabungkan karat bawah kereta, bau (e-nose), sejarah tuntutan insurans dan ujian elektrik untuk menilai risiko kerosakan banjir. Semak laporan QR kenderaan sebelum membeli.",
+    "en": "Our inspection combines underbody corrosion, smell (e-nose), insurance-claim history and electrical tests to assess flood-damage risk. Check the vehicle's QR report before you buy.",
+    "zh": "我们的检验结合底盘锈蚀、气味（电子鼻）、保险理赔记录和电气测试来评估泡水风险。购车前请查看车辆的二维码报告。"
+   }
+  },
+  {
+   "id": "duration",
+   "keywords": ["berapa lama", "lama", "how long", "duration", "masa", "多久", "时间"],
+   "q": {"ms": "Berapa lama pemeriksaan?", "en": "How long does it take?", "zh": "检验需要多久？"},
+   "a": {
+    "ms": "Biasanya 30-45 minit di lorong. Dengan tempahan dan daftar masuk QR, masa menunggu lebih singkat.",
+    "en": "Usually 30-45 minutes in the lane. With a booking and QR check-in, waiting time is shorter.",
+    "zh": "在检验道通常需要 30-45 分钟。预约并使用二维码登记可缩短等待时间。"
+   }
+  },
+  {
+   "id": "reinspection",
+   "keywords": ["gagal", "failed", "semula", "again", "retest", "reinspection", "不合格", "复检"],
+   "q": {"ms": "Kalau gagal, macam mana?", "en": "What if my car fails?", "zh": "如果不合格怎么办？"},
+   "a": {
+    "ms": "Laporan akan senaraikan item yang gagal. Baiki item itu dan tempah pemeriksaan semula; hanya item yang gagal akan diperiksa semula dalam tempoh yang ditetapkan.",
+    "en": "The report lists the failed items. Fix them and book a re-inspection; only the failed items are re-checked within the set period.",
+    "zh": "报告会列出不合格项目。修好后预约复检，在规定期限内只需复检不合格项目。"
+   }
+  },
+  {
+   "id": "verify_report",
+   "keywords": ["qr", "sahkan", "verify", "report", "laporan", "sijil", "certificate", "验证", "报告"],
+   "q": {"ms": "Macam mana nak sahkan laporan?", "en": "How do I verify a report?", "zh": "怎么验证报告？"},
+   "a": {
+    "ms": "Imbas kod QR pada laporan. Halaman pengesahan menunjukkan keputusan, tarikh dan cap bukti yang tidak boleh diubah.",
+    "en": "Scan the QR code on the report. The verification page shows the result, the date and a tamper-evident proof.",
+    "zh": "扫描报告上的二维码。验证页面会显示检验结果、日期和防篡改证明。"
+   }
+  }
+ ]
+}

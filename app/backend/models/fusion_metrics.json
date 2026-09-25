@@ -1,0 +1,23 @@
+{
+ "health": {
+  "rows": 13866,
+  "fail_rate": 0.218,
+  "holdout_auc_time_split": 0.989
+ },
+ "next_fail": {
+  "pairs": 10236,
+  "holdout_auc": 0.687
+ },
+ "survival": {
+  "rows": 10236,
+  "concordance": 0.704,
+  "model": "Weibull AFT (lifelines)"
+ },
+ "flood": {
+  "vehicles": 3630,
+  "positives": 293,
+  "holdout_auc": 1.0,
+  "holdout_auc_physical_evidence_only": 0.974,
+  "note": "synthetic labels: every flooded car has a flood claim, so the full AUC is optimistic"
+ }
+}

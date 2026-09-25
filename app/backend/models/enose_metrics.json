@@ -1,0 +1,13 @@
+{
+ "rows": 13910,
+ "holdout_accuracy_random_split": 0.994,
+ "holdout_accuracy_later_batches_drift": 0.723,
+ "classes": [
+  "ethanol",
+  "ethylene",
+  "ammonia",
+  "acetaldehyde",
+  "acetone",
+  "toluene"
+ ]
+}

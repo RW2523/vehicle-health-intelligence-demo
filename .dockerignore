@@ -1,0 +1,10 @@
+.git
+.venv
+.incoming
+**/__pycache__
+**/*.pyc
+app/backend/var
+app/backend/runs
+app/web
+data/sources.tsv
+push_log.txt

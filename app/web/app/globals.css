@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body { background: #0B1220; color: #E8EEF7; }
+body { font-family: "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .5; }
+:focus-visible { outline: 2px solid #22D3EE; outline-offset: 2px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #2A3957; border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@layer components {
+  .card { @apply rounded-2xl border border-ink-600 bg-ink-800; }
+  .card-pad { @apply p-4; }
+  .h-title { @apply font-display text-[15px] font-semibold text-fg; }
+  .label { @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-3; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-ink-500 px-3 py-2 text-[13px] font-semibold text-fg transition hover:border-cyan/60 hover:bg-ink-700 disabled:hover:bg-transparent; }
+  .btn-primary { @apply border-transparent bg-cyan text-[#06202A] hover:bg-[#67E8F9] hover:border-transparent; }
+  .btn-sm { @apply px-2.5 py-1.5 text-[12px]; }
+  .chip { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11.5px] font-semibold; }
+  .input { @apply rounded-lg border border-ink-500 bg-ink-850 px-3 py-2 text-[13px] text-fg placeholder:text-fg-4 focus:border-cyan focus:outline-none; }
+}
+
+@keyframes scan { 0% { top: 0% } 100% { top: 100% } }
+.scanline { animation: scan 1.6s linear infinite; }
+@keyframes pulse-dot { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+.pulse-dot { animation: pulse-dot 1.4s ease-in-out infinite; }

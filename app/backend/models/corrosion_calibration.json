@@ -1,0 +1,9 @@
+{
+ "share_for_score_10": 0.28496551513671875,
+ "decision_share": 0.008,
+ "balanced_accuracy": 0.891,
+ "median_share_corrosion": 0.0564,
+ "median_share_clean_vehicle": 0.0004,
+ "n_pos": 137,
+ "n_neg": 137
+}

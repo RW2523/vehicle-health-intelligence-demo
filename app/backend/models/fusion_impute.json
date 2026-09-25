@@ -1,0 +1,21 @@
+{
+ "age_years": 6.0,
+ "heavy": 1.0,
+ "is_diesel": 1.0,
+ "is_ev": 0.0,
+ "odometer_log": 5.532434589979582,
+ "brake_efficiency_pct": 61.7,
+ "brake_imbalance_pct": 7.3,
+ "brake_drag_pct": 2.9,
+ "suspension_efficiency_pct": 63.0,
+ "side_slip_m_per_km": 1.81,
+ "headlamp_aim_dev_pct": 0.69,
+ "speedo_error_pct": 3.1,
+ "tint_vlt_front_pct": 68.5,
+ "tyre_tread_min_mm": 4.4,
+ "tyre_pressure_low": 0.0,
+ "n_dtcs": 0.0,
+ "obd_mil_on": 0.0,
+ "corrosion_score_0_10": 2.6,
+ "structural_anomaly": 0.0
+}

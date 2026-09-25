@@ -1,0 +1,36 @@
+{
+ "source": "data.gov.my open data: JPJ vehicle registrations 2025 (storage.data.gov.my/transportation/cars_2025.parquet and category files)",
+ "fetched_at": "2026-09-25T01:58:00+08:00",
+ "note": "Snapshot captured by the web fetcher; the demo runs offline from this file and refreshes it when the fetcher can reach data.gov.my.",
+ "monthly_2025": [
+  109815,
+  127062,
+  143861,
+  123964,
+  141124,
+  119343,
+  149176,
+  147780,
+  120066,
+  146828,
+  138443,
+  162090
+ ],
+ "by_category": {
+  "car": 870327,
+  "motorcycle": 704715,
+  "other": 23258,
+  "lorry": 21699,
+  "trailer": 4755,
+  "van": 3443
+ },
+ "top_states": {
+  "W.P. Kuala Lumpur": 81209,
+  "Selangor": 44324,
+  "Johor": 40406,
+  "Sarawak": 30360,
+  "Sabah": 29365,
+  "Pulau Pinang": 16192
+ },
+ "total": 1629552
+}

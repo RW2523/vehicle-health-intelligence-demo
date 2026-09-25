@@ -1,0 +1,574 @@
+{
+ "rules": {
+  "Windshield crack": "Cracks in the wiper sweep area fail the inspection. Replace the windscreen before retest.",
+  "Headlamp haze": "Reduced light output. Headlamp beam test will confirm; polish or replace the lens.",
+  "Panel misalignment": "Uneven gaps can mean a past repair. Recorded for the body history.",
+  "Uneven tyre wear": "Points to wheel alignment or suspension issues. Check alignment.",
+  "Sidewall bulge": "Internal tyre damage. Unsafe to drive: tyre must be replaced.",
+  "Tail lamp crack": "Cracked lens lets water in and can show white light to the rear. Replace the lens.",
+  "Rear door misalignment": "Door gap out of line. Check hinges and latch for safety.",
+  "Water staining": "Water marks on the floor are a flood indicator.",
+  "Tide line": "A level line of dirt on trim shows how high water stood inside the car.",
+  "Seat rail corrosion": "Rust on seat rails is a strong sign of standing water in the cabin.",
+  "Loose heat shield": "Can rattle or fall off. Re-secure before retest.",
+  "Bracket corrosion": "Corroded exhaust hanger can fail. Monitor or replace.",
+  "Dent": "Cosmetic unless near a structural member. Recorded for the body history.",
+  "Scratch": "Cosmetic. Recorded for the body history.",
+  "Rust": "Surface rust near the wheel arch. Treat before it becomes structural.",
+  "Fluid leak": "Active oil or transmission leak fails the inspection. Repair and retest.",
+  "Surface wear": "Normal wear. Useful as an odometer cross-check: heavy wear with low mileage is suspicious.",
+  "Stain": "Cosmetic. No action needed.",
+  "Wear": "Normal wear. Consistent with the recorded mileage.",
+  "Disc scoring": "Deep grooves reduce braking grip. Skim or replace the disc.",
+  "Uneven pad wear": "Inner pad much thinner than outer: sticking caliper. Causes brake imbalance, a fail item.",
+  "Visible smoke": "Smoke at idle fails the emissions test. Find the cause before retest.",
+  "Soot deposit": "Rich running or oil burning. Supports the smoke finding.",
+  "Oil-wet shock absorber": "A leaking shock has lost damping. Fail item: replace in pairs.",
+  "Cracked bush": "Worn mount lets the axle move. Replace with the shocks.",
+  "Camera mount tilted": "A tilted camera misjudges lanes and distance. Recalibrate.",
+  "Recalibration not recorded": "New windscreen with no calibration record. Ask for proof or recalibrate.",
+  "Terminal corrosion": "Raises resistance and weakens starting. Clean and protect.",
+  "Case swelling": "Swollen case means internal damage or overcharging. Replace the battery.",
+  "Pad thickness 5 mm": "Above the 3 mm limit. Pass, and monitor the wear rate."
+ },
+ "cases": [
+  {
+   "id": 16,
+   "group": "lane",
+   "cats": [
+    "body"
+   ],
+   "title": "Lane 3 · Case 1",
+   "vehicle": "VJM 3287 · Perodua Bezza",
+   "camera": "Front-left camera",
+   "original": "c16o.jpg",
+   "ai": "c16a.jpg",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Left front fender",
+     "severity": "L"
+    },
+    {
+     "name": "Scratch",
+     "location": "Left front door, lower",
+     "severity": "L"
+    },
+    {
+     "name": "Rust",
+     "location": "Left wheel arch / rocker",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Pass with an advisory to treat the rust. Dent and scratch go on the body history for future buyers."
+  },
+  {
+   "id": 15,
+   "group": "lane",
+   "cats": [
+    "body"
+   ],
+   "title": "Lane 3 · Case 3",
+   "vehicle": "VJM 7412 · Perodua Bezza",
+   "camera": "Rear-right camera",
+   "original": "c15o.jpg",
+   "ai": "c15a.jpg",
+   "findings": [
+    {
+     "name": "Scratch",
+     "location": "Lower right side skirt (long)",
+     "severity": "L"
+    }
+   ],
+   "next_step": "Cosmetic only. Pass. Recorded on the vehicle health passport."
+  },
+  {
+   "id": 14,
+   "group": "lane",
+   "cats": [
+    "body"
+   ],
+   "title": "Lane 3 · Case 4",
+   "vehicle": "VJM 7412 · Perodua Bezza",
+   "camera": "Roof camera",
+   "original": "c14o.jpg",
+   "ai": "c14a.jpg",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Roof panel, centre-left",
+     "severity": "L"
+    }
+   ],
+   "next_step": "Cosmetic hail or impact dent. Pass. Recorded for the body history."
+  },
+  {
+   "id": 13,
+   "group": "lane",
+   "cats": [
+    "under"
+   ],
+   "title": "Lane 3 · Case 5",
+   "vehicle": "Sedan · pit inspection",
+   "camera": "Pit camera",
+   "original": "c13o.jpg",
+   "ai": "c13a.jpg",
+   "findings": [
+    {
+     "name": "Fluid leak",
+     "location": "Under-engine / undertray",
+     "severity": "H"
+    }
+   ],
+   "next_step": "Fail item. Confirm with the e-nose (oil vapour) and send the owner a repair notice. Retest within 30 days."
+  },
+  {
+   "id": 17,
+   "group": "close",
+   "cats": [
+    "mech"
+   ],
+   "title": "Close-up · Brakes",
+   "vehicle": "VKR 3128 · Toyota Vios",
+   "camera": "Wheel-off brake camera",
+   "original": "n1o.jpg",
+   "ai": "n1a.jpg",
+   "findings": [
+    {
+     "name": "Disc scoring",
+     "location": "Front-left brake disc",
+     "severity": "M"
+    },
+    {
+     "name": "Uneven pad wear",
+     "location": "Front-left inner pad",
+     "severity": "H"
+    }
+   ],
+   "next_step": "Fail item. This matches the rising brake imbalance on VKR 3128. Replace disc and pads, service the caliper, retest on the roller tester."
+  },
+  {
+   "id": 18,
+   "group": "close",
+   "cats": [
+    "mech"
+   ],
+   "title": "Close-up · Emissions",
+   "vehicle": "BHY 7783 · Toyota Hiace",
+   "camera": "Emissions bay camera",
+   "original": "n2o.jpg",
+   "ai": "n2a.jpg",
+   "findings": [
+    {
+     "name": "Visible smoke",
+     "location": "Tailpipe at idle",
+     "severity": "H"
+    },
+    {
+     "name": "Soot deposit",
+     "location": "Tailpipe tip",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Fail item. Matches the rising HC readings on BHY 7783. Injector and compression check, then re-run the emissions test."
+  },
+  {
+   "id": 19,
+   "group": "close",
+   "cats": [
+    "under"
+   ],
+   "title": "Close-up · Suspension",
+   "vehicle": "JTR 5510 · Nissan NV350",
+   "camera": "Pit camera",
+   "original": "n3o.jpg",
+   "ai": "n3a.jpg",
+   "findings": [
+    {
+     "name": "Oil-wet shock absorber",
+     "location": "Rear left shock body",
+     "severity": "H"
+    },
+    {
+     "name": "Cracked bush",
+     "location": "Lower shock mount",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Fail item. Explains the falling rear damping on JTR 5510. Replace both rear shocks and the bushes."
+  },
+  {
+   "id": 20,
+   "group": "close",
+   "cats": [
+    "mech"
+   ],
+   "title": "Close-up · ADAS camera",
+   "vehicle": "PKE 4410 · Toyota Innova",
+   "camera": "Cabin camera",
+   "original": "n4o.jpg",
+   "ai": "n4a.jpg",
+   "findings": [
+    {
+     "name": "Camera mount tilted",
+     "location": "Forward ADAS camera",
+     "severity": "M"
+    },
+    {
+     "name": "Recalibration not recorded",
+     "location": "Windscreen sticker",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Advisory. Explains the step change in camera yaw on PKE 4410 after the windscreen swap. Recalibrate at a panel ADAS bay."
+  },
+  {
+   "id": 21,
+   "group": "close",
+   "cats": [
+    "mech"
+   ],
+   "title": "Close-up · 12 V battery",
+   "vehicle": "VJM 7412 · Perodua Bezza",
+   "camera": "Engine bay camera",
+   "original": "n5o.jpg",
+   "ai": "n5a.jpg",
+   "findings": [
+    {
+     "name": "Terminal corrosion",
+     "location": "Positive terminal",
+     "severity": "M"
+    },
+    {
+     "name": "Case swelling",
+     "location": "Battery case side",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Advisory. Matches the falling cranking voltage on VJM 7412. Replace the battery at the next service."
+  },
+  {
+   "id": 22,
+   "group": "close",
+   "cats": [
+    "mech"
+   ],
+   "title": "Close-up · Brake pads",
+   "vehicle": "WVA 1209 · Perodua Myvi",
+   "camera": "Wheel-off brake camera",
+   "original": "n6o.jpg",
+   "ai": "n6a.jpg",
+   "findings": [
+    {
+     "name": "Pad thickness 5 mm",
+     "location": "Front-right pad",
+     "severity": "L"
+    }
+   ],
+   "next_step": "Pass. 5 mm is above the 3 mm limit. At the current wear rate, plan pads in about 6 months."
+  },
+  {
+   "id": 7,
+   "group": "fleet",
+   "cats": [
+    "body"
+   ],
+   "title": "Fleet case 1",
+   "vehicle": "White sedan",
+   "camera": "Front-left camera",
+   "original": "c07o.jpg",
+   "ai": "c07a.jpg",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Left front fender",
+     "severity": "L"
+    },
+    {
+     "name": "Scratch",
+     "location": "Left door / side skirt",
+     "severity": "L"
+    },
+    {
+     "name": "Rust",
+     "location": "Left rear wheel arch",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Pass with advisory. Fleet manager gets a rust-treatment recommendation."
+  },
+  {
+   "id": 8,
+   "group": "fleet",
+   "cats": [
+    "body"
+   ],
+   "title": "Fleet case 2",
+   "vehicle": "White panel van",
+   "camera": "Rear-right camera",
+   "original": "c08o.jpg",
+   "ai": "c08a.jpg",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Right rear bumper",
+     "severity": "L"
+    },
+    {
+     "name": "Scratch",
+     "location": "Right sliding door / lower panel",
+     "severity": "L"
+    },
+    {
+     "name": "Rust",
+     "location": "Right rear wheel arch",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Pass with advisory. Schedule body repair at the next service."
+  },
+  {
+   "id": 9,
+   "group": "fleet",
+   "cats": [
+    "under"
+   ],
+   "title": "Fleet case 3",
+   "vehicle": "Pickup truck",
+   "camera": "Pit camera",
+   "original": "c09o.jpg",
+   "ai": "c09a.jpg",
+   "findings": [
+    {
+     "name": "Fluid leak",
+     "location": "Under-engine / transmission area",
+     "severity": "H"
+    }
+   ],
+   "next_step": "Fail item. Take the vehicle off the road roster until the leak is fixed; book a retest."
+  },
+  {
+   "id": 10,
+   "group": "fleet",
+   "cats": [
+    "body"
+   ],
+   "title": "Fleet case 4",
+   "vehicle": "Silver hatchback",
+   "camera": "Roof camera",
+   "original": "c10o.jpg",
+   "ai": "c10a.jpg",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Roof panel",
+     "severity": "L"
+    }
+   ],
+   "next_step": "Cosmetic. Pass."
+  },
+  {
+   "id": 11,
+   "group": "fleet",
+   "cats": [
+    "interior"
+   ],
+   "title": "Fleet case 5",
+   "vehicle": "Sedan interior",
+   "camera": "Cabin camera",
+   "original": "c11o.jpg",
+   "ai": "c11a.jpg",
+   "findings": [
+    {
+     "name": "Surface wear",
+     "location": "Steering wheel",
+     "severity": "L"
+    },
+    {
+     "name": "Stain",
+     "location": "Driver seat",
+     "severity": "L"
+    },
+    {
+     "name": "Wear",
+     "location": "Driver door armrest",
+     "severity": "L"
+    }
+   ],
+   "next_step": "Cabin wear matches the recorded mileage, so no odometer concern. Pass."
+  },
+  {
+   "id": 12,
+   "group": "fleet",
+   "cats": [
+    "body"
+   ],
+   "title": "Fleet case 6",
+   "vehicle": "White MPV",
+   "camera": "Right-side camera",
+   "original": "c12o.jpg",
+   "ai": "c12a.jpg",
+   "findings": [
+    {
+     "name": "Scratch",
+     "location": "Lower right side door / side skirt",
+     "severity": "L"
+    }
+   ],
+   "next_step": "Cosmetic. Pass."
+  },
+  {
+   "id": 1,
+   "group": "fleet",
+   "cats": [
+    "body"
+   ],
+   "title": "Fleet case 7",
+   "vehicle": "White sedan",
+   "camera": "Front-left camera",
+   "original": "c01o.jpg",
+   "ai": "c01a.jpg",
+   "findings": [
+    {
+     "name": "Windshield crack",
+     "location": "Lower passenger-side windshield",
+     "severity": "H"
+    }
+   ],
+   "next_step": "Fail item. Replace the windscreen and retest. Fleet portal flags the vehicle."
+  },
+  {
+   "id": 2,
+   "group": "fleet",
+   "cats": [
+    "body",
+    "lamps"
+   ],
+   "title": "Fleet case 8",
+   "vehicle": "Silver MPV",
+   "camera": "Front-right camera",
+   "original": "c02o.jpg",
+   "ai": "c02a.jpg",
+   "findings": [
+    {
+     "name": "Headlamp haze",
+     "location": "Right headlamp lens",
+     "severity": "M"
+    },
+    {
+     "name": "Panel misalignment",
+     "location": "Front bumper / right headlamp gap",
+     "severity": "L"
+    }
+   ],
+   "next_step": "Run the headlamp beam test. The gap suggests a past front-right repair; check the insurance history."
+  },
+  {
+   "id": 3,
+   "group": "fleet",
+   "cats": [
+    "tyres"
+   ],
+   "title": "Fleet case 9",
+   "vehicle": "Pickup truck",
+   "camera": "Front-right wheel camera",
+   "original": "c03o.jpg",
+   "ai": "c03a.jpg",
+   "findings": [
+    {
+     "name": "Uneven tyre wear",
+     "location": "Front-right outer shoulder",
+     "severity": "M"
+    },
+    {
+     "name": "Sidewall bulge",
+     "location": "Front-right tyre",
+     "severity": "H"
+    }
+   ],
+   "next_step": "Fail item: replace the front-right tyre now, then check wheel alignment to stop the uneven wear."
+  },
+  {
+   "id": 4,
+   "group": "fleet",
+   "cats": [
+    "body",
+    "lamps"
+   ],
+   "title": "Fleet case 10",
+   "vehicle": "White panel van",
+   "camera": "Rear camera",
+   "original": "c04o.jpg",
+   "ai": "c04a.jpg",
+   "findings": [
+    {
+     "name": "Tail lamp crack",
+     "location": "Right rear lamp",
+     "severity": "M"
+    },
+    {
+     "name": "Rear door misalignment",
+     "location": "Cargo door panel gap",
+     "severity": "L"
+    }
+   ],
+   "next_step": "Replace the tail lamp lens. Check the cargo door hinges."
+  },
+  {
+   "id": 5,
+   "group": "fleet",
+   "cats": [
+    "interior",
+    "flood"
+   ],
+   "title": "Fleet case 11",
+   "vehicle": "Sedan interior",
+   "camera": "Cabin camera",
+   "original": "c05o.jpg",
+   "ai": "c05a.jpg",
+   "findings": [
+    {
+     "name": "Water staining",
+     "location": "Front footwell",
+     "severity": "H"
+    },
+    {
+     "name": "Tide line",
+     "location": "Lower door trim / carpet edge",
+     "severity": "H"
+    },
+    {
+     "name": "Seat rail corrosion",
+     "location": "Front seat rail",
+     "severity": "H"
+    }
+   ],
+   "next_step": "Three flood signs together. Run the e-nose for mould and electrolyte, check the insurance record, and refer for a flood assessment."
+  },
+  {
+   "id": 6,
+   "group": "fleet",
+   "cats": [
+    "under"
+   ],
+   "title": "Fleet case 12",
+   "vehicle": "SUV underbody",
+   "camera": "Pit camera",
+   "original": "c06o.jpg",
+   "ai": "c06a.jpg",
+   "findings": [
+    {
+     "name": "Loose heat shield",
+     "location": "Mid underbody, exhaust area",
+     "severity": "M"
+    },
+    {
+     "name": "Bracket corrosion",
+     "location": "Rear exhaust hanger",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Pass with advisory. Re-secure the heat shield and replace the hanger at the next service."
+  }
+ ]
+}

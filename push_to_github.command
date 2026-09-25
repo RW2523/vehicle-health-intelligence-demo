@@ -6,7 +6,18 @@ exec > >(tee push_log.txt) 2>&1
 REPO=vehicle-health-intelligence-demo
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 echo "== $(date) =="
-git status -s | head -5; git log --oneline | head -2
+# unpack an app update if one was dropped into .incoming/ (see README), then commit everything
+if [ -f .incoming/vehiclesense_app_update.tgz ]; then
+  echo "Unpacking .incoming/vehiclesense_app_update.tgz ..."
+  tar xzf .incoming/vehiclesense_app_update.tgz && mv .incoming/vehiclesense_app_update.tgz ".incoming/applied-$(date +%Y%m%d-%H%M%S).tgz"
+fi
+rm -f .git/index.lock 2>/dev/null
+git add -A
+if ! git diff --cached --quiet; then
+  git commit -m "VehicleSense AI demo app: end-to-end pipeline, 7 web apps, E2E tests, Docker stack for DGX Spark" \
+    -m "Backend (FastAPI + live models), Next.js apps, Playwright tests, docker-compose (TimescaleDB, Mosquitto, Ollama), Makefile and runbook."
+fi
+git status -s | head -5; git log --oneline | head -3
 if ! command -v gh >/dev/null; then
   echo "gh CLI not found - installing with Homebrew..."
   if command -v brew >/dev/null; then brew install gh; else echo "NO_BREW: install GitHub CLI from https://cli.github.com then double-click this file again"; read -p "Press Enter to close"; exit 1; fi

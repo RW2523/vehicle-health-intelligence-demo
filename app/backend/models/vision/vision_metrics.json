@@ -1,0 +1,25 @@
+{
+ "damage": {
+  "top1_val_accuracy": 0.7542,
+  "classes": [
+   "breakage",
+   "crushed",
+   "normal"
+  ],
+  "imgsz": 160,
+  "epochs": 12,
+  "base": "yolo11n-cls.pt",
+  "n_val": 240
+ },
+ "tyre": {
+  "top1_val_accuracy": 0.9389,
+  "classes": [
+   "defective",
+   "good"
+  ],
+  "imgsz": 160,
+  "epochs": 12,
+  "base": "yolo11n-cls.pt",
+  "n_val": 180
+ }
+}

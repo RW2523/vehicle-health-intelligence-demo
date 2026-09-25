@@ -1,0 +1,4 @@
+{"source":"https://api.data.gov.my/weather/warning","captured":"2026-09-24","records":[
+{"issued":"2026-09-24T13:00:00","title_en":"Strong Winds and Rough Seas Warning","valid_from":"2026-09-23T00:00:00","valid_to":"2026-09-25T00:00:00","summary_en":"Thunderstorms, heavy rain and strong winds over waters of East Johor and Northern Sarawak; winds up to 50 km/h, waves up to 3.5 m."},
+{"issued":"2026-09-24T12:30:00","title_en":"Thunderstorms Warning","valid_from":"2026-09-24T12:00:00","valid_to":"2026-09-24T14:00:00","summary_en":"Thunderstorms, heavy rain and strong winds over Johor (Kota Tinggi) and Sabah (Membakut, Beaufort, Kuala Penyu, Papar, Penampang, Putatan, Kota Kinabalu, Tuaran, Kota Belud, Semporna, Lahad Datu, Kunak) until 2:00 PM."},
+{"issued":"2026-09-24T10:30:00","title_en":"No Advisory","summary_en":"No tropical cyclone observed in MMD monitoring region."}]}

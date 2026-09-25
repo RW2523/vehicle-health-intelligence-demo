@@ -1,0 +1,6 @@
+{
+ "rows": 19680,
+ "holdout_days": 28,
+ "holdout_mape": 0.063,
+ "naive_last_week_mape": 0.103
+}
