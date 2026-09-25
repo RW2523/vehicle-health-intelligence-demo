@@ -1,0 +1,983 @@
+{
+ "about": "VehicleSense demo image set: sample inspection images with AI boxes pre-drawn (not model output). Paths are relative to data/curated and are served by the API under /media/data/.",
+ "source_folder": "sam_img (imported with scripts/import_sam_img.py)",
+ "counts": {
+  "images": 26,
+  "series_crops": 21,
+  "source_files": 87,
+  "unique_source_images": 72
+ },
+ "images": [
+  {
+   "id": "01",
+   "kind": "comparison",
+   "title": "Fleet case 7 · windshield crack",
+   "full": "images/vehiclesense_demo/full/01_fleet-case-07_windshield-crack.png",
+   "web": "images/vehiclesense_demo/web/01_fleet-case-07_windshield-crack.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "5004ddce4bf9d08a7f351c3616e363f3945d774c",
+   "source_files": [
+    "1.png",
+    "VehicleSense_Full_Demo/assets/ai_windshield_crack_inspection_comparison.png"
+   ],
+   "app_capture": {
+    "capture_id": 1,
+    "original": "c01o.jpg",
+    "ai": "c01a.jpg"
+   },
+   "crops": [
+    "captures/c01o.jpg",
+    "captures/c01a.jpg"
+   ],
+   "used_by_vehicles": [
+    "BPR 7730"
+   ],
+   "vehicle": "White sedan",
+   "camera": "Front-left camera",
+   "findings": [
+    {
+     "name": "Windshield crack",
+     "location": "Lower passenger-side windshield",
+     "severity": "H"
+    }
+   ]
+  },
+  {
+   "id": "02",
+   "kind": "comparison",
+   "title": "Fleet case 8 · headlamp haze, panel misalignment",
+   "full": "images/vehiclesense_demo/full/02_fleet-case-08_headlamp-haze_panel-misalignment.png",
+   "web": "images/vehiclesense_demo/web/02_fleet-case-08_headlamp-haze_panel-misalignment.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "2f75e55835402f3b10d36612ba41b542168d055e",
+   "source_files": [
+    "2.png",
+    "VehicleSense_Full_Demo/assets/ai_vehicle_inspection_two_issues_detected.png"
+   ],
+   "app_capture": {
+    "capture_id": 2,
+    "original": "c02o.jpg",
+    "ai": "c02a.jpg"
+   },
+   "crops": [
+    "captures/c02o.jpg",
+    "captures/c02a.jpg"
+   ],
+   "used_by_vehicles": [
+    "VCC 8841"
+   ],
+   "vehicle": "Silver MPV",
+   "camera": "Front-right camera",
+   "findings": [
+    {
+     "name": "Headlamp haze",
+     "location": "Right headlamp lens",
+     "severity": "M"
+    },
+    {
+     "name": "Panel misalignment",
+     "location": "Front bumper / right headlamp gap",
+     "severity": "L"
+    }
+   ]
+  },
+  {
+   "id": "03",
+   "kind": "comparison",
+   "title": "Fleet case 9 · uneven tyre wear, sidewall bulge",
+   "full": "images/vehiclesense_demo/full/03_fleet-case-09_tyre-uneven-wear_sidewall-bulge.png",
+   "web": "images/vehiclesense_demo/web/03_fleet-case-09_tyre-uneven-wear_sidewall-bulge.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "705fd3120799dfa7c0c8531a46557a32070a3b97",
+   "source_files": [
+    "3.png",
+    "VehicleSense_Full_Demo/assets/ai_tyre_inspection_two_issues_detected.png"
+   ],
+   "app_capture": {
+    "capture_id": 3,
+    "original": "c03o.jpg",
+    "ai": "c03a.jpg"
+   },
+   "crops": [
+    "captures/c03o.jpg",
+    "captures/c03a.jpg"
+   ],
+   "used_by_vehicles": [
+    "WXD 2291"
+   ],
+   "vehicle": "Pickup truck",
+   "camera": "Front-right wheel camera",
+   "findings": [
+    {
+     "name": "Uneven tyre wear",
+     "location": "Front-right outer shoulder",
+     "severity": "M"
+    },
+    {
+     "name": "Sidewall bulge",
+     "location": "Front-right tyre",
+     "severity": "H"
+    }
+   ]
+  },
+  {
+   "id": "04",
+   "kind": "comparison",
+   "title": "Fleet case 10 · tail lamp crack, rear door misalignment",
+   "full": "images/vehiclesense_demo/full/04_fleet-case-10_van-tail-lamp-crack_door-misalignment.png",
+   "web": "images/vehiclesense_demo/web/04_fleet-case-10_van-tail-lamp-crack_door-misalignment.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "cfc7e0bc46d4c614bd3631563b977d9bf80e7b97",
+   "source_files": [
+    "4.png",
+    "VehicleSense_Full_Demo/assets/ai_van_inspection_two_issues_detected.png"
+   ],
+   "app_capture": {
+    "capture_id": 4,
+    "original": "c04o.jpg",
+    "ai": "c04a.jpg"
+   },
+   "crops": [
+    "captures/c04o.jpg",
+    "captures/c04a.jpg"
+   ],
+   "used_by_vehicles": [
+    "JTR 5510"
+   ],
+   "vehicle": "White panel van",
+   "camera": "Rear camera",
+   "findings": [
+    {
+     "name": "Tail lamp crack",
+     "location": "Right rear lamp",
+     "severity": "M"
+    },
+    {
+     "name": "Rear door misalignment",
+     "location": "Cargo door panel gap",
+     "severity": "L"
+    }
+   ]
+  },
+  {
+   "id": "05",
+   "kind": "comparison",
+   "title": "Fleet case 11 · flood / water ingress in the cabin",
+   "full": "images/vehiclesense_demo/full/05_fleet-case-11_interior-flood-water-ingress.png",
+   "web": "images/vehiclesense_demo/web/05_fleet-case-11_interior-flood-water-ingress.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "c6c30d8391d3820df20d1dc5e29f0757c78aa965",
+   "source_files": [
+    "5.png",
+    "VehicleSense_Full_Demo/assets/ai_interior_damage_inspection_montage.png"
+   ],
+   "app_capture": {
+    "capture_id": 5,
+    "original": "c05o.jpg",
+    "ai": "c05a.jpg"
+   },
+   "crops": [
+    "captures/c05o.jpg",
+    "captures/c05a.jpg"
+   ],
+   "used_by_vehicles": [],
+   "vehicle": "Sedan interior",
+   "camera": "Cabin camera",
+   "findings": [
+    {
+     "name": "Water staining",
+     "location": "Front footwell",
+     "severity": "H"
+    },
+    {
+     "name": "Tide line",
+     "location": "Lower door trim / carpet edge",
+     "severity": "H"
+    },
+    {
+     "name": "Seat rail corrosion",
+     "location": "Front seat rail",
+     "severity": "H"
+    }
+   ]
+  },
+  {
+   "id": "06",
+   "kind": "comparison",
+   "title": "Fleet case 12 · loose heat shield, bracket corrosion",
+   "full": "images/vehiclesense_demo/full/06_fleet-case-12_underbody-heat-shield_bracket-corrosion.png",
+   "web": "images/vehiclesense_demo/web/06_fleet-case-12_underbody-heat-shield_bracket-corrosion.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "42b72454f1081c95837a6ddaad651623827ec934",
+   "source_files": [
+    "6.png",
+    "VehicleSense_Full_Demo/assets/ai_undercarriage_inspection_comparison.png"
+   ],
+   "app_capture": {
+    "capture_id": 6,
+    "original": "c06o.jpg",
+    "ai": "c06a.jpg"
+   },
+   "crops": [
+    "captures/c06o.jpg",
+    "captures/c06a.jpg"
+   ],
+   "used_by_vehicles": [
+    "WQK 9054"
+   ],
+   "vehicle": "SUV underbody",
+   "camera": "Pit camera",
+   "findings": [
+    {
+     "name": "Loose heat shield",
+     "location": "Mid underbody, exhaust area",
+     "severity": "M"
+    },
+    {
+     "name": "Bracket corrosion",
+     "location": "Rear exhaust hanger",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "07",
+   "kind": "comparison",
+   "title": "Fleet case 1 · sedan dent, scratch, rust",
+   "full": "images/vehiclesense_demo/full/07_fleet-case-01_sedan-dent-scratch-rust.png",
+   "web": "images/vehiclesense_demo/web/07_fleet-case-01_sedan-dent-scratch-rust.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "58e7439ac0effcb70122f3204ea14d8fa1439c6b",
+   "source_files": [
+    "7.png",
+    "VehicleSense_Full_Demo/assets/fleet_inspection_ai_damage_analysis.png"
+   ],
+   "app_capture": {
+    "capture_id": 7,
+    "original": "c07o.jpg",
+    "ai": "c07a.jpg"
+   },
+   "crops": [
+    "captures/c07o.jpg",
+    "captures/c07a.jpg"
+   ],
+   "used_by_vehicles": [
+    "VKR 3128"
+   ],
+   "vehicle": "White sedan",
+   "camera": "Front-left camera",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Left front fender",
+     "severity": "L"
+    },
+    {
+     "name": "Scratch",
+     "location": "Left door / side skirt",
+     "severity": "L"
+    },
+    {
+     "name": "Rust",
+     "location": "Left rear wheel arch",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "08",
+   "kind": "comparison",
+   "title": "Fleet case 2 · panel van dent, scratch, rust",
+   "full": "images/vehiclesense_demo/full/08_fleet-case-02_van-dent-scratch-rust.png",
+   "web": "images/vehiclesense_demo/web/08_fleet-case-02_van-dent-scratch-rust.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "7d6cb99309246238e18e0695a766094e94d1cd67",
+   "source_files": [
+    "8.png",
+    "VehicleSense_Full_Demo/assets/ai_van_inspection_three_issues_detected.png"
+   ],
+   "app_capture": {
+    "capture_id": 8,
+    "original": "c08o.jpg",
+    "ai": "c08a.jpg"
+   },
+   "crops": [
+    "captures/c08o.jpg",
+    "captures/c08a.jpg"
+   ],
+   "used_by_vehicles": [
+    "BHY 7783"
+   ],
+   "vehicle": "White panel van",
+   "camera": "Rear-right camera",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Right rear bumper",
+     "severity": "L"
+    },
+    {
+     "name": "Scratch",
+     "location": "Right sliding door / lower panel",
+     "severity": "L"
+    },
+    {
+     "name": "Rust",
+     "location": "Right rear wheel arch",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "09",
+   "kind": "comparison",
+   "title": "Fleet case 3 · pickup underbody fluid leak",
+   "full": "images/vehiclesense_demo/full/09_fleet-case-03_pickup-underbody-fluid-leak.png",
+   "web": "images/vehiclesense_demo/web/09_fleet-case-03_pickup-underbody-fluid-leak.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "85c516b2a83451f75b350a921ec0267273a955fd",
+   "source_files": [
+    "9.png",
+    "VehicleSense_Full_Demo/assets/ai_underbody_leak_inspection_comparison.png"
+   ],
+   "app_capture": {
+    "capture_id": 9,
+    "original": "c09o.jpg",
+    "ai": "c09a.jpg"
+   },
+   "crops": [
+    "captures/c09o.jpg",
+    "captures/c09a.jpg"
+   ],
+   "used_by_vehicles": [
+    "BMK 6620",
+    "WXD 2291"
+   ],
+   "vehicle": "Pickup truck",
+   "camera": "Pit camera",
+   "findings": [
+    {
+     "name": "Fluid leak",
+     "location": "Under-engine / transmission area",
+     "severity": "H"
+    }
+   ]
+  },
+  {
+   "id": "10",
+   "kind": "comparison",
+   "title": "Fleet case 4 · hatchback roof dent",
+   "full": "images/vehiclesense_demo/full/10_fleet-case-04_hatchback-roof-dent.png",
+   "web": "images/vehiclesense_demo/web/10_fleet-case-04_hatchback-roof-dent.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "fe656d9f168665dbfe1def7de93037829a1ed22a",
+   "source_files": [
+    "10.png",
+    "VehicleSense_Full_Demo/assets/ai_dent_detection_fleet_inspection_comparison.png"
+   ],
+   "app_capture": {
+    "capture_id": 10,
+    "original": "c10o.jpg",
+    "ai": "c10a.jpg"
+   },
+   "crops": [
+    "captures/c10o.jpg",
+    "captures/c10a.jpg"
+   ],
+   "used_by_vehicles": [
+    "WVA 1209"
+   ],
+   "vehicle": "Silver hatchback",
+   "camera": "Roof camera",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Roof panel",
+     "severity": "L"
+    }
+   ]
+  },
+  {
+   "id": "11",
+   "kind": "comparison",
+   "title": "Fleet case 5 · interior wear and stains",
+   "full": "images/vehiclesense_demo/full/11_fleet-case-05_interior-wear-stains.png",
+   "web": "images/vehiclesense_demo/web/11_fleet-case-05_interior-wear-stains.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "b2f85cdea4aea154faf8288f5f14cd8804b1d65c",
+   "source_files": [
+    "11.png",
+    "VehicleSense_Full_Demo/assets/toyota_interior_inspection_original_vs_ai_analysi.png"
+   ],
+   "app_capture": {
+    "capture_id": 11,
+    "original": "c11o.jpg",
+    "ai": "c11a.jpg"
+   },
+   "crops": [
+    "captures/c11o.jpg",
+    "captures/c11a.jpg"
+   ],
+   "used_by_vehicles": [],
+   "vehicle": "Sedan interior",
+   "camera": "Cabin camera",
+   "findings": [
+    {
+     "name": "Surface wear",
+     "location": "Steering wheel",
+     "severity": "L"
+    },
+    {
+     "name": "Stain",
+     "location": "Driver seat",
+     "severity": "L"
+    },
+    {
+     "name": "Wear",
+     "location": "Driver door armrest",
+     "severity": "L"
+    }
+   ]
+  },
+  {
+   "id": "12",
+   "kind": "comparison",
+   "title": "Fleet case 6 · MPV scratch",
+   "full": "images/vehiclesense_demo/full/12_fleet-case-06_mpv-scratch.png",
+   "web": "images/vehiclesense_demo/web/12_fleet-case-06_mpv-scratch.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "f1c57c67c4a24161aa99879daa6f4cf56f2acaea",
+   "source_files": [
+    "12.png",
+    "VehicleSense_Full_Demo/assets/vehicle_inspection_ai_scratch_detection.png"
+   ],
+   "app_capture": {
+    "capture_id": 12,
+    "original": "c12o.jpg",
+    "ai": "c12a.jpg"
+   },
+   "crops": [
+    "captures/c12o.jpg",
+    "captures/c12a.jpg"
+   ],
+   "used_by_vehicles": [
+    "PKE 4410"
+   ],
+   "vehicle": "White MPV",
+   "camera": "Right-side camera",
+   "findings": [
+    {
+     "name": "Scratch",
+     "location": "Lower right side door / side skirt",
+     "severity": "L"
+    }
+   ]
+  },
+  {
+   "id": "13",
+   "kind": "comparison",
+   "title": "Lane 3 · Case 5 · pit camera fluid leak",
+   "full": "images/vehiclesense_demo/full/13_lane-case-5_pit-fluid-leak.png",
+   "web": "images/vehiclesense_demo/web/13_lane-case-5_pit-fluid-leak.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "d49327356868d7525ccc61cd273b47b2055225c2",
+   "source_files": [
+    "13.png"
+   ],
+   "app_capture": {
+    "capture_id": 13,
+    "original": "c13o.jpg",
+    "ai": "c13a.jpg"
+   },
+   "crops": [
+    "captures/c13o.jpg",
+    "captures/c13a.jpg"
+   ],
+   "used_by_vehicles": [
+    "BMK 6620"
+   ],
+   "vehicle": "Sedan · pit inspection",
+   "camera": "Pit camera",
+   "findings": [
+    {
+     "name": "Fluid leak",
+     "location": "Under-engine / undertray",
+     "severity": "H"
+    }
+   ]
+  },
+  {
+   "id": "14",
+   "kind": "comparison",
+   "title": "Lane 3 · Case 4 · roof dent (VJM 7412)",
+   "full": "images/vehiclesense_demo/full/14_lane-case-4_roof-dent_VJM7412.png",
+   "web": "images/vehiclesense_demo/web/14_lane-case-4_roof-dent_VJM7412.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "822bbe53f015470282b81a8b003f33f652ec4ff6",
+   "source_files": [
+    "14.png",
+    "VehicleSense_Full_Demo/assets/ai_roof_dent_inspection_comparison.png"
+   ],
+   "app_capture": {
+    "capture_id": 14,
+    "original": "c14o.jpg",
+    "ai": "c14a.jpg"
+   },
+   "crops": [
+    "captures/c14o.jpg",
+    "captures/c14a.jpg"
+   ],
+   "used_by_vehicles": [],
+   "vehicle": "VJM 7412 · Perodua Bezza",
+   "camera": "Roof camera",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Roof panel, centre-left",
+     "severity": "L"
+    }
+   ]
+  },
+  {
+   "id": "15",
+   "kind": "comparison",
+   "title": "Lane 3 · Case 3 · rear scratch (VJM 7412)",
+   "full": "images/vehiclesense_demo/full/15_lane-case-3_rear-scratch_VJM7412.png",
+   "web": "images/vehiclesense_demo/web/15_lane-case-3_rear-scratch_VJM7412.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "a462409c4b3a1738e52938b950998b17414b477a",
+   "source_files": [
+    "15.png",
+    "VehicleSense_Full_Demo/assets/before_and_after_ai_scratch_detection.png"
+   ],
+   "app_capture": {
+    "capture_id": 15,
+    "original": "c15o.jpg",
+    "ai": "c15a.jpg"
+   },
+   "crops": [
+    "captures/c15o.jpg",
+    "captures/c15a.jpg"
+   ],
+   "used_by_vehicles": [
+    "VJM 7412"
+   ],
+   "vehicle": "VJM 7412 · Perodua Bezza",
+   "camera": "Rear-right camera",
+   "findings": [
+    {
+     "name": "Scratch",
+     "location": "Lower right side skirt (long)",
+     "severity": "L"
+    }
+   ]
+  },
+  {
+   "id": "16",
+   "kind": "comparison",
+   "title": "Lane 3 · Case 1 · dent, scratch, rust (VJM 3287)",
+   "full": "images/vehiclesense_demo/full/16_lane-case-1_front-dent-scratch-rust_VJM3287.png",
+   "web": "images/vehiclesense_demo/web/16_lane-case-1_front-dent-scratch-rust_VJM3287.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "4f77b6cea9be8e11652d07d277a4f78e351d24eb",
+   "source_files": [
+    "16.png",
+    "VehicleSense_Full_Demo/assets/ai_powered_vehicle_damage_inspection.png"
+   ],
+   "app_capture": {
+    "capture_id": 16,
+    "original": "c16o.jpg",
+    "ai": "c16a.jpg"
+   },
+   "crops": [
+    "captures/c16o.jpg",
+    "captures/c16a.jpg"
+   ],
+   "used_by_vehicles": [
+    "VJM 3287"
+   ],
+   "vehicle": "VJM 3287 · Perodua Bezza",
+   "camera": "Front-left camera",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Left front fender",
+     "severity": "L"
+    },
+    {
+     "name": "Scratch",
+     "location": "Left front door, lower",
+     "severity": "L"
+    },
+    {
+     "name": "Rust",
+     "location": "Left wheel arch / rocker",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "17",
+   "kind": "comparison",
+   "title": "Lane 3 · Case 2 · rear dent, scratch, rust (VJM 7412)",
+   "full": "images/vehiclesense_demo/full/17_lane-case-2_rear-dent-scratch-rust_VJM7412.png",
+   "web": "images/vehiclesense_demo/web/17_lane-case-2_rear-dent-scratch-rust_VJM7412.jpg",
+   "width": 1448,
+   "height": 1086,
+   "sha1": "85571367b9f94dd1778c7451bdfdd8b5ca42a323",
+   "source_files": [
+    "VehicleSense_Full_Demo/assets/split_screen_ai_vehicle_inspection.png"
+   ],
+   "app_capture": {
+    "capture_id": 23,
+    "original": "c17o.jpg",
+    "ai": "c17a.jpg"
+   },
+   "crops": [
+    "captures/c17o.jpg",
+    "captures/c17a.jpg"
+   ],
+   "used_by_vehicles": [],
+   "vehicle": "VJM 7412 · Perodua Bezza",
+   "camera": "Rear-right camera",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Right rear bumper (corner)",
+     "severity": "M"
+    },
+    {
+     "name": "Scratch",
+     "location": "Right rear door, lower",
+     "severity": "L"
+    },
+    {
+     "name": "Rust",
+     "location": "Right rear wheel arch / rocker",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "i1",
+   "kind": "closeup",
+   "title": "Close-up · brakes: disc scoring, uneven pad wear (VKR 3128)",
+   "full": "images/vehiclesense_demo/full/i1_closeup-brakes_disc-scoring_VKR3128.png",
+   "web": "images/vehiclesense_demo/web/i1_closeup-brakes_disc-scoring_VKR3128.jpg",
+   "width": 1122,
+   "height": 1402,
+   "sha1": "6d70d9f35db385ded71fb0ca4ea4841f20e13580",
+   "source_files": [
+    "1/i1.png"
+   ],
+   "app_capture": {
+    "capture_id": 17,
+    "original": "n1o.jpg",
+    "ai": "n1a.jpg"
+   },
+   "crops": [
+    "captures/n1o.jpg",
+    "captures/n1a.jpg"
+   ],
+   "used_by_vehicles": [
+    "VKR 3128"
+   ],
+   "vehicle": "VKR 3128 · Toyota Vios",
+   "camera": "Wheel-off brake camera",
+   "findings": [
+    {
+     "name": "Disc scoring",
+     "location": "Front-left brake disc",
+     "severity": "M"
+    },
+    {
+     "name": "Uneven pad wear",
+     "location": "Front-left inner pad",
+     "severity": "H"
+    }
+   ]
+  },
+  {
+   "id": "i2",
+   "kind": "closeup",
+   "title": "Close-up · emissions: visible smoke, soot (BHY 7783)",
+   "full": "images/vehiclesense_demo/full/i2_closeup-emissions_smoke-soot_BHY7783.png",
+   "web": "images/vehiclesense_demo/web/i2_closeup-emissions_smoke-soot_BHY7783.jpg",
+   "width": 1122,
+   "height": 1402,
+   "sha1": "fe727f7361ae274e9df4e2f208995a0626cd53f4",
+   "source_files": [
+    "1/i2.png"
+   ],
+   "app_capture": {
+    "capture_id": 18,
+    "original": "n2o.jpg",
+    "ai": "n2a.jpg"
+   },
+   "crops": [
+    "captures/n2o.jpg",
+    "captures/n2a.jpg"
+   ],
+   "used_by_vehicles": [
+    "BHY 7783"
+   ],
+   "vehicle": "BHY 7783 · Toyota Hiace",
+   "camera": "Emissions bay camera",
+   "findings": [
+    {
+     "name": "Visible smoke",
+     "location": "Tailpipe at idle",
+     "severity": "H"
+    },
+    {
+     "name": "Soot deposit",
+     "location": "Tailpipe tip",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "i3",
+   "kind": "closeup",
+   "title": "Close-up · suspension: oil-wet shock, cracked bush (JTR 5510)",
+   "full": "images/vehiclesense_demo/full/i3_closeup-suspension_oil-wet-shock_JTR5510.png",
+   "web": "images/vehiclesense_demo/web/i3_closeup-suspension_oil-wet-shock_JTR5510.jpg",
+   "width": 1122,
+   "height": 1402,
+   "sha1": "53335c710c6e356996a0d95b9dd6d45f6358e434",
+   "source_files": [
+    "1/i3.png"
+   ],
+   "app_capture": {
+    "capture_id": 19,
+    "original": "n3o.jpg",
+    "ai": "n3a.jpg"
+   },
+   "crops": [
+    "captures/n3o.jpg",
+    "captures/n3a.jpg"
+   ],
+   "used_by_vehicles": [
+    "JTR 5510"
+   ],
+   "vehicle": "JTR 5510 · Nissan NV350",
+   "camera": "Pit camera",
+   "findings": [
+    {
+     "name": "Oil-wet shock absorber",
+     "location": "Rear left shock body",
+     "severity": "H"
+    },
+    {
+     "name": "Cracked bush",
+     "location": "Lower shock mount",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "i4",
+   "kind": "closeup",
+   "title": "Close-up · ADAS camera mount tilted (PKE 4410)",
+   "full": "images/vehiclesense_demo/full/i4_closeup-adas-camera-tilt_PKE4410.png",
+   "web": "images/vehiclesense_demo/web/i4_closeup-adas-camera-tilt_PKE4410.jpg",
+   "width": 1122,
+   "height": 1402,
+   "sha1": "eea6b41284673b95dd98277c0d62c4879627ed6a",
+   "source_files": [
+    "1/i4.png"
+   ],
+   "app_capture": {
+    "capture_id": 20,
+    "original": "n4o.jpg",
+    "ai": "n4a.jpg"
+   },
+   "crops": [
+    "captures/n4o.jpg",
+    "captures/n4a.jpg"
+   ],
+   "used_by_vehicles": [
+    "PKE 4410"
+   ],
+   "vehicle": "PKE 4410 · Toyota Innova",
+   "camera": "Cabin camera",
+   "findings": [
+    {
+     "name": "Camera mount tilted",
+     "location": "Forward ADAS camera",
+     "severity": "M"
+    },
+    {
+     "name": "Recalibration not recorded",
+     "location": "Windscreen sticker",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "i5",
+   "kind": "closeup",
+   "title": "Close-up · 12 V battery terminal corrosion, swelling (VJM 7412)",
+   "full": "images/vehiclesense_demo/full/i5_closeup-12v-battery-corrosion_VJM7412.png",
+   "web": "images/vehiclesense_demo/web/i5_closeup-12v-battery-corrosion_VJM7412.jpg",
+   "width": 1122,
+   "height": 1402,
+   "sha1": "eb51be0bbe9186138ccb0ec8dafc2bf1162e16d2",
+   "source_files": [
+    "1/i5.png"
+   ],
+   "app_capture": {
+    "capture_id": 21,
+    "original": "n5o.jpg",
+    "ai": "n5a.jpg"
+   },
+   "crops": [
+    "captures/n5o.jpg",
+    "captures/n5a.jpg"
+   ],
+   "used_by_vehicles": [
+    "VJM 7412"
+   ],
+   "vehicle": "VJM 7412 · Perodua Bezza",
+   "camera": "Engine bay camera",
+   "findings": [
+    {
+     "name": "Terminal corrosion",
+     "location": "Positive terminal",
+     "severity": "M"
+    },
+    {
+     "name": "Case swelling",
+     "location": "Battery case side",
+     "severity": "M"
+    }
+   ]
+  },
+  {
+   "id": "i6",
+   "kind": "closeup",
+   "title": "Close-up · brake pads at 5 mm (WVA 1209)",
+   "full": "images/vehiclesense_demo/full/i6_closeup-brake-pads-5mm_WVA1209.png",
+   "web": "images/vehiclesense_demo/web/i6_closeup-brake-pads-5mm_WVA1209.jpg",
+   "width": 1122,
+   "height": 1402,
+   "sha1": "42662efe3f48640d7aff22c85a5d6a794b88e4ed",
+   "source_files": [
+    "1/i6.png"
+   ],
+   "app_capture": {
+    "capture_id": 22,
+    "original": "n6o.jpg",
+    "ai": "n6a.jpg"
+   },
+   "crops": [
+    "captures/n6o.jpg",
+    "captures/n6a.jpg"
+   ],
+   "used_by_vehicles": [
+    "WVA 1209"
+   ],
+   "vehicle": "WVA 1209 · Perodua Myvi",
+   "camera": "Wheel-off brake camera",
+   "findings": [
+    {
+     "name": "Pad thickness 5 mm",
+     "location": "Front-right pad",
+     "severity": "L"
+    }
+   ]
+  },
+  {
+   "id": "i7",
+   "kind": "progression",
+   "title": "Progression · rust at the wheel arch, Jan → May → Sep 2026 (VJM 3287)",
+   "full": "images/vehiclesense_demo/full/i7_progression-rust_jan-may-sep-2026_VJM3287.png",
+   "web": "images/vehiclesense_demo/web/i7_progression-rust_jan-may-sep-2026_VJM3287.jpg",
+   "width": 2172,
+   "height": 724,
+   "sha1": "0ccf030e39f36d3025f86895b78fed88fe72168a",
+   "source_files": [
+    "1/i7.png"
+   ],
+   "app_capture": null,
+   "crops": [
+    "captures/n7_0.jpg",
+    "captures/n7_1.jpg",
+    "captures/n7_2.jpg"
+   ],
+   "used_by_vehicles": [
+    "VJM 3287"
+   ],
+   "vehicle": null,
+   "camera": null,
+   "findings": []
+  },
+  {
+   "id": "i8",
+   "kind": "progression",
+   "title": "Progression · tyre tread wear, Nov 2025 → Apr → Sep 2026 (WXD 2291)",
+   "full": "images/vehiclesense_demo/full/i8_progression-tread-wear_nov2025-apr-sep-2026_WXD2291.png",
+   "web": "images/vehiclesense_demo/web/i8_progression-tread-wear_nov2025-apr-sep-2026_WXD2291.jpg",
+   "width": 2172,
+   "height": 724,
+   "sha1": "0d6f1af0c9d421ee1e41a55f45d50570632643f7",
+   "source_files": [
+    "1/i8.png"
+   ],
+   "app_capture": null,
+   "crops": [
+    "captures/n8_0.jpg",
+    "captures/n8_1.jpg",
+    "captures/n8_2.jpg"
+   ],
+   "used_by_vehicles": [
+    "WXD 2291"
+   ],
+   "vehicle": null,
+   "camera": null,
+   "findings": []
+  },
+  {
+   "id": "i9",
+   "kind": "progression",
+   "title": "Progression · windscreen crack growth, Mar → Jun → Sep 2026 (BPR 7730)",
+   "full": "images/vehiclesense_demo/full/i9_progression-windscreen-crack_mar-jun-sep-2026_BPR7730.png",
+   "web": "images/vehiclesense_demo/web/i9_progression-windscreen-crack_mar-jun-sep-2026_BPR7730.jpg",
+   "width": 2172,
+   "height": 724,
+   "sha1": "69abbde4dfdc9196fa692573fff2018802e1dfc9",
+   "source_files": [
+    "1/i9.png"
+   ],
+   "app_capture": null,
+   "crops": [
+    "captures/n9_0.jpg",
+    "captures/n9_1.jpg",
+    "captures/n9_2.jpg"
+   ],
+   "used_by_vehicles": [
+    "BPR 7730"
+   ],
+   "vehicle": null,
+   "camera": null,
+   "findings": []
+  }
+ ],
+ "unmapped": []
+}

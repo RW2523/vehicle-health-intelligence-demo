@@ -1,5 +1,6 @@
-"""AI vision: the 22 sample captures (pre-annotated) and live model runs on any image, including uploads, plus an
-optional plain-words description of the same image from a vision-language model on the GPU."""
+"""AI vision: the sample captures (pre-annotated), the demo image library they come from, live model runs on any
+image (including uploads), and an optional plain-words description of the same image from a vision-language model
+on the GPU."""
 from __future__ import annotations
 
 import asyncio
@@ -31,12 +32,44 @@ def captures() -> dict:
     return json.loads((rt().settings.assets_dir / "captures" / "captures.json").read_text())
 
 
+LIBRARY = "images/vehiclesense_demo/manifest.json"
+
+
+@lru_cache(maxsize=1)
+def library() -> dict:
+    """The demo image library (data/curated/images/vehiclesense_demo): every source image with its mapping."""
+    p = rt().settings.data_dir / LIBRARY
+    if not p.exists():
+        return {"images": [], "counts": {}, "unmapped": []}
+    m = json.loads(p.read_text())
+    for e in m["images"]:
+        e["full_url"], e["web_url"] = f"/media/data/{e['full']}", f"/media/data/{e['web']}"
+        e["crop_urls"] = [f"/media/assets/{c}" for c in e["crops"]]
+    return m
+
+
 @router.get("/captures")
 def list_captures():
     c = captures()
+    src = {e["app_capture"]["capture_id"]: e for e in library()["images"] if e.get("app_capture")}
+
+    def source(x):
+        e = src.get(x["id"])
+        return e and {"library_id": e["id"], "title": e["title"], "full_url": e["full_url"], "web_url": e["web_url"],
+                      "width": e["width"], "height": e["height"], "source_files": e["source_files"]}
     return {"source": "Sample images: AI boxes pre-drawn on the capture, findings as labelled in the sample set",
             "rules": c["rules"], "cases": [{**x, "original_url": f"/media/assets/captures/{x['original']}",
-                                             "ai_url": f"/media/assets/captures/{x['ai']}"} for x in c["cases"]]}
+                                             "ai_url": f"/media/assets/captures/{x['ai']}", "source_image": source(x)}
+                                            for x in c["cases"]]}
+
+
+@router.get("/library")
+def image_library(kind: str | None = None):
+    """All demo source images with their mapping: original file names, app capture, crops, fleet vehicles, findings."""
+    m = library()
+    imgs = [e for e in m["images"] if not kind or e["kind"] == kind]
+    return {"about": m.get("about"), "counts": m.get("counts"), "kinds": sorted({e["kind"] for e in m["images"]}),
+            "images": imgs, "unmapped": m.get("unmapped", [])}
 
 
 class AnalyseReq(BaseModel):

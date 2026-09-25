@@ -63,6 +63,36 @@
    "next_step": "Pass with an advisory to treat the rust. Dent and scratch go on the body history for future buyers."
   },
   {
+   "id": 23,
+   "group": "lane",
+   "cats": [
+    "body"
+   ],
+   "title": "Lane 3 · Case 2",
+   "vehicle": "VJM 7412 · Perodua Bezza",
+   "camera": "Rear-right camera",
+   "original": "c17o.jpg",
+   "ai": "c17a.jpg",
+   "findings": [
+    {
+     "name": "Dent",
+     "location": "Right rear bumper (corner)",
+     "severity": "M"
+    },
+    {
+     "name": "Scratch",
+     "location": "Right rear door, lower",
+     "severity": "L"
+    },
+    {
+     "name": "Rust",
+     "location": "Right rear wheel arch / rocker",
+     "severity": "M"
+    }
+   ],
+   "next_step": "Pass with an advisory: repair the bumper dent and treat the rust at the wheel arch before it spreads. The scratch goes on the body history."
+  },
+  {
    "id": 15,
    "group": "lane",
    "cats": [
