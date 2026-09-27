@@ -5,8 +5,9 @@
 #   scripts/spark.sh install     write the settings file (first time), build, install and start both services
 #   scripts/spark.sh restart     rebuild the web app if the code changed, restart both services
 #   scripts/spark.sh status      service state, model backends and the URLs to open
+#   scripts/spark.sh funnel      fixed public https address through Tailscale Funnel; `funnel off` removes it
 #   scripts/spark.sh tunnel      public https URL through a Cloudflare quick tunnel (always on); `tunnel off` removes it
-#   scripts/spark.sh url         the current public URL, checked end to end
+#   scripts/spark.sh url         the current public URLs, checked end to end
 #   scripts/spark.sh reset       clear reports, bookings, lane sessions and evidence (keeps the seeded world)
 #   scripts/spark.sh logs        follow the services' logs
 #   scripts/spark.sh uninstall   stop and remove the services (keeps the settings file and the database)
@@ -15,8 +16,10 @@
 # localhost only) and WEB_PORT (3120, all interfaces). Browsers only need WEB_PORT: the web server proxies /api,
 # /media and the /ws WebSocket to the API. Use either this or scripts/dev.sh, not both at once.
 #
-# A quick tunnel needs no Cloudflare account, but its *.trycloudflare.com hostname changes whenever the tunnel service
-# restarts (restarting the API or web does not change it). A fixed hostname needs a named tunnel on your own domain.
+# Two ways to publish. Tailscale Funnel gives a fixed https://<machine>.<tailnet>.ts.net address for free: the tailnet
+# admin allows Funnel for the machine once, and `sudo tailscale set --operator=$USER` lets this script manage it; tailscaled
+# keeps it across reboots. A Cloudflare quick tunnel needs no account, but its *.trycloudflare.com hostname changes
+# whenever the tunnel service restarts. A fixed hostname on your own domain needs a named Cloudflare tunnel.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +36,14 @@ CLOUDFLARED="${CLOUDFLARED:-$(command -v cloudflared 2>/dev/null || echo "$HOME/
 say() { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 
 host_ip() { tailscale ip -4 2>/dev/null | head -1 || true; }
+
+funnel_host() { tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null || true; }
+funnel_on() { tailscale funnel status 2>/dev/null | grep -q "(Funnel on)"; }
+ts_operator() { tailscale debug prefs 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("OperatorUser") or "")' 2>/dev/null || true; }
+
+set_env() {  # KEY VALUE: one setting in the env file (the API reads it when it starts)
+  if grep -q "^$1=" "$ENV_FILE"; then sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"; else echo "$1=$2" >>"$ENV_FILE"; fi
+}
 
 write_env() {
   [[ -f "$ENV_FILE" ]] && return
@@ -173,19 +184,53 @@ cmd_tunnel() {
   cmd_url 60
 }
 
-cmd_url() {  # [seconds to wait for the new hostname to answer]
-  local u code=000 tries=$(( ${1:-0} / 3 + 1 ))
-  u="$(cat "$STATE/public_url" 2>/dev/null || true)"
-  if [[ -z "$u" ]]; then
-    echo "  public URL: none (switch it on with: scripts/spark.sh tunnel)"
-    return 1
+cmd_funnel() {
+  command -v tailscale >/dev/null || { echo "tailscale is not installed" >&2; exit 1; }
+  mkdir -p "$STATE"
+  if [[ "${1:-on}" == off ]]; then
+    tailscale funnel --https=443 off >/dev/null 2>&1 || tailscale funnel reset >/dev/null 2>&1 || true
+    rm -f "$STATE/fixed_url"
+    say "fixed address switched off"
+    return
   fi
-  for _ in $(seq 1 "$tries"); do
-    code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 "$u/api/health" || true)
+  [[ "$(ts_operator)" == "$USER" ]] || { echo "first let this user manage Tailscale: sudo tailscale set --operator=$USER" >&2; exit 1; }
+  local host; host="$(funnel_host)"
+  # publish the web port at https://<host>/ (WebSocket included); tailscaled keeps it across reboots
+  timeout 60 tailscale funnel --bg "$WEB_PORT" >"$STATE/funnel.log" 2>&1 </dev/null || true
+  if ! funnel_on; then
+    cat "$STATE/funnel.log" >&2
+    echo "Funnel is not on: the tailnet admin must allow it for this machine (link above), then run this again" >&2
+    exit 1
+  fi
+  echo "https://$host" >"$STATE/fixed_url"
+  # links and QR codes fall back to this address when a request does not say which address it came in on
+  set_env VHI_PUBLIC_BASE_URL "https://$host"
+  systemctl --user restart vehiclesense-api
+  wait_up
+  cmd_url 60
+}
+
+check_url() {  # URL TRIES: the HTTP status of URL/api/health, retrying while a new hostname comes up
+  local code=000
+  for _ in $(seq 1 "$2"); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 "$1/api/health" || true)
     [[ "$code" == 200 ]] && break
     sleep 3
   done
-  echo "  public URL: $u   [health HTTP $code]"
+  echo "$code"
+}
+
+cmd_url() {  # [seconds to wait for a new hostname to answer]
+  local tries=$(( ${1:-0} / 3 + 1 )) fixed quick
+  fixed="$(cat "$STATE/fixed_url" 2>/dev/null || true)"
+  quick="$(cat "$STATE/public_url" 2>/dev/null || true)"
+  if [[ -z "$fixed$quick" ]]; then
+    echo "  public URL: none (scripts/spark.sh funnel for a fixed address, or scripts/spark.sh tunnel)"
+    return 1
+  fi
+  [[ -n "$fixed" ]] && echo "  fixed URL:  $fixed   [health HTTP $(check_url "$fixed" "$tries")]   Tailscale Funnel"
+  [[ -n "$quick" ]] && echo "  quick URL:  $quick   [health HTTP $(check_url "$quick" "$tries")]   changes when the tunnel restarts"
+  return 0
 }
 
 cmd_reset() {
@@ -213,11 +258,15 @@ print("  photo explanations:", (d.get("vlm") or {}).get("backend") or "off")' 2>
   echo "  open: http://$(hostname -I | awk '{print $1}'):$WEB_PORT${ip:+  or  http://$ip:$WEB_PORT (Tailscale)}"
   if [[ -f "$UNITS/$TUNNEL.service" ]]; then
     printf '  %-18s %s\n' "$TUNNEL" "$(systemctl --user is-active "$TUNNEL" 2>/dev/null || true)"
-    cmd_url || true
   fi
+  if [[ -f "$STATE/fixed_url" ]]; then
+    printf '  %-18s %s\n' "tailscale-funnel" "$(funnel_on && echo active || echo off)"
+  fi
+  cmd_url || true
 }
 
 cmd_uninstall() {
+  if [[ -f "$STATE/fixed_url" ]]; then cmd_funnel off; fi
   systemctl --user disable --now "$TUNNEL" "${SERVICES[@]}" 2>/dev/null || true
   for s in "$TUNNEL" "${SERVICES[@]}"; do rm -f "$UNITS/$s.service"; done
   systemctl --user daemon-reload
@@ -228,11 +277,12 @@ case "${1:-status}" in
   install) cmd_install ;;
   restart) cmd_restart ;;
   status) cmd_status ;;
+  funnel) cmd_funnel "${2:-on}" ;;
   tunnel) cmd_tunnel "${2:-on}" ;;
   run-tunnel) cmd_run_tunnel ;;
   url) cmd_url 30 ;;
   reset) cmd_reset ;;
   logs) journalctl --user -f -n 100 -u vehiclesense-api -u vehiclesense-web -u "$TUNNEL" ;;
   uninstall) cmd_uninstall ;;
-  *) sed -n '2,20p' "$0"; exit 1 ;;
+  *) sed -n '2,23p' "$0"; exit 1 ;;
 esac

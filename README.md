@@ -36,11 +36,14 @@ Open `http://<spark-host>:3120` (LAN or Tailscale address). The services start a
 
 If a model server is down, the assistant and reports fall back to the template engine and the photo explanation is not offered. The UI labels which one answered.
 
-**Public URL.** `scripts/spark.sh tunnel` (or `make spark-tunnel`) adds a third always-on service: a Cloudflare quick tunnel that serves the apps at a public `https://<random-words>.trycloudflare.com` address, with the live WebSocket and QR codes working through it. No Cloudflare account is needed.
+**Public URL.** Two ways to put the demo on the internet, with the live WebSocket and QR codes working through both:
 
-- `scripts/spark.sh url` prints the current address and checks it end to end; `scripts/spark.sh tunnel off` removes it.
-- The hostname changes whenever the tunnel service restarts, for example after a reboot. Restarting the API or web keeps it. A fixed hostname needs a named tunnel on your own Cloudflare domain.
-- Anyone with the link can use the demo; there is no login. `scripts/spark.sh reset` clears what visitors did (reports, bookings, lane sessions, evidence) and keeps the seeded world.
+- **Fixed address: Tailscale Funnel.** `scripts/spark.sh funnel` (or `make spark-funnel`) publishes the apps at `https://<machine>.<tailnet>.ts.net` (the Spark's name on your tailnet). It is free, never changes, and Tailscale keeps it on across reboots. One-time setup: the tailnet admin allows Funnel for the machine (the command prints the link), and `sudo tailscale set --operator=$USER` lets the script manage it. `scripts/spark.sh funnel off` removes it.
+- **Quick tunnel: Cloudflare.** `scripts/spark.sh tunnel` (or `make spark-tunnel`) adds an always-on service that serves the apps at `https://<random-words>.trycloudflare.com`. No account is needed, but the hostname changes whenever the tunnel service restarts, for example after a reboot; restarting the API or web keeps it. `scripts/spark.sh tunnel off` removes it.
+
+`scripts/spark.sh url` prints the addresses and checks them end to end. A fixed hostname on your own domain needs a named Cloudflare tunnel on a domain whose DNS Cloudflare manages.
+
+Anyone with the link can use the demo; there is no login. `scripts/spark.sh reset` clears what visitors did (reports, bookings, lane sessions, evidence) and keeps the seeded world.
 
 ## On the DGX Spark (Docker)
 
