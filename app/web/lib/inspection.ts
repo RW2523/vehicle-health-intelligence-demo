@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { laneOf } from "./format";
-import { useLive } from "./live";
+import { LiveMsg, useLive } from "./live";
 
 export type Live = {
   insp: any | null;
@@ -37,12 +37,21 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
   const [s, setS] = useState<Live>(empty);
   const [notFound, setNotFound] = useState(false);
   const idRef = useRef<string | null>(null);
+  // Only the newest full load may apply (seq), and live messages that arrive while one is in flight wait for it
+  // (pending), so a partial picture never replaces the full one or shows before it.
+  const seq = useRef(0);
+  const pending = useRef<LiveMsg[] | null>(null);
+  const apply = useRef<(m: LiveMsg) => void>(() => {});
 
   const loadFull = useCallback(async (id?: string) => {
+    const my = ++seq.current;
+    const newest = () => my === seq.current;
+    if (!pending.current) pending.current = [];
     try {
       const d = id
         ? await api.get(`/api/inspections/${id}`)
         : await api.get("/api/inspections/latest", { lane_id: opts.lane, session_id: opts.session });
+      if (!newest()) return;
       if (!d) {  // nothing has run on this lane / session yet
         idRef.current = null;
         setNotFound(true);
@@ -54,6 +63,7 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
       const [en, obd, pn, br] = await Promise.all(
         ["enose", "obd", "pn", "brake"].map((k) => api.get(`/api/inspections/${d.inspection_id}/readings`, { sensor: k, limit: 3000 }).catch(() => [])),
       );
+      if (!newest()) return;
       const brake: Record<string, any[]> = {};
       br.forEach((r: any) => (brake[r.wheel] ||= []).push({ t: r.t_s, f: r.force_kn }));
       setS((prev) => ({
@@ -69,9 +79,15 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
         fusion: d.fusion?.health ? d.fusion : null,
       }));
     } catch (e: any) {
-      if (e.status === 404) {
+      if (newest() && e.status === 404) {
         setNotFound(true);
         setS(empty());
+      }
+    } finally {
+      if (newest()) {  // then the live messages that arrived meanwhile, on top of the full state
+        const q = pending.current || [];
+        pending.current = null;
+        q.forEach((m) => apply.current(m));
       }
     }
   }, [opts.lane, opts.session]);
@@ -83,7 +99,7 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
   // before the first run there is no inspection yet: listen on the session's lane so the page fills in when it starts
   const lane = s.insp?.lane_id || opts.lane || laneOf(opts.session);
   const channels = [lane ? `lane:${lane}` : "", idRef.current ? `inspection:${idRef.current}` : ""].filter(Boolean);
-  const connected = useLive(channels, (m) => {
+  const handle = (m: LiveMsg) => {
     const d = m.data;
     if (m.type === "player") {
       setS((x) => ({ ...x, player: d }));
@@ -94,6 +110,9 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
         idRef.current = d.inspection_id;
         setNotFound(false);
         setS({ ...empty(), insp: { ...d, status: "in_lane", alerts: [], results: {}, measurements: {}, plate: d.vehicle?.plate } });
+        // and fetch what it already has: on connect the server replays only the last message of each kind (one alert,
+        // the health score), which looks complete but is not, for an inspection under way or finished
+        loadFull(d.inspection_id);
       }
       return;
     }
@@ -134,6 +153,11 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
       }
     });
     if (m.type === "fusion") setTimeout(() => idRef.current && loadFull(idRef.current), 300);
+  };
+  apply.current = handle;
+  const connected = useLive(channels, (m) => {
+    if (pending.current && m.type !== "player") pending.current.push(m);
+    else handle(m);
   });
 
   return { ...s, notFound, connected, reload: () => loadFull(idRef.current || undefined), setAlerts: (fn: (a: any[]) => any[]) => setS((x) => ({ ...x, alerts: fn(x.alerts) })) };

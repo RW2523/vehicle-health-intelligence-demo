@@ -65,6 +65,19 @@ test.describe("S1 lane → examiner → report → public verification", () => {
     await expect(page).toHaveURL(/\/verify\//);
     await expect(page.getByText("Genuine, unaltered report")).toBeVisible();
   });
+
+  test("the console never shows a partial inspection when the live feed answers before the full load", async ({ page, request }) => {
+    const n = (await (await request.get("/api/inspections/latest", { params: { session_id: "S1" } })).json()).alerts.length;
+    // hold back the full load: on connect the live feed replays only the last message of each kind (one alert and
+    // the health score), which must not be shown as if it were the whole inspection
+    await page.route(/\/api\/inspections\/latest/, async (route) => {
+      await new Promise((r) => setTimeout(r, 1500));
+      await route.continue();
+    });
+    await page.goto("/examiner?session=S1");
+    await expect(page.getByText("Why this health score")).toBeVisible();
+    expect(await page.getByText(/Ranked alerts \(\d+\)/).textContent()).toBe(`Ranked alerts (${n})`);
+  });
 });
 
 test.describe("S2 flood + EV and S3 identity", () => {
