@@ -265,6 +265,19 @@ test.describe("Orientation and navigation", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
     await page.close();
   });
+
+  test("on a phone no app scrolls sideways", async ({ browser }) => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const base = process.env.E2E_BASE_URL || "http://localhost:3000";
+    const wide: Record<string, number> = {};  // page -> pixels it scrolls sideways
+    for (const path of ["/", "/lane", "/examiner", "/report", "/vision", "/fleet", "/fleet/vehicle/VKR%203128", "/owner", "/hq", "/regulator"]) {
+      await page.goto(base + path, { waitUntil: "networkidle" });  // with its data: wide tables only appear then
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      if (over > 1) wide[path] = over;
+    }
+    expect(wide).toEqual({});
+    await page.close();
+  });
 });
 
 test.describe("View-only public link", () => {

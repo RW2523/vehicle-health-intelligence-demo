@@ -70,20 +70,23 @@ function ReportView() {
               </div>
             </Card>
             <Card title="Findings and examiner decisions">
-              <table className="w-full text-left text-[13px]">
-                <thead className="text-[12px] text-fg-3"><tr><th className="pb-2">Finding</th><th>System</th><th>Source</th><th>AI conf.</th><th>Decision</th></tr></thead>
-                <tbody>
-                  {d.findings?.map((f: any, i: number) => (
-                    <tr key={i} className="border-t border-ink-600 align-top">
-                      <td className="py-2 pr-3"><div className="font-semibold">{f.title}{f.fail_item && <span className="ml-2 text-[11px] text-bad">FAIL ITEM</span>}</div></td>
-                      <td className="pr-3 text-fg-3">{f.system}</td>
-                      <td className="pr-3"><Source kind={f.source} /></td>
-                      <td className="pr-3">{Math.round(f.confidence * 100)}%</td>
-                      <td style={{ color: f.status === "confirmed" ? "#34D399" : "#9AA8BF" }}>{f.status}{f.reason ? ` · “${f.reason}”` : ""}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* five columns do not fit a phone: the table scrolls inside the card, not the page */}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px] text-left text-[13px]">
+                  <thead className="text-[12px] text-fg-3"><tr><th className="pb-2">Finding</th><th>System</th><th>Source</th><th>AI conf.</th><th>Decision</th></tr></thead>
+                  <tbody>
+                    {d.findings?.map((f: any, i: number) => (
+                      <tr key={i} className="border-t border-ink-600 align-top">
+                        <td className="py-2 pr-3"><div className="font-semibold">{f.title}{f.fail_item && <span className="ml-2 text-[11px] text-bad">FAIL ITEM</span>}</div></td>
+                        <td className="pr-3 text-fg-3">{f.system}</td>
+                        <td className="pr-3"><Source kind={f.source} /></td>
+                        <td className="pr-3">{Math.round(f.confidence * 100)}%</td>
+                        <td style={{ color: f.status === "confirmed" ? "#34D399" : "#9AA8BF" }}>{f.status}{f.reason ? ` · “${f.reason}”` : ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Card>
             {d.ev && (
               <Card title="EV battery" right={<Source kind="live_model" text="SOH + NASA fade model" />}>

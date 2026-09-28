@@ -73,18 +73,21 @@ export default function HQ() {
               <Scatter height={260} xLabel="Pass rate (heavy vehicles)" yLabel="Passes that conflict with the sensor evidence"
                 xFmt={(v) => pct(v)} yFmt={(v) => pct(v)}
                 points={light.map((e: any) => ({ x: e.pass_rate, y: e.conflict_rate, color: flagged.has(e.examiner_id) ? "#F87171" : "#60A5FA", r: flagged.has(e.examiner_id) ? 7 : 4.5, label: flagged.has(e.examiner_id) ? e.examiner_id : undefined, title: `${e.examiner_id} ${e.name}: pass ${pct(e.pass_rate)}, z ${e.z_pass}` }))} />
-              <table className="mt-3 w-full text-left text-[12.5px]">
-                <thead className="text-fg-3"><tr><th>Examiner</th><th>Class</th><th>Inspections</th><th>Pass rate</th><th>z</th><th>Conflicts</th><th></th></tr></thead>
-                <tbody>
-                  {I.examiners.filter((e: any) => e.outlier).map((e: any, i: number) => (
-                    <tr key={i} className="border-t border-ink-600">
-                      <td className="py-1.5"><b>{e.examiner_id}</b> {e.name}</td><td>{e.vehicle_class}</td><td>{e.n}</td><td>{pct(e.pass_rate)}</td>
-                      <td className="text-bad">{e.z_pass.toFixed(1)}σ</td><td>{pct(e.conflict_rate, 1)}</td>
-                      <td><button className="btn btn-sm" onClick={() => setExaminerSel(e.examiner_id)}>Evidence</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* seven columns do not fit a phone: the table scrolls inside the card, not the page */}
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full whitespace-nowrap text-left text-[12.5px] [&_td]:pr-3 [&_th]:pr-3">
+                  <thead className="text-fg-3"><tr><th>Examiner</th><th>Class</th><th>Inspections</th><th>Pass rate</th><th>z</th><th>Conflicts</th><th></th></tr></thead>
+                  <tbody>
+                    {I.examiners.filter((e: any) => e.outlier).map((e: any, i: number) => (
+                      <tr key={i} className="border-t border-ink-600">
+                        <td className="py-1.5"><b>{e.examiner_id}</b> {e.name}</td><td>{e.vehicle_class}</td><td>{e.n}</td><td>{pct(e.pass_rate)}</td>
+                        <td className="text-bad">{e.z_pass.toFixed(1)}σ</td><td>{pct(e.conflict_rate, 1)}</td>
+                        <td><button className="btn btn-sm" onClick={() => setExaminerSel(e.examiner_id)}>Evidence</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               {examinerSel && (
                 <div className="mt-3 max-h-48 overflow-auto rounded-lg border border-ink-600 p-2 text-[12px]">
                   <div className="mb-1 font-semibold">Passes by {examinerSel} that breach a fail threshold</div>
