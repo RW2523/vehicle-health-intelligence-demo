@@ -19,6 +19,7 @@ from ..services.library import library
 
 router = APIRouter(prefix="/api/vision", tags=["vision"])
 TASKS = ("tyre", "damage", "corrosion", "plate")
+UPLOAD_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 SUBJECT = {"tyre": "a vehicle tyre", "damage": "a vehicle's body panels", "corrosion": "a metal surface on or under a vehicle",
            "plate": "a vehicle number plate"}
 EXPLAIN = ("You are a vehicle inspection examiner in Malaysia. This photo shows {subject}. In two or three short sentences, "
@@ -131,13 +132,17 @@ async def upload(task: str, file: UploadFile = File(...)):
     data = await file.read()
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(413, "image too large")
-    dst = rt().settings.evidence_dir / "uploads" / f"{uuid.uuid4().hex[:10]}{Path(file.filename or 'x.jpg').suffix or '.jpg'}"
+    # uploads are served back from the app's own origin (/media/evidence), so only ever store them as images: a kept
+    # ".html" or ".svg" suffix would let anyone with the link plant a page that runs as the app
+    suffix = Path(file.filename or "").suffix.lower()
+    dst = rt().settings.evidence_dir / "uploads" / f"{uuid.uuid4().hex[:10]}{suffix if suffix in UPLOAD_SUFFIXES else '.jpg'}"
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(data)
     try:
         return {**await asyncio.to_thread(_run, task, dst), "upload_id": dst.name}
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(400, f"could not analyse the image: {e}") from e
+        dst.unlink(missing_ok=True)
+        raise HTTPException(400, "could not analyse the image: not a readable photo") from e
 
 
 @router.get("/samples")

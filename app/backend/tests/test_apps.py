@@ -128,6 +128,12 @@ def test_vision(client):
     again = client.post("/api/vision/analyse", json={"task": "tyre", "upload_id": up.json()["upload_id"]})
     assert again.status_code == 200 and again.json()["result"]["class"] in ("good", "defective")
     assert client.post("/api/vision/analyse", json={"task": "tyre", "upload_id": "../vhi.db"}).status_code == 404
+    # uploads are served from the app's origin: a photo named .html is stored as an image, and a non-image is not kept
+    renamed = client.post("/api/vision/upload", params={"task": "damage"}, files={"file": ("x.html", img.content, "text/html")})
+    assert renamed.status_code == 200 and renamed.json()["upload_id"].endswith(".jpg")
+    page = client.post("/api/vision/upload", params={"task": "damage"}, files={"file": ("p.html", b"<script>alert(1)</script>", "text/html")})
+    assert page.status_code == 400 and "/" not in page.json()["detail"]
+    assert not list((get_settings().evidence_dir / "uploads").glob("*.html"))
     # no vision-language model configured in the tests: the page does not offer it and the API says why
     ex = client.post("/api/vision/explain", json={"task": "damage", "capture_id": caps[0]["id"]})
     assert ex.status_code == 503 and "VHI_VLM_URL" in ex.json()["detail"]
