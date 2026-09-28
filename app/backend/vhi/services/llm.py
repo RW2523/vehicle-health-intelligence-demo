@@ -102,12 +102,18 @@ class _Probed:
 
     _ok: bool | None = None
     _checked = 0.0
+    keep_alive = ""
+    timeout = 60.0
 
     def _configured(self) -> bool:
         raise NotImplementedError
 
     def _probe(self) -> bool:
         raise NotImplementedError
+
+    def _ollama_model(self) -> tuple[str, str] | None:
+        """(Ollama base URL, model) when the model is served by Ollama, else None."""
+        return None
 
     def available(self) -> bool:
         if not self._configured():
@@ -120,12 +126,33 @@ class _Probed:
             self._checked = time.time()
         return bool(self._ok)
 
+    def keep_loaded(self) -> bool:
+        """Load the Ollama model now and keep it loaded for VHI_LLM_KEEP_ALIVE (an empty generate request does both).
+        TensorRT-LLM and vLLM keep their model loaded anyway."""
+        target = self._ollama_model() if self.keep_alive and self.available() else None
+        if not target:
+            return False
+        base, model = target
+        try:
+            httpx.post(f"{base}/api/generate", json={"model": model, "keep_alive": self.keep_alive},
+                       timeout=self.timeout).raise_for_status()
+        except httpx.HTTPError as e:
+            log.warning("could not keep %s loaded: %s", model, e)
+            return False
+        return True
+
+
+def ollama_base(url: str) -> str:
+    """http://host:11434 for Ollama's native API, also from its OpenAI-compatible address http://host:11434/v1."""
+    return url.rstrip("/").removesuffix("/v1")
+
 
 class LLM(_Probed):
     def __init__(self, settings: Settings):
         self.s = settings
         self.server = OpenAIServer(settings.llm_url, settings.llm_model, settings.llm_timeout_s) if settings.llm_url else None
         self.retriever = Retriever()
+        self.keep_alive, self.timeout = settings.llm_keep_alive, settings.llm_timeout_s
 
     @property
     def model(self) -> str:
@@ -142,6 +169,11 @@ class LLM(_Probed):
         # the exact tag: another model of the same family being installed does not make this one answer
         want = self.s.ollama_model if ":" in self.s.ollama_model else f"{self.s.ollama_model}:latest"
         return r.status_code == 200 and want in names
+
+    def _ollama_model(self) -> tuple[str, str] | None:
+        if self.server:
+            return (ollama_base(self.server.url), self.server.model) if self.server.engine == "ollama" else None
+        return ollama_base(self.s.ollama_url), self.s.ollama_model
 
     def status(self) -> dict:
         ok = self.available()
@@ -164,9 +196,10 @@ class LLM(_Probed):
         return (text or "").rsplit("</think>", 1)[-1].replace("<think>", "").strip() or None
 
     def _chat_ollama(self, msgs: list[dict], max_tokens: int) -> str:
-        r = httpx.post(f"{self.s.ollama_url.rstrip('/')}/api/chat", timeout=self.s.llm_timeout_s, json={
+        r = httpx.post(f"{ollama_base(self.s.ollama_url)}/api/chat", timeout=self.s.llm_timeout_s, json={
             "model": self.s.ollama_model, "stream": False, "think": False,
-            "options": {"temperature": 0.3, "num_predict": max_tokens}, "messages": msgs})
+            "options": {"temperature": 0.3, "num_predict": max_tokens}, "messages": msgs,
+            **({"keep_alive": self.keep_alive} if self.keep_alive else {})})
         r.raise_for_status()
         return r.json().get("message", {}).get("content", "")
 
@@ -177,12 +210,16 @@ class VLM(_Probed):
 
     def __init__(self, settings: Settings):
         self.server = OpenAIServer(settings.vlm_url, settings.vlm_model, settings.llm_timeout_s) if settings.vlm_url else None
+        self.keep_alive, self.timeout = settings.llm_keep_alive, settings.llm_timeout_s
 
     def _configured(self) -> bool:
         return self.server is not None
 
     def _probe(self) -> bool:
         return self.server.probe()
+
+    def _ollama_model(self) -> tuple[str, str] | None:
+        return (ollama_base(self.server.url), self.server.model) if self.server.engine == "ollama" else None
 
     def status(self) -> dict:
         ok = self.available()

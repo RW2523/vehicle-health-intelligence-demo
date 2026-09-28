@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     llm_url: str = ""
     llm_model: str = ""
     llm_timeout_s: float = 60.0
+    # Keep the Ollama models (assistant and vision-language model) loaded: an Ollama keep_alive such as "30m", sent
+    # with every call and renewed every 4 minutes while the API runs, so the first answer after a quiet spell does not
+    # wait ~10 s for the model to load. Use 5 minutes or more. Empty = Ollama's default (unload after 5 idle minutes).
+    llm_keep_alive: str = ""
     # Optional vision-language model on an OpenAI-compatible server (e.g. Qwen2.5-VL-7B on vLLM): plain-words
     # descriptions of inspection photos on the AI vision page. Empty = not offered.
     vlm_url: str = ""

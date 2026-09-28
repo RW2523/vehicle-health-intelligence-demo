@@ -36,12 +36,22 @@ async def lifespan(app: FastAPI):
     await r.processor.start()
     from .services import fleet as fleet_svc
     warm = asyncio.create_task(asyncio.to_thread(fleet_svc.warm))  # pre-compute fleet analyses in the background
+
+    async def keep_models_loaded() -> None:  # VHI_LLM_KEEP_ALIVE: load the Ollama models now, renew every 4 minutes
+        while True:
+            for m in (r.llm, r.vlm):
+                await asyncio.to_thread(m.keep_loaded)
+            await asyncio.sleep(240)
+
+    loaded = asyncio.create_task(keep_models_loaded()) if r.settings.llm_keep_alive else None
     log.info("VHI API ready (db=%s, bus=%s, llm=%s, vlm=%s)", r.settings.db_url.split(":")[0], r.bus.kind,
              r.llm.status()["backend"], r.vlm.status()["backend"])
     try:
         yield
     finally:
         warm.cancel()
+        if loaded:
+            loaded.cancel()
         await r.player.stop_all()
         await r.processor.stop()
         await r.bus.stop()

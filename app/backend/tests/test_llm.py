@@ -87,6 +87,36 @@ def test_ollama_needs_the_exact_tag_and_template_opened_thinking_is_dropped(monk
     assert m.chat("sys", [{"role": "user", "content": "slot esok?"}]) == "Slot esok: 10:40."
 
 
+def test_ollama_models_are_kept_loaded(monkeypatch):
+    posts = []
+
+    def get(url, timeout):
+        if url.endswith("/api/tags"):
+            return _Resp(200, {"models": [{"name": "qwen3:30b-a3b-instruct-2507-q4_K_M"}]})
+        return _Resp(200, {"data": [{"id": "qwen2.5vl:7b", "owned_by": "library"}]})  # Ollama's /v1/models
+
+    def post(url, json, timeout):
+        posts.append((url, json))
+        return _Resp(200, {"message": {"content": "ok"}})
+
+    monkeypatch.setattr(llm_mod.httpx, "get", get)
+    monkeypatch.setattr(llm_mod.httpx, "post", post)
+    s = Settings(ollama_url="http://ollama:11434", ollama_model="qwen3:30b-a3b-instruct-2507-q4_K_M",
+                 vlm_url="http://ollama:11434/v1", vlm_model="qwen2.5vl:7b", llm_keep_alive="30m")
+    llm, vlm = llm_mod.LLM(s), llm_mod.VLM(s)
+    # an empty generate request loads the model and sets how long it stays loaded, on Ollama's native API
+    assert llm.keep_loaded() and vlm.keep_loaded() and vlm.status()["backend"] == "ollama:qwen2.5vl:7b"
+    assert posts == [("http://ollama:11434/api/generate", {"model": "qwen3:30b-a3b-instruct-2507-q4_K_M", "keep_alive": "30m"}),
+                     ("http://ollama:11434/api/generate", {"model": "qwen2.5vl:7b", "keep_alive": "30m"})]
+    llm.chat("sys", [{"role": "user", "content": "x"}])
+    assert posts[-1][1]["keep_alive"] == "30m"  # every answer renews it too
+    # not set: Ollama's default applies; TensorRT-LLM / vLLM keep their model loaded anyway
+    assert not llm_mod.LLM(Settings(ollama_url="http://ollama:11434", ollama_model="qwen3:30b-a3b-instruct-2507-q4_K_M")).keep_loaded()
+    monkeypatch.setattr(llm_mod.httpx, "get", _models(owned_by="vllm"))
+    assert not llm_mod.LLM(Settings(llm_url="http://gpu:8100/v1", llm_model=QWEN, llm_keep_alive="30m")).keep_loaded()
+    assert len(posts) == 3
+
+
 def test_vlm_sends_the_photo_inline(monkeypatch, tmp_path):
     img = tmp_path / "tyre.jpg"
     Image.new("RGB", (1600, 1200), (40, 40, 40)).save(img)
