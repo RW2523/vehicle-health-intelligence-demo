@@ -6,6 +6,9 @@ const nextConfig = {
   // Docker builds a self-contained server (NEXT_STANDALONE=1); local runs use `next start`.
   ...(process.env.NEXT_STANDALONE ? { output: "standalone" } : {}),
   reactStrictMode: true,
+  // Rewrites are proxied with a 30 s timeout by default, which cuts off LLM / vision-language answers while a model is
+  // still loading on the GPU (the API itself allows VHI_LLM_TIMEOUT_S, 60 s per call) and turns them into a 500.
+  experimental: { proxyTimeout: 180_000 },
   // The browser talks to one origin; Next forwards API, media and live WebSocket calls to the FastAPI service
   // (upgrade requests on a rewrite are proxied too), so the whole demo works through a single port or tunnel.
   async rewrites() {

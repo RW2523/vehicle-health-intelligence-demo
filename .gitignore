@@ -17,3 +17,4 @@ app/web/tsconfig.tsbuildinfo
 # base weights Ultralytics downloads while training the vision models
 app/backend/*.pt
 app/backend/weights/
+app/backend/.env

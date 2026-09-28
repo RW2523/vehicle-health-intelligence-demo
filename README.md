@@ -8,7 +8,7 @@ A working end-to-end concept demo of an AI-assisted vehicle inspection platform.
 
 ## Quick start (laptop, no Docker)
 
-Requirements: Python 3.11+, Node 20+ (22 recommended) and about 2 GB of disk.
+Requirements: Python 3.11+, Node 20+ (22 recommended) and about 2 GB of disk. If the system Node is older, unpack the nodejs.org tarball into `~/.local/opt/node22` (or set `NODE_HOME`); `scripts/dev.sh` uses it automatically.
 
 ```bash
 make setup      # .venv + pip install + npm ci
@@ -154,7 +154,7 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 | `VHI_DATABASE_URL` | SQLite in `app/backend/var/` | e.g. `postgresql+psycopg://vhi:vhi@db:5432/vhi`; uses TimescaleDB when the extension exists |
 | `VHI_MQTT_URL` | in-process bus | e.g. `mqtt://mqtt:1883` |
 | `VHI_LLM_URL` / `VHI_LLM_MODEL` | none | OpenAI-compatible LLM server on the GPU (TensorRT-LLM, vLLM, NIM), e.g. `http://127.0.0.1:8355/v1` / `nvidia/Qwen3-30B-A3B-FP4`; takes precedence over Ollama |
-| `VHI_OLLAMA_URL` / `VHI_OLLAMA_MODEL` | none / `qwen3:32b` | local LLM for the assistant and report summaries; falls back to the template engine (labelled in the UI) |
+| `VHI_OLLAMA_URL` / `VHI_OLLAMA_MODEL` | none / `qwen3:32b` | local LLM for the assistant and report summaries; falls back to the template engine (labelled in the UI). Use a model that can answer without a reasoning pass: `qwen3:32b` or `qwen3:30b-a3b-instruct-2507-q4_K_M` (fast MoE). The tag `qwen3:30b-a3b` now resolves to the Thinking-2507 model, which always reasons first. For photo explanations through Ollama, set `VHI_VLM_URL=http://127.0.0.1:11434/v1` and `VHI_VLM_MODEL=qwen2.5vl:7b` |
 | `VHI_VLM_URL` / `VHI_VLM_MODEL` | none | optional vision-language model (OpenAI-compatible) for photo explanations on the AI vision page |
 | `VHI_PUBLIC_BASE_URL` | `http://localhost:3000` | base URL for report and check-in links and QR codes when a request does not carry the visitor's address (the web server forwards it) |
 | `VHI_DATA_DIR`, `VHI_VAR_DIR` | repo `data/curated`, `app/backend/var` | data and runtime-state locations |
@@ -164,9 +164,9 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 ## Tests
 
 ```bash
-make test                                                          # 31 backend tests (SQLite)
+make test                                                          # 34 backend tests (SQLite)
 VHI_DATABASE_URL=postgresql+psycopg://... make test                # the same suite on PostgreSQL (add VHI_MQTT_URL=... for MQTT)
-make e2e                                                           # 16 Playwright end-to-end tests (needs `make start`;
+make e2e                                                           # 18 Playwright end-to-end tests (needs `make start`;
                                                                    # first time: cd app/web && npx playwright install chromium)
 ```
 
