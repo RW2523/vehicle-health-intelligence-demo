@@ -4,12 +4,13 @@
    phones and tablets. */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
+import { api, presenterPin, PRESENTER_EVENT, setPresenterPin } from "@/lib/api";
 import { llmLabel, mydate, myt } from "@/lib/format";
 import { useClock } from "@/lib/live";
 import { NextStep } from "./Guide";
 import { Icon } from "./icons";
+import { Modal, toast } from "./ui";
 
 export const NAV = [
   { group: "Start here", items: [{ href: "/", label: "Demo control", sub: "Guided demo and sessions", icon: "play" }] },
@@ -73,6 +74,77 @@ function StatusDot() {
       <span className={`h-2 w-2 rounded-full ${ok ? "bg-ok pulse-dot" : checked ? "bg-bad" : "bg-fg-4"}`} />
       <span className="hidden sm:inline">{ok ? `Pipeline live${llm ? " · LLM" : ""}` : checked ? "API offline" : "Connecting…"}</span>
     </span>
+  );
+}
+
+/** View-only public link (VHI_PRESENTER_PIN): shows whether this browser can change the demo, and asks for the
+ *  presenter PIN when the API refuses a change. Hidden when no PIN is set. */
+function PresenterLock() {
+  const [required, setRequired] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [why, setWhy] = useState<string | null>(null);
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api.get("/api/system/status").then((s) => setRequired(!!s.presenter?.required)).catch(() => {});
+    setUnlocked(!!presenterPin());
+    const on = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      if (d.message) {  // the API refused a change: a stored PIN is no longer right, so forget it and ask
+        if (presenterPin()) setPresenterPin(null);
+        setRequired(true);
+        setWhy(d.message);
+        setErr(null);
+        setOpen(true);
+      }
+      setUnlocked(!!presenterPin());
+    };
+    window.addEventListener(PRESENTER_EVENT, on);
+    return () => window.removeEventListener(PRESENTER_EVENT, on);
+  }, []);
+  const close = useCallback(() => setOpen(false), []);
+  if (!required) return null;
+  const unlock = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.post("/api/system/presenter", { pin });
+      setPresenterPin(pin);
+      setPin("");
+      setOpen(false);
+      toast("Presenter mode on in this browser. Try the action again.", "ok");
+    } catch (x: any) {
+      setErr(x.status === 403 ? "That PIN is not right." : x.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <button className={`chip ${unlocked ? "border-ok/50 text-ok" : "border-warn/50 text-warn"}`} onClick={() => { setWhy(null); setErr(null); setOpen(true); }}
+        title={unlocked ? "Presenter mode: this browser can run the demo" : "View-only link: enter the presenter PIN to run the demo"}>
+        <Icon name={unlocked ? "unlock" : "lock"} size={13} width={2} />
+        <span className="hidden sm:inline">{unlocked ? "Presenter" : "View only"}</span>
+      </button>
+      <Modal open={open} onClose={close} title="Presenter PIN">
+        {unlocked ? (
+          <div className="flex max-w-[420px] flex-col gap-3 text-[13.5px] text-fg-2">
+            <p>This browser is in presenter mode: it can run sessions, decide alerts, issue reports and book.</p>
+            <button className="btn self-start" onClick={() => { setPresenterPin(null); setOpen(false); }}>Lock this browser</button>
+          </div>
+        ) : (
+          <form onSubmit={unlock} className="flex max-w-[420px] flex-col gap-3 text-[13.5px] text-fg-2">
+            <p>{why || "This is a view-only link."} Anyone can look around, ask the assistant and try the photo models. The presenter PIN lets this browser run sessions, decide alerts, issue reports and book.</p>
+            <input className="input font-mono tracking-widest" type="password" inputMode="numeric" autoComplete="off" autoFocus
+              aria-label="Presenter PIN" placeholder="PIN" value={pin} onChange={(e) => setPin(e.target.value)} />
+            {err && <p role="alert" className="text-[12.5px] font-semibold text-bad">{err}</p>}
+            <button className="btn btn-primary self-start" disabled={!pin || busy}>{busy ? "Checking…" : "Unlock"}</button>
+          </form>
+        )}
+      </Modal>
+    </>
   );
 }
 
@@ -166,6 +238,7 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {context}
             <NextStep />
+            <PresenterLock />
             <StatusDot />
             <div className="hidden flex-col items-end leading-tight 2xl:flex">
               <span className="text-[11px] text-fg-3">{mydate(now)}</span>

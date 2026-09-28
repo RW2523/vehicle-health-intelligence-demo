@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import time
 
-from fastapi import APIRouter, Query, WebSocket
+from fastapi import APIRouter, HTTPException, Query, WebSocket
+from pydantic import BaseModel
 from sqlalchemy import func, select
 
+from .. import presenter
 from ..config import public_base_url
 from ..db import session_scope
 from ..runtime import rt
@@ -35,11 +37,26 @@ def status():
         "llm": r.llm.status() if r.llm else {"backend": "none"},
         "vlm": r.vlm.status() if r.vlm else {"backend": None},
         "public_base_url": public_base_url(),
+        "presenter": {"required": presenter.required()},
         "models": models,
         "player": r.player.state_all() if r.player else [],
         "processor": r.processor.stats() if r.processor else {},
         "counts": {"readings": n_read, "live_inspections": n_live, "evidence_entries": n_ev},
     }
+
+
+class PinReq(BaseModel):
+    pin: str
+
+
+@router.post("/api/system/presenter")
+def presenter_unlock(req: PinReq):
+    """Check the presenter PIN before the web apps store it (wrong PINs count towards the same rate limit)."""
+    result = presenter.gate.check(req.pin)
+    if result != "ok":
+        code, detail = presenter.MESSAGES[result]
+        raise HTTPException(code, detail)
+    return {"ok": True, "required": presenter.required()}
 
 
 @router.websocket("/ws")

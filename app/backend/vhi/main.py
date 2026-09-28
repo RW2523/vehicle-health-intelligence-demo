@@ -7,8 +7,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import presenter
 from .config import base_url_from, get_settings, request_base_url
 from .runtime import build_runtime
 
@@ -75,6 +77,23 @@ class RequestBaseURL:
             request_base_url.reset(token)
 
 
+class PresenterOnly:
+    """VHI_PRESENTER_PIN: changes to the demo need the presenter PIN (vhi.presenter); reading stays open."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not presenter.guards(scope["method"], scope["path"]):
+            return await self.app(scope, receive, send)
+        pin = next((v.decode("latin-1") for k, v in scope["headers"] if k.lower() == presenter.HEADER.encode()), None)
+        result = presenter.gate.check(pin)
+        if result == "ok":
+            return await self.app(scope, receive, send)
+        code, detail = presenter.MESSAGES[result]
+        await JSONResponse({"detail": detail, "code": "presenter_pin"}, status_code=code)(scope, receive, send)
+
+
 def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(title="Vehicle Health Intelligence API", version="1.0.0", lifespan=lifespan,
@@ -83,6 +102,7 @@ def create_app() -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in s.cors_origins.split(",")],
                        allow_methods=["*"], allow_headers=["*"])
     app.add_middleware(RequestBaseURL)
+    app.add_middleware(PresenterOnly)
     from .api import (evidence, fleet, hq, inspections, owner, reference, regulator, reports, sessions, system,
                       vision)
     for m in (system, reference, sessions, inspections, reports, evidence, vision, owner, fleet, hq, regulator):

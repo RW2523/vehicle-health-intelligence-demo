@@ -1,4 +1,14 @@
-import { APIRequestContext, expect, Page, test } from "@playwright/test";
+import { APIRequestContext, expect, Page, test as base } from "@playwright/test";
+
+const PIN = process.env.E2E_PRESENTER_PIN;
+/** With a presenter PIN on the API, the tests' own API calls carry it (pages keep it in the app: playwright.config.ts). */
+const test = base.extend({
+  request: async ({ playwright, baseURL }, use) => {
+    const ctx = await playwright.request.newContext({ baseURL, extraHTTPHeaders: PIN ? { "x-presenter-pin": PIN } : {} });
+    await use(ctx);
+    await ctx.dispose();
+  },
+});
 
 /** Fast-forward a lane session through the API (the same call the "Fast-forward" button makes). */
 async function fastForward(request: APIRequestContext, sid: string) {
@@ -240,6 +250,28 @@ test.describe("Orientation and navigation", () => {
     await expect(page).toHaveURL(/\/regulator/);
     await expect(page.getByRole("dialog", { name: "Navigation" })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+    await page.close();
+  });
+});
+
+test.describe("View-only public link", () => {
+  test("a visitor without the PIN can look around, and the presenter PIN unlocks the demo", async ({ browser, request }) => {
+    const st = await (await request.get("/api/system/status")).json();
+    test.skip(!st.presenter?.required || !PIN, "no presenter PIN (VHI_PRESENTER_PIN / E2E_PRESENTER_PIN)");
+    const page = await browser.newPage({ storageState: { cookies: [], origins: [] } });  // a new visitor: no PIN stored
+    await page.goto(process.env.E2E_BASE_URL ? `${process.env.E2E_BASE_URL}/` : "http://localhost:3000/");
+    await expect(page.getByRole("button", { name: "View only", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Fast-forward" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Presenter PIN" });
+    await expect(dialog.getByText(/View-only link/)).toBeVisible();
+    await dialog.getByLabel("Presenter PIN").fill("0");
+    await dialog.getByRole("button", { name: "Unlock" }).click();
+    await expect(dialog.getByText("That PIN is not right.")).toBeVisible();
+    await dialog.getByLabel("Presenter PIN").fill(PIN!);
+    await dialog.getByRole("button", { name: "Unlock" }).click();
+    await expect(page.getByRole("button", { name: "Presenter", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Fast-forward" }).first().click();
+    await expect(page.getByText("S1 completed instantly")).toBeVisible({ timeout: 180_000 });
     await page.close();
   });
 });

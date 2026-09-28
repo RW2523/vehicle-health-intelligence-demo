@@ -11,6 +11,7 @@ os.environ.setdefault("VHI_OLLAMA_URL", "")
 os.environ.setdefault("VHI_LLM_URL", "")
 os.environ.setdefault("VHI_VLM_URL", "")
 os.environ.setdefault("VHI_LLM_KEEP_ALIVE", "")
+os.environ.setdefault("VHI_PRESENTER_PIN", "")  # a PIN in a local .env would lock the tests out
 
 
 @pytest.fixture(scope="session")

@@ -1,5 +1,6 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 const SOURCE: Record<string, { label: string; c: string }> = {
   live_model: { label: "Live model", c: "#22D3EE" },
@@ -165,7 +166,9 @@ export function Modal({ open, onClose, children, title }: { open: boolean; onClo
     return () => window.removeEventListener("keydown", esc);
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // rendered into <body>: a modal opened from the blurred sticky header would otherwise be confined to the header
+  // (backdrop-filter makes it the containing block of fixed elements)
+  return createPortal(
     <div role="dialog" aria-label={title} className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-6" onClick={onClose}>
       <div className="card max-h-[90vh] max-w-[900px] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between gap-6">
@@ -174,6 +177,7 @@ export function Modal({ open, onClose, children, title }: { open: boolean; onClo
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
