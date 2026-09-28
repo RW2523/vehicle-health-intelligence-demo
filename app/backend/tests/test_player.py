@@ -9,7 +9,7 @@ def test_live_playback_controls(client):
     st = client.post("/api/sessions/S3/pause").json()
     assert st["status"] == "paused" and st["t"] > 1
     t_paused = st["t"]
-    time.sleep(0.6)
+    time.sleep(1.0)
     assert client.get("/api/sessions/S3").json()["player"]["t"] == t_paused
     st = client.post("/api/sessions/S3/speed", json={"speed": 16}).json()
     assert st["speed"] == 16
@@ -17,6 +17,10 @@ def test_live_playback_controls(client):
     assert st["step"] == "brake_roller" and st["t"] >= 130
     st = client.post("/api/sessions/S3/resume").json()
     assert st["status"] == "playing"
+    t_resumed = st["t"]
+    time.sleep(0.3)
+    # the time spent paused must not be played on resume (0.3 s at 16x plus a tick or two, not the whole pause)
+    assert client.get("/api/sessions/S3").json()["player"]["t"] - t_resumed < 0.3 * 16 + 8
     client.post("/api/sessions/S3/stop")
 
 

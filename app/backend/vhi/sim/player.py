@@ -259,15 +259,15 @@ class SessionPlayer:
         last = time.monotonic()
         try:
             while self._i < len(self.events):
-                await self._resume.wait()
+                if not self._resume.is_set():
+                    await self._resume.wait()
+                    last = time.monotonic()  # the time spent paused does not advance the session
                 now = time.monotonic()
                 st.t += (now - last) * st.speed
                 last = now
                 await self._flush_until(st.t)
                 await self._broadcast_state()
                 await asyncio.sleep(tick)
-                if not self._resume.is_set():
-                    last = time.monotonic()
             st.status = "finished"
             await self._broadcast_state()
         except asyncio.CancelledError:
