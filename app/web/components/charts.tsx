@@ -1,14 +1,20 @@
 "use client";
 /* Small SVG chart kit (no chart library): line / multi-line with forecast band, bars, sparkline, donut, scatter. */
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-/** Measures its own width so charts draw at real pixel size (crisp text, no stretching). */
+// before paint in the browser (useLayoutEffect); the server has no layout, so plain useEffect there
+const useBeforePaint = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/** Measures its own width so charts draw at real pixel size (crisp text, no stretching). The first measurement is
+ *  taken before the browser paints, so a chart never shows at the initial width first (600 px overflowed phones). */
 function useWidth(initial = 600) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(initial);
-  useEffect(() => {
+  useBeforePaint(() => {
     if (!ref.current) return;
-    const ro = new ResizeObserver((e) => setW(Math.max(120, Math.round(e[0].contentRect.width))));
+    const fit = (width: number) => setW(Math.max(120, Math.round(width)));
+    fit(ref.current.getBoundingClientRect().width);
+    const ro = new ResizeObserver((e) => fit(e[0].contentRect.width));
     ro.observe(ref.current);
     return () => ro.disconnect();
   }, []);
