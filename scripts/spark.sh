@@ -6,6 +6,7 @@
 #   scripts/spark.sh restart     rebuild the web app if the code changed, restart both services
 #   scripts/spark.sh status      service state, model backends and the URLs to open
 #   scripts/spark.sh funnel      fixed public https address through Tailscale Funnel; `funnel off` removes it
+#                                (FUNNEL_PORT=443, 8443 or 10000; it will not take a port another app publishes)
 #   scripts/spark.sh tunnel      public https URL through a Cloudflare quick tunnel (always on); `tunnel off` removes it
 #   scripts/spark.sh url         the current public URLs, checked end to end
 #   scripts/spark.sh reset       clear reports, bookings, lane sessions and evidence (keeps the seeded world)
@@ -31,14 +32,25 @@ WEB_PORT="${WEB_PORT:-3120}"
 SERVICES=(vehiclesense-api vehiclesense-web)
 TUNNEL=vehiclesense-tunnel
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/vehiclesense"
+# the Funnel port (443, 8443 or 10000) is remembered, so later commands keep using the one that was set up
+FUNNEL_PORT="${FUNNEL_PORT:-$(cat "$STATE/funnel_port" 2>/dev/null || echo 443)}"
 CLOUDFLARED="${CLOUDFLARED:-$(command -v cloudflared 2>/dev/null || echo "$HOME/bin/cloudflared")}"
 
 say() { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 
+. "$ROOT/scripts/node-env.sh"
+
 host_ip() { tailscale ip -4 2>/dev/null | head -1 || true; }
 
 funnel_host() { tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null || true; }
-funnel_on() { tailscale funnel status 2>/dev/null | grep -q "(Funnel on)"; }
+funnel_proxy() {  # PORT: where the Funnel on that port of this machine forwards to (empty when it is not on)
+  tailscale serve status --json 2>/dev/null | python3 -c '
+import json, sys
+d, key = json.load(sys.stdin), sys.argv[1]
+if (d.get("AllowFunnel") or {}).get(key):
+    print(((d.get("Web") or {}).get(key, {}).get("Handlers") or {}).get("/", {}).get("Proxy", ""))' "$(funnel_host):$1" 2>/dev/null || true
+}
+funnel_on() { [[ "$(funnel_proxy "$FUNNEL_PORT")" == "http://127.0.0.1:$WEB_PORT" ]]; }
 ts_operator() { tailscale debug prefs 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("OperatorUser") or "")' 2>/dev/null || true; }
 
 set_env() {  # KEY VALUE: one setting in the env file (the API reads it when it starts)
@@ -99,6 +111,8 @@ Wants=vehiclesense-api.service
 
 [Service]
 WorkingDirectory=$WEB
+# Node 20+ (next runs through `#!/usr/bin/env node`; a user-local Node when the system one is older)
+Environment=PATH=$(dirname "$(command -v node)"):/usr/local/bin:/usr/bin:/bin
 ExecStart=$WEB/node_modules/.bin/next start -p $WEB_PORT
 Restart=always
 RestartSec=3
@@ -138,6 +152,7 @@ wait_up() {
 }
 
 cmd_install() {
+  need_node
   [[ -x "$ROOT/.venv/bin/python" && -d "$WEB/node_modules" ]] || "$ROOT/scripts/dev.sh" setup
   "$ROOT/scripts/dev.sh" stop >/dev/null 2>&1 || true
   write_env
@@ -188,23 +203,31 @@ cmd_funnel() {
   command -v tailscale >/dev/null || { echo "tailscale is not installed" >&2; exit 1; }
   mkdir -p "$STATE"
   if [[ "${1:-on}" == off ]]; then
-    tailscale funnel --https=443 off >/dev/null 2>&1 || tailscale funnel reset >/dev/null 2>&1 || true
-    rm -f "$STATE/fixed_url"
+    # only this port: `tailscale funnel reset` would also remove what other apps on this machine publish
+    tailscale funnel --https="$FUNNEL_PORT" off >/dev/null 2>&1 || true
+    rm -f "$STATE/fixed_url" "$STATE/funnel_port"
     say "fixed address switched off"
     return
   fi
   [[ "$(ts_operator)" == "$USER" ]] || { echo "first let this user manage Tailscale: sudo tailscale set --operator=$USER" >&2; exit 1; }
-  local host; host="$(funnel_host)"
-  # publish the web port at https://<host>/ (WebSocket included); tailscaled keeps it across reboots
-  timeout 60 tailscale funnel --bg "$WEB_PORT" >"$STATE/funnel.log" 2>&1 </dev/null || true
+  local host cur url; host="$(funnel_host)"; cur="$(funnel_proxy "$FUNNEL_PORT")"
+  if [[ -n "$cur" && "$cur" != "http://127.0.0.1:$WEB_PORT" && -z "${FUNNEL_FORCE:-}" ]]; then
+    echo "port $FUNNEL_PORT of https://$host already publishes $cur (another app): use FUNNEL_PORT=8443 or 10000" >&2
+    echo "(or FUNNEL_FORCE=1 to replace it)" >&2
+    exit 1
+  fi
+  # publish the web port at https://<host>[:port]/ (WebSocket included); tailscaled keeps it across reboots
+  timeout 60 tailscale funnel --bg --https="$FUNNEL_PORT" "$WEB_PORT" >"$STATE/funnel.log" 2>&1 </dev/null || true
   if ! funnel_on; then
     cat "$STATE/funnel.log" >&2
     echo "Funnel is not on: the tailnet admin must allow it for this machine (link above), then run this again" >&2
     exit 1
   fi
-  echo "https://$host" >"$STATE/fixed_url"
+  url="https://$host"; [[ "$FUNNEL_PORT" == 443 ]] || url="$url:$FUNNEL_PORT"
+  echo "$url" >"$STATE/fixed_url"
+  echo "$FUNNEL_PORT" >"$STATE/funnel_port"
   # links and QR codes fall back to this address when a request does not say which address it came in on
-  set_env VHI_PUBLIC_BASE_URL "https://$host"
+  set_env VHI_PUBLIC_BASE_URL "$url"
   systemctl --user restart vehiclesense-api
   wait_up
   cmd_url 60
@@ -241,6 +264,7 @@ cmd_reset() {
 }
 
 cmd_restart() {
+  need_node
   build_web
   systemctl --user restart "${SERVICES[@]}"
   wait_up && cmd_status
