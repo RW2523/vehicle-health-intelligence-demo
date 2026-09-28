@@ -74,6 +74,19 @@ def test_unlisted_model_is_not_used(monkeypatch):
     assert not m.available() and m.chat("sys", []) is None
 
 
+def test_ollama_needs_the_exact_tag_and_template_opened_thinking_is_dropped(monkeypatch):
+    tags = lambda url, timeout: _Resp(200, {"models": [{"name": "qwen3:30b-a3b"}, {"name": "llama3.2:3b"}]})
+    monkeypatch.setattr(llm_mod.httpx, "get", tags)
+    # another qwen3 being installed does not make the configured one answer (its chat would 404 on every request)
+    assert not llm_mod.LLM(Settings(ollama_url="http://ollama:11434", ollama_model="qwen3:30b-a3b-instruct-2507-q4_K_M")).available()
+    m = llm_mod.LLM(Settings(ollama_url="http://ollama:11434/", ollama_model="qwen3:30b-a3b"))
+    assert m.status()["backend"] == "ollama:qwen3:30b-a3b"
+    # a thinking model whose chat template already opened the <think> block returns only its closing tag
+    monkeypatch.setattr(llm_mod.httpx, "post", lambda url, json, timeout: _Resp(200, {"message": {
+        "content": "The user wants slots. Context lists 10:40.\n</think>\n\nSlot esok: 10:40."}}))
+    assert m.chat("sys", [{"role": "user", "content": "slot esok?"}]) == "Slot esok: 10:40."
+
+
 def test_vlm_sends_the_photo_inline(monkeypatch, tmp_path):
     img = tmp_path / "tyre.jpg"
     Image.new("RGB", (1600, 1200), (40, 40, 40)).save(img)

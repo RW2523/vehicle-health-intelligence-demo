@@ -61,8 +61,8 @@ class Retriever:
         return [(self.items[i], float(sims[i])) for i in order]
 
 
-# owned_by in an OpenAI-compatible /models listing -> the engine named in the UI
-ENGINES = {"tensorrt_llm": "trtllm", "vllm": "vllm"}
+# owned_by in an OpenAI-compatible /models listing -> the engine named in the UI (Ollama's /v1 lists "library")
+ENGINES = {"tensorrt_llm": "trtllm", "vllm": "vllm", "library": "ollama"}
 # Qwen <|im_end|> and <|endoftext|>: trtllm-serve does not end the turn on <|im_end|> by itself and keeps writing.
 QWEN_STOP_IDS = [151645, 151643]
 
@@ -137,9 +137,11 @@ class LLM(_Probed):
     def _probe(self) -> bool:
         if self.server:
             return self.server.probe()
-        r = httpx.get(f"{self.s.ollama_url}/api/tags", timeout=2.0)
-        names = [m.get("name") for m in r.json().get("models", [])]
-        return r.status_code == 200 and any(self.s.ollama_model.split(":")[0] in (n or "") for n in names)
+        r = httpx.get(f"{self.s.ollama_url.rstrip('/')}/api/tags", timeout=2.0)
+        names = {m.get("name") for m in r.json().get("models", [])}
+        # the exact tag: another model of the same family being installed does not make this one answer
+        want = self.s.ollama_model if ":" in self.s.ollama_model else f"{self.s.ollama_model}:latest"
+        return r.status_code == 200 and want in names
 
     def status(self) -> dict:
         ok = self.available()
@@ -158,10 +160,11 @@ class LLM(_Probed):
             log.warning("LLM call failed: %s", e)
             self._ok = False
             return None
-        return re.sub(r"<think>.*?</think>", "", text or "", flags=re.S).strip() or None
+        # drop the reasoning: a <think> block, or everything up to </think> when the chat template opened the block
+        return (text or "").rsplit("</think>", 1)[-1].replace("<think>", "").strip() or None
 
     def _chat_ollama(self, msgs: list[dict], max_tokens: int) -> str:
-        r = httpx.post(f"{self.s.ollama_url}/api/chat", timeout=self.s.llm_timeout_s, json={
+        r = httpx.post(f"{self.s.ollama_url.rstrip('/')}/api/chat", timeout=self.s.llm_timeout_s, json={
             "model": self.s.ollama_model, "stream": False, "think": False,
             "options": {"temperature": 0.3, "num_predict": max_tokens}, "messages": msgs})
         r.raise_for_status()

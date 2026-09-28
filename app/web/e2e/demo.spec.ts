@@ -210,7 +210,7 @@ test.describe("GPU models and live updates", () => {
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await page.getByRole("button", { name: /Explain in plain words/ }).click();
     await expect(page.getByText("In plain words")).toBeVisible({ timeout: 90_000 });
-    await expect(page.getByText(/Vision-language model · vLLM/)).toBeVisible();
+    await expect(page.getByText(/Vision-language model · (vLLM|TensorRT-LLM|Ollama|LLM server) · /)).toBeVisible();
   });
 });
 
