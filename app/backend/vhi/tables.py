@@ -231,6 +231,20 @@ class PatternReport(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
 
 
+class Listing(Base):
+    """A vehicle advertised for sale (the used-vehicle sales app). Synthetic: seeded by vhi.seed.sales."""
+    __tablename__ = "listings"
+    listing_id: Mapped[str] = mapped_column(String(12), primary_key=True)
+    plate: Mapped[str] = mapped_column(String(16), index=True)
+    kind: Mapped[str] = mapped_column(String(12))  # car / motorcycle
+    asking_price_rm: Mapped[float] = mapped_column(Float)
+    listed_at: Mapped[str] = mapped_column(String(10))
+    seller: Mapped[str] = mapped_column(String(12))  # private / dealer
+    state: Mapped[str] = mapped_column(String(40), default="")
+    status: Mapped[str] = mapped_column(String(12), default="active")
+    description: Mapped[str] = mapped_column(String(240), default="")
+
+
 class Setting(Base):
     """Small key/value store (e.g. demo mode, cached web snapshots)."""
     __tablename__ = "settings_kv"

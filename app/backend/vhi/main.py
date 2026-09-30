@@ -103,9 +103,9 @@ def create_app() -> FastAPI:
                        allow_methods=["*"], allow_headers=["*"])
     app.add_middleware(RequestBaseURL)
     app.add_middleware(PresenterOnly)
-    from .api import (evidence, fleet, hq, inspections, owner, reference, regulator, reports, sessions, system,
+    from .api import (evidence, fleet, hq, inspections, owner, reference, regulator, reports, sales, sessions, system,
                       vision)
-    for m in (system, reference, sessions, inspections, reports, evidence, vision, owner, fleet, hq, regulator):
+    for m in (system, reference, sessions, inspections, reports, evidence, vision, owner, fleet, hq, regulator, sales):
         app.include_router(m.router)
     app.mount("/media/data", StaticFiles(directory=str(s.data_dir)), name="data")
     app.mount("/media/assets", StaticFiles(directory=str(s.assets_dir)), name="assets")
