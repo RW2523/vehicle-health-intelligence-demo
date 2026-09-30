@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { LineChart } from "@/components/charts";
 import { Icon } from "@/components/icons";
 import { ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
@@ -36,10 +36,17 @@ function Listings() {
   const max = sp.get("max") || "";
   const [q, setQ] = useState(sp.get("q") || "");
   const [shown, setShown] = useState(20);
+  // the newest filters, including a change whose navigation has not landed yet: building on the current URL instead
+  // lets a quick second change (typing right after picking a tab) undo the first
+  const next = useRef<string | null>(null);
+  useEffect(() => {
+    if (next.current === sp.toString()) next.current = null;
+  }, [sp]);
   const set = (patch: Record<string, string>) => {
     setShown(20);
-    const u = new URLSearchParams(sp.toString());
+    const u = new URLSearchParams(next.current ?? sp.toString());
     Object.entries(patch).forEach(([k, v]) => (v ? u.set(k, v) : u.delete(k)));
+    next.current = u.toString();
     router.replace(u.toString() ? `/sales?${u}` : "/sales", { scroll: false });
   };
   const { data: d, error } = useFetch<any>("/api/sales", { kind, flag, state, max_price: max, q });
