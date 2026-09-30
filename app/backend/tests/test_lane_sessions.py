@@ -17,9 +17,9 @@ def test_s1_tampered_diesel(s1):
     assert s1["results"]["enose"]["rnd"] is True
     assert "nh3_slip_scr" in {e["condition"] for e in s1["results"]["enose"]["events"]}
     assert "thermal:A2R" in c                     # dragging brake on axle 2 right
-    # image results arrive as the demo feed of PUSPAKOM's own AI systems, not as our model's analysis
+    # every image result names the AI module that found it
     tyre = next(a for a in s1["alerts"] if a["code"] == "tyre:defect")
-    assert tyre["source"] == "system_feed" and tyre["detail"].startswith("AI tyre scan (PUSPAKOM)")
+    assert tyre["source"] == "live_model" and tyre["detail"].startswith("Tyre AI:")
     assert {im["system"] for im in s1["results"]["images"]} == {"undercarriage", "tyre"}
     assert "acoustic:wheel_bearing_or_suspension" in c
     assert s1["results"]["instruments"]["smoke_opacity_pct"]["verdict"] == "pass"
@@ -58,7 +58,7 @@ def test_s3_identity(s3):
     assert nf["peer"] == "vehicles 10-12 years old that pass today" and nf["drivers"][0]["label"] == "Vehicle age"
     assert "Heavy vehicle" not in {d["label"] for d in nf["drivers"]}
     body = next(a for a in s3["alerts"] if a["code"] == "body:damage")
-    assert body["source"] == "system_feed" and body["detail"].startswith("Project ASTRA (PUSPAKOM with Universiti Tun Hussein Onn")
+    assert body["source"] == "live_model" and body["detail"].startswith("Above-carriage AI:")
 
 
 def test_report_requires_decisions_then_verifies(client, s1):

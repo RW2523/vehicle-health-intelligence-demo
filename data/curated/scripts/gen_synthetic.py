@@ -37,7 +37,7 @@ BRANCHES = [
     ("Kluang", "Johor", False, 3), ("Ipoh", "Perak", True, 4), ("Prai", "Pulau Pinang", True, 5),
     ("Alor Setar", "Kedah", False, 3), ("Kuantan", "Pahang", True, 4), ("Kota Bharu", "Kelantan", False, 3),
     ("Kuala Terengganu", "Terengganu", False, 3), ("Kuching", "Sarawak", True, 4), ("Miri", "Sarawak", True, 3),
-    ("Kota Kinabalu", "Sabah", True, 4), ("Mobile Truck Service", "Nationwide", True, 2)]
+    ("Kota Kinabalu", "Sabah", True, 4), ("Mobile inspection unit", "Nationwide", True, 2)]
 bdf = pd.DataFrame(BRANCHES, columns=["branch", "state", "heavy_vehicle_capable", "lanes"])
 bdf["branch_id"] = [f"BR{i:02d}" for i in range(len(bdf))]
 bdf["note"] = "illustrative branch list - replace with official PUSPAKOM list"

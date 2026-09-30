@@ -13,14 +13,14 @@ Generated 24 Sep 2026. 4,534 curated files, 515 MB. `manifest.csv` has one row p
 | tyre | defective | 450 | Tyre AI (10), pre-inspection self-check (3) |
 | tyre | perfect | 450 | Tyre AI (10), pre-inspection self-check (3) |
 | tyre | wear_examples | 4 | Tyre AI (10), pre-inspection self-check (3) |
-| vehicle_damage | dent_scratch_annotated | 78 | ASTRA-style above-carriage damage, BER/rebuild checks (9, 18) |
-| vehicle_damage | f_breakage | 200 | ASTRA-style above-carriage damage, BER/rebuild checks (9, 18) |
-| vehicle_damage | f_crushed | 200 | ASTRA-style above-carriage damage, BER/rebuild checks (9, 18) |
-| vehicle_damage | f_normal | 200 | ASTRA-style above-carriage damage, BER/rebuild checks (9, 18) |
-| vehicle_damage | mixed_damage_test | 68 | ASTRA-style above-carriage damage, BER/rebuild checks (9, 18) |
-| vehicle_damage | r_breakage | 200 | ASTRA-style above-carriage damage, BER/rebuild checks (9, 18) |
-| vehicle_damage | r_crushed | 200 | ASTRA-style above-carriage damage, BER/rebuild checks (9, 18) |
-| vehicle_damage | r_normal | 200 | ASTRA-style above-carriage damage, BER/rebuild checks (9, 18) |
+| vehicle_damage | dent_scratch_annotated | 78 | Above-carriage damage, BER/rebuild checks (9, 18) |
+| vehicle_damage | f_breakage | 200 | Above-carriage damage, BER/rebuild checks (9, 18) |
+| vehicle_damage | f_crushed | 200 | Above-carriage damage, BER/rebuild checks (9, 18) |
+| vehicle_damage | f_normal | 200 | Above-carriage damage, BER/rebuild checks (9, 18) |
+| vehicle_damage | mixed_damage_test | 68 | Above-carriage damage, BER/rebuild checks (9, 18) |
+| vehicle_damage | r_breakage | 200 | Above-carriage damage, BER/rebuild checks (9, 18) |
+| vehicle_damage | r_crushed | 200 | Above-carriage damage, BER/rebuild checks (9, 18) |
+| vehicle_damage | r_normal | 200 | Above-carriage damage, BER/rebuild checks (9, 18) |
 
 ## 2. Audio (real recordings, 16 kHz mono WAV, 5-second clips)
 

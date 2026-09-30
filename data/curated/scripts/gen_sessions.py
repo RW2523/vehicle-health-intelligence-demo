@@ -126,7 +126,7 @@ save("S3", dict(session="S3", title="Honda Civic · ownership transfer (B5)", br
                        dict(date="2025-06-02", type="voluntary", odometer_km=182900, engine_fingerprint="FP-A")],
     injected_faults=["odometer_rollback_86500km", "engine_swap_undeclared", "repaired_rear_panel"],
     expected=dict(odometer_flag="rollback: 182,900 -> 96,400 km", acoustic_similarity_to_history=0.31, engine_changed=True,
-                  chassis_ocr_match=True, astra_finding="panel repair rear-left", route="senior examiner", health_score=58),
+                  chassis_ocr_match=True, above_carriage_finding="panel repair rear-left", route="senior examiner", health_score=58),
     media=dict(body_images=pick("images/vehicle_damage/r_breakage/*.jpg", 2), plate_images=pick("images/plates_my/real_plate_photo/*.jpg", 1),
                audio=pick("audio/engine_normal_idle/*.wav", 2))),
     dict(enose=enose_stream(480, []), obd=obd_stream(480, [], 720, 60), brake_roller=brake_roller(2, 66, 9, 4), thermal=thermal(2),

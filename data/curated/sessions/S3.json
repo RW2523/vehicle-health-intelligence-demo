@@ -36,7 +36,7 @@
   "acoustic_similarity_to_history": 0.31,
   "engine_changed": true,
   "chassis_ocr_match": true,
-  "astra_finding": "panel repair rear-left",
+  "above_carriage_finding": "panel repair rear-left",
   "route": "senior examiner",
   "health_score": 58
  },

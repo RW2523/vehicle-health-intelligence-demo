@@ -57,9 +57,9 @@ export function nextFailNote(nf: any): string | null {
   return `${Math.round(nf.peer_rate * 100)}% for ${nf.peer}${top ? ` · mostly ${top.label.toLowerCase()}` : ""}`;
 }
 
-/** PUSPAKOM's AI inspection systems that image results come from (vhi/services/inspection_systems.py). */
+/** The AI inspection modules that image results come from (vhi/services/inspection_systems.py). */
 export const SYSTEM_NAME: Record<string, string> = {
-  undercarriage: "Undercarriage AI", astra: "Project ASTRA", tyre: "AI tyre scan", examiner: "Examiner close-up",
+  undercarriage: "Undercarriage AI", above: "Above-carriage AI", tyre: "Tyre AI", examiner: "Examiner close-up",
 };
 
 /** The lane replays: the vehicle each one drives through which lane of the Alam Megah branch (BR00). */

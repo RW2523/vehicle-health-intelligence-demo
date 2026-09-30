@@ -278,17 +278,12 @@ test.describe("Used-vehicle sales", () => {
 });
 
 test.describe("AI vision", () => {
-  test("shows PUSPAKOM's AI systems as the source, with the stand-in models folded away", async ({ page }) => {
+  test("shows the three AI inspection modules and runs a live model on a capture", async ({ page }) => {
     await page.goto("/vision");
     await expect(page.getByRole("heading", { name: "AI vision inspection" })).toBeVisible();
-    await expect(page.getByText("PUSPAKOM with Keymag Sdn Bhd")).toBeVisible();
-    await expect(page.getByText("Project ASTRA", { exact: true })).toBeVisible();
-    await expect(page.getByText("In service", { exact: true })).toBeVisible();
-    await expect(page.getByText("In development", { exact: true })).toHaveCount(2);
-    await expect(page.getByRole("button", { name: "Run", exact: true })).toBeHidden();
-    await page.getByText("Demo stand-in models").click();
+    for (const name of ["Undercarriage AI", "Above-carriage AI", "Tyre AI"]) await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "Run", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Stand-in model result" })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: "Live model result" })).toBeVisible({ timeout: 60_000 });
   });
 
   test("image library maps every source image to its case and fleet vehicles", async ({ page }) => {
@@ -340,7 +335,6 @@ test.describe("GPU models and live updates", () => {
     const st = await (await request.get("/api/system/status")).json();
     test.skip(!st.vlm?.reachable, "no vision-language model configured (VHI_VLM_URL)");
     await page.goto("/vision");
-    await page.getByText("Demo stand-in models").click();
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await page.getByRole("button", { name: /Explain in plain words/ }).click();
     await expect(page.getByText("In plain words")).toBeVisible({ timeout: 90_000 });

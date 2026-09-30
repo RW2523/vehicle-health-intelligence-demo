@@ -122,7 +122,7 @@ export function OBDChart({ obd, height = 150 }: { obd: { t: number; rpm: number 
 }
 
 export function Frames({ images, onOpen }: { images: any[]; onOpen?: (img: any) => void }) {
-  if (!images?.length) return <p className="text-[13px] text-fg-3">Results arrive from PUSPAKOM's undercarriage, above-carriage (ASTRA) and tyre-scan systems during those lane steps.</p>;
+  if (!images?.length) return <p className="text-[13px] text-fg-3">Results arrive from the undercarriage, above-carriage and tyre AI during those lane steps.</p>;
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
       {images.map((im, i) => (
@@ -132,7 +132,7 @@ export function Frames({ images, onOpen }: { images: any[]; onOpen?: (img: any) 
           <div className="flex flex-col gap-1 p-2.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[12.5px] font-semibold">{SYSTEM_NAME[im.system] || im.kind} · {im.camera}</span>
-              <Source kind="system_feed" text="Demo feed" />
+              <Source kind={im.model === "corrosion segmentation" ? "live_logic" : "live_model"} />
             </div>
             <span className="text-[12px] text-fg-3">
               {im.corrosion_score !== undefined ? `Corrosion ${im.corrosion_score}/10 · ${im.boxes?.length || 0} regions` : `${im.label} (${Math.round((im.p || 0) * 100)}%)`}

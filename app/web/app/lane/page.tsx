@@ -122,7 +122,7 @@ function LaneConsole() {
                 )}
               </Card>
             </div>
-            <Card title="PUSPAKOM AI systems · results" right={<Source kind="system_feed" />}>
+            <Card title="AI vision · undercarriage, above-carriage and tyre" right={<Source kind="live_model" />}>
               <Frames images={r.images || []} onOpen={setZoom} />
             </Card>
           </div>

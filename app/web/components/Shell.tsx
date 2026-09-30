@@ -21,7 +21,7 @@ export const NAV: { group: string; items: { href: string; label: string; sub: st
       { href: "/lane", label: "Lane console", sub: "Live sensors and AI", icon: "lane", roles: ["examiner", "hq"] },
       { href: "/examiner", label: "Examiner", sub: "Decide alerts, issue report", icon: "examiner", roles: ["examiner", "hq"] },
       { href: "/report", label: "Reports", sub: "Results and QR verification", icon: "report", roles: ["examiner", "hq"] },
-      { href: "/vision", label: "AI vision", sub: "PUSPAKOM AI system results", icon: "vision", roles: ["examiner", "hq"] },
+      { href: "/vision", label: "AI vision", sub: "Undercarriage, above-carriage, tyre AI", icon: "vision", roles: ["examiner", "hq"] },
     ],
   },
   {

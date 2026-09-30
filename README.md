@@ -85,7 +85,7 @@ Start from **Demo control** (`/`) as the presenter. S1–S3 are **lane replays**
 
 | Replay / walkthrough | What happens | Where to look |
 |---|---|---|
-| **S1** DMO 9001 · Scania prime mover, periodic inspection (Berkala) | Thermal hot hub, particle number showing a removed DPF, roller-brake imbalance, a tyre defect from the AI tyre scan and wheel-bearing noise. Health score 57; verdict **FAIL**. | Lane → Examiner → Report → Verify |
+| **S1** DMO 9001 · Scania prime mover, periodic inspection (Berkala) | Thermal hot hub, particle number showing a removed DPF, roller-brake imbalance, a tyre defect from the Tyre AI and wheel-bearing noise. Health score 57; verdict **FAIL**. | Lane → Examiner → Report → Verify |
 | **S2** DMO 9002 · BYD Atto 3 (EV), ownership transfer + hire-purchase (B5 + B7) | Flood-damage evidence (cabin corrosion, HV isolation, insurance claim), BMS pack state of health and module spread, EV fault codes. Verdict **CONDITIONAL**. | Lane, Examiner |
 | **S3** DMO 9003 · Honda Civic, ownership transfer (B5) | The plate is read (OCR); the odometer and engine-sound fingerprint disagree with the vehicle's history, so the inspection is routed to a senior examiner (verdict **REFERRED**). The petrol exhaust-gas test shows CO, HC and lambda. Health 95 with a 40% next-inspection risk, read against 10–12-year-old cars that pass today (38%): mostly age. | Examiner |
 | **S4** HQ | Examiner integrity (VE017 and VE044 flagged), lane-equipment predictive maintenance (BR00 lane 3 roller tester), 14-day demand forecast and roster, and a hash-chain audit with a live tamper test. | HQ |
@@ -126,7 +126,7 @@ The API enforces the same rules (`vhi/auth.py`). Open without a login: the buyer
 
 ### What PUSPAKOM's review changed
 
-- **AI vision** presents image results as the output of PUSPAKOM's own systems, as announced publicly: the **Undercarriage AI** (with Keymag Sdn Bhd, in service on the Mobile Truck Service), **Project ASTRA** above-carriage inspection (with UTHM) and **AI tyre scans** (both in development). They are not connected in this demo, so their results arrive as a labelled *demo feed*: our image models play them and are kept, folded away, as *stand-ins*.
+- **AI vision** is organised as three AI inspection modules of the platform: **Undercarriage AI** (underbody and chassis corrosion from the pit cameras), **Above-carriage AI** (body damage, previous repairs and cabin corrosion) and **Tyre AI** (tyre cracks, wear and damage). Every image result, alert and health-score rule names the module that found it.
 - **E-nose** is a future R&D option: its stream and model run are shown as a research preview but raise no alerts and change no score or result (`VHI_ENOSE_IN_RESULTS=true` uses it as a live sensor).
 - **Owner app**: no AI model details; a full slot suggests the nearest branches with that time free; the passport lists every certificate.
 
@@ -170,11 +170,11 @@ simulated lane streams (data/curated/sessions/S1–S3)          Next.js web apps
 
 | Model | What it does | Result |
 |---|---|---|
-| Tyre classifier (stand-in for the AI tyre scan) | YOLO11m-cls fine-tuned on the curated tyre images on the DGX Spark GPU (224 px), run with ONNX Runtime | 97.8% validation accuracy (YOLO11n on CPU: 93.9%) |
-| Body-damage classifier (stand-in for Project ASTRA) | YOLO11s-cls fine-tuned on the GPU at 320 px, 3 classes (normal / breakage / crushed) | 83.8% validation accuracy (YOLO11n on CPU: 75.4%) |
+| Tyre AI | YOLO11m-cls fine-tuned on the curated tyre images on the DGX Spark GPU (224 px), run with ONNX Runtime | 97.8% validation accuracy (YOLO11n on CPU: 93.9%) |
+| Above-carriage AI (body damage) | YOLO11s-cls fine-tuned on the GPU at 320 px, 3 classes (normal / breakage / crushed) | 83.8% validation accuracy (YOLO11n on CPU: 75.4%) |
 | Assistant and report summaries | Qwen3-30B-A3B NVFP4 on TensorRT-LLM (GPU), grounded on the retrieved knowledge base; or Ollama; or the template engine | — |
 | Photo explanations | Qwen2.5-VL-7B-Instruct on vLLM (GPU): a plain-words second opinion on the same image | — |
-| Corrosion | HSV rust segmentation, calibrated on rust vs clean photos | 89% balanced accuracy |
+| Undercarriage AI / cabin corrosion | HSV rust segmentation, calibrated on rust vs clean photos | 89% balanced accuracy |
 | Plate / chassis OCR | RapidOCR (PaddleOCR via ONNX) with Malaysian plate grammar | — |
 | E-nose (future R&D preview, not in the result) | XGBoost on the UCI gas-sensor array, plus a Bayesian context prior | 99.4% random split; 72.3% on later batches (sensor drift) |
 | Engine / fault sound | Log-mel features → logistic regression (9 classes); PCA fingerprint | CV accuracy 76.5%; fingerprint EER 13% |

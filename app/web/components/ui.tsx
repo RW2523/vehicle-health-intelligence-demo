@@ -13,7 +13,6 @@ const SOURCE: Record<string, { label: string; c: string }> = {
   llm: { label: "Local LLM", c: "#22D3EE" },
   template: { label: "Template engine", c: "#9AA8BF" },
   rnd: { label: "Future R&D", c: "#C084FC" },
-  system_feed: { label: "PUSPAKOM AI · demo feed", c: "#38BDF8" },
 };
 
 /** The plain label of a data source ("live_model" -> "Live model"). */

@@ -639,7 +639,7 @@ class StreamProcessor:
                               + ("Corrosion inside the cabin is a flood indicator." if p["kind"] == "cabin" else
                                  "Check structural members and brake lines."),
                               "Lights & body", "high" if r["corrosion_score"] >= 7 else "medium",
-                              min(0.97, 0.6 + r["corrosion_score"] / 25), "system_feed", {"image": item}, replace=True)
+                              min(0.97, 0.6 + r["corrosion_score"] / 25), "live_logic", {"image": item}, replace=True)
         await self._push(c, "result", {"key": "images", "value": c.results["images"]}, lane=True)
 
     async def _image_cls(self, c: LaneCtx, p: dict, task: str) -> None:
@@ -659,14 +659,14 @@ class StreamProcessor:
                 c.measurements["tyre_defect_p"] = r["p"]
                 await self._alert(c, "tyre:defect", f"Tyre defect detected ({r['p']:.0%})",
                                   f"{systems.label(system)}: cracking, uneven wear or damage on the tyre. Measure tread "
-                                  "depth to confirm.", "Tyres", "high" if r["p"] >= 0.85 else "medium", r["p"], "system_feed", {"image": item},
+                                  "depth to confirm.", "Tyres", "high" if r["p"] >= 0.85 else "medium", r["p"], "live_model", {"image": item},
                                   fail_item=r["p"] >= 0.85, replace=True)
             if task == "damage" and r["class"] != "normal" and r["p"] >= 0.5:
                 c.measurements["structural_anomaly"] = c.measurements.get("structural_anomaly", False) or r["class"] == "crushed"
                 c.results["body_damage"] = {"class": r["class"], "p": r["p"], "camera": p.get("camera")}
                 await self._alert(c, "body:damage", f"{r['label']} - {p.get('camera', '').replace(' camera', '')}",
                                   f"{systems.label(system)}: panel damage or previous repair. Check the repair "
-                                  "history and panel gaps.", "Lights & body", "medium", r["p"], "system_feed", {"image": item},
+                                  "history and panel gaps.", "Lights & body", "medium", r["p"], "live_model", {"image": item},
                                   replace=True)
         await self._push(c, "result", {"key": "images", "value": c.results["images"]}, lane=True)
 
@@ -745,9 +745,9 @@ class StreamProcessor:
         if pack and pack.get("max_c", 0) > 42:
             rules.append({"rule": f"Thermal: battery hot-spot {pack['max_c']} °C", "system": "EV battery & electrics", "points": 6})
         if c.measurements.get("tyre_defect_p", 0) >= 0.6:
-            rules.append({"rule": "AI tyre scan: defect", "system": "Tyres", "points": 10})
+            rules.append({"rule": "Tyre AI: defect", "system": "Tyres", "points": 10})
         if c.results.get("body_damage"):
-            rules.append({"rule": "Project ASTRA: panel damage / repair", "system": "Lights & body", "points": 5})
+            rules.append({"rule": "Above-carriage AI: panel damage / repair", "system": "Lights & body", "points": 5})
         # every other confirmed-looking alert the history model cannot see costs points too (capped per system)
         covered = ("thermal:", "tyre:", "enose:", "acoustic:", "flood", "body:", "identity:", "route:", "anpr:")
         extra: dict[str, float] = {}
