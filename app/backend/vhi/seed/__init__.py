@@ -45,9 +45,11 @@ def run(force: bool = False) -> bool:
     from .core import seed_data_fleets, seed_history, seed_reference, seed_vehicles
     from .demo import seed_session_vehicles
     from .fleet import seed_showcase_fleets
+    from .sales import seed_sales
 
     init_db()
     if seeded() and not force:
+        seed_sales()  # fills itself in on a world seeded before the sales listings existed
         return False
     t = time.time()
     seed_reference()
@@ -56,6 +58,7 @@ def run(force: bool = False) -> bool:
     seed_data_fleets()
     seed_session_vehicles()
     seed_showcase_fleets()
+    seed_sales()
     with session_scope() as s:
         s.merge(Setting(key="seed_version", value={"v": SEED_VERSION, "at": time.time()}))
     log.info("seeded in %.1fs", time.time() - t)

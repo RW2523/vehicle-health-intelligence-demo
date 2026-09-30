@@ -170,8 +170,9 @@ def test_passport_lists_every_health_certificate(client):
     p = client.get("/api/owner/passport/DMO%209006").json()
     certs = p["certificates"]
     assert len(certs) >= 2 and [c["date"] for c in certs] == sorted((c["date"] for c in certs), reverse=True)
-    assert all(c["score"] is not None and 0 <= c["score"] <= 100 for c in certs)
-    assert p["health"] == certs[0]["score"] and certs[0]["kind"] == "Voluntary inspection"
+    assert p["latest"] == certs[0] and certs[0]["kind"] == "Voluntary inspection" and certs[0]["result"] == "PASS"
+    # a health score comes with a lane report; past inspections carry their result and odometer
+    assert all(c["score"] is None and c["odometer_km"] for c in certs if c["source"] == "history")
 
 
 def test_a_full_branch_suggests_the_nearest_branches_with_the_time_free(client):

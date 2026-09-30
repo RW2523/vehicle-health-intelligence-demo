@@ -37,6 +37,7 @@ export const NAV: { group: string; items: { href: string; label: string; sub: st
     items: [
       { href: "/hq", label: "HQ operations", sub: "Lanes, integrity, demand, audit", icon: "hq", roles: ["hq"] },
       { href: "/regulator", label: "Regulator", sub: "JPJ and DOE view", icon: "regulator", roles: ["regulator", "hq"] },
+      { href: "/sales", label: "Used-vehicle sales", sub: "Every listing, full record", icon: "sale", roles: ["hq", "regulator"] },
     ],
   },
 ];

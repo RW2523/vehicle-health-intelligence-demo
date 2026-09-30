@@ -191,6 +191,54 @@ test.describe("S6 owner app", () => {
   });
 });
 
+test.describe("Used-vehicle sales", () => {
+  test("oversight lists every car and motorcycle for sale and opens a vehicle's whole record", async ({ page }) => {
+    await page.goto("/sales");
+    await expect(page.getByRole("heading", { name: "Used-vehicle sales" })).toBeVisible();
+    await expect(page.getByText(/\d+ cars · 15 motorcycles/)).toBeVisible();
+    await page.getByRole("tab", { name: "Motorcycles" }).click();
+    await expect(page).toHaveURL(/kind=motorcycle/);
+    await expect(page.getByText("15 of 55")).toBeVisible();
+    await page.getByRole("tab", { name: "All", exact: true }).click();
+    await page.getByLabel("Search listings").fill("DMO 9003");
+    await page.getByRole("link", { name: "DMO 9003", exact: true }).click();
+    await expect(page).toHaveURL(/\/sales\?id=LS\d+/);
+    await expect(page.getByRole("heading", { name: /DMO 9003 · Honda Civic/ })).toBeVisible();
+    const summary = page.getByRole("list", { name: "Trust summary" });
+    await expect(summary.getByText(/86,500 km/).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Inspection history \(\d+\)/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "OBD fault codes" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Odometer" })).toBeVisible();
+    await page.getByText(/What the lane measured/).first().click();
+    await expect(page.getByText("Brake efficiency").first()).toBeVisible();
+    // an ex-fleet car's inspection photos open in the image viewer
+    await page.goto("/sales?q=VJM%203287");
+    await page.getByRole("link", { name: "VJM 3287", exact: true }).click();
+    await page.getByRole("button", { name: "Library image i7" }).click();
+    await expect(page.getByRole("dialog", { name: /Image i7/ })).toBeVisible();
+  });
+
+  test("owner app: the Sale tab shows a motorcycle's record end to end, and a car's photos", async ({ page }) => {
+    await page.goto("/owner?tab=sale");
+    await expect(page.getByText("Vehicles for sale")).toBeVisible();
+    await page.getByRole("group", { name: "Vehicle type" }).getByRole("button", { name: "Motorcycles" }).click();
+    await page.getByRole("button", { name: /Honda RS150R/ }).click();
+    await expect(page).toHaveURL(/listing=LS\d+/);
+    const record = page.getByRole("region", { name: "What the record says" });
+    await expect(record.getByText("Serious red flags")).toBeVisible();
+    await expect(record.getByText(/Odometer rollback/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Inspection history \(4\)/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "OBD fault codes" })).toBeVisible();
+    await expect(page.getByText(/No photos on file yet/)).toBeVisible();
+    await page.getByRole("button", { name: "‹ All for sale" }).click();
+    await page.getByRole("group", { name: "Vehicle type" }).getByRole("button", { name: "All" }).click();
+    await page.getByLabel("Search vehicles for sale").fill("WVA");
+    await page.getByRole("button", { name: /WVA 1209/ }).click();
+    await page.getByRole("button", { name: /^Photo \d+: Close-up · brake pads/ }).click();
+    await expect(page.getByText(/Close-up · brake pads/).first()).toBeVisible();
+  });
+});
+
 test.describe("AI vision", () => {
   test("shows PUSPAKOM's AI systems as the source, with the stand-in models folded away", async ({ page }) => {
     await page.goto("/vision");
@@ -295,7 +343,8 @@ test.describe("Orientation and navigation", () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const base = process.env.E2E_BASE_URL || "http://localhost:3000";
     const wide: Record<string, number> = {};  // page -> pixels it scrolls sideways
-    for (const path of ["/", "/lane", "/examiner", "/report", "/vision", "/fleet", "/fleet/vehicle/VKR%203128", "/owner", "/hq", "/regulator"]) {
+    for (const path of ["/", "/lane", "/examiner", "/report", "/vision", "/fleet", "/fleet/vehicle/VKR%203128", "/owner", "/hq", "/regulator",
+      "/sales", "/sales?id=LS0001", "/owner?tab=sale&listing=LS0003"]) {
       await page.goto(base + path, { waitUntil: "networkidle" });  // with its data: wide tables only appear then
       const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       if (over > 1) wide[path] = over;

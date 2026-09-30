@@ -1,20 +1,215 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { ReactNode, Suspense, useEffect, useRef, useState } from "react";
+import { rm, TRUST_COL, TRUST_MARK, VehicleThumb } from "@/components/sales";
 import { Shell } from "@/components/Shell";
 import { toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { dmy, fmtN } from "@/lib/format";
+import { dmy, fmtN, nextFailNote } from "@/lib/format";
 import { useUser } from "@/lib/auth";
 import { useFetch } from "@/lib/live";
 
-type Tab = "passport" | "book" | "check" | "chat";
+type Tab = "passport" | "book" | "check" | "chat" | "sale";
 const TABS: { id: Tab; label: string; d: string }[] = [
   { id: "passport", label: "Passport", d: "M4 4h16v16H4zM8 9h8M8 13h8M8 17h5" },
   { id: "book", label: "Book", d: "M4 6h16v14H4zM4 10h16M9 3v5M15 3v5" },
   { id: "check", label: "Self-check", d: "M5 12l4 4L19 6" },
   { id: "chat", label: "Assistant", d: "M4 5h16v11H9l-5 4z" },
+  { id: "sale", label: "Sale", d: "M3 12V3h9l9 9-9 9zM7.5 7.5h.01" },
 ];
+const TONE: Record<string, string> = { ok: "bg-emerald-50 text-emerald-700", warn: "bg-amber-50 text-amber-800", bad: "bg-rose-50 text-rose-700", info: "bg-sky-50 text-sky-800", "": "bg-slate-100 text-slate-600" };
+const TONE_BOX: Record<string, string> = { ok: "border-emerald-200 bg-emerald-50", warn: "border-amber-200 bg-amber-50", bad: "border-rose-200 bg-rose-50" };
+const RESULT_TONE: Record<string, string> = { PASS: "ok", FAIL: "bad", CONDITIONAL: "warn", REFERRED: "info" };
+
+function Badge({ tone = "", children }: { tone?: string; children: ReactNode }) {
+  return <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${TONE[tone]}`}>{children}</span>;
+}
+
+function SaleCard({ r, onOpen }: { r: any; onOpen: () => void }) {
+  const b = r.badges;
+  return (
+    <button onClick={onOpen} aria-label={`${r.make} ${r.model} · ${r.plate}`} className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-sm">
+      <VehicleThumb src={r.photo} vtype={r.vtype} light className="h-[76px] w-[88px] shrink-0 rounded-xl" />
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex items-baseline justify-between gap-2"><b className="truncate text-[14px]">{r.make} {r.model}</b><b className="shrink-0 text-[14px] text-sky-700">{rm(r.asking_price_rm)}</b></span>
+        <span className="text-[11.5px] text-slate-500">{r.year} · {fmtN(r.odometer_km)} km · {r.state}</span>
+        <span className="flex flex-wrap gap-1">
+          <Badge tone={r.trust.level}>{r.trust.label}</Badge>
+          <Badge>{b.inspections} inspection{b.inspections === 1 ? "" : "s"}</Badge>
+          {b.last_result && <Badge tone={RESULT_TONE[b.last_result]}>Latest {b.last_result}</Badge>}
+          {!b.odometer_ok && <Badge tone="bad">Odometer rollback</Badge>}
+          {b.flood_claims > 0 && <Badge tone="bad">Flood claim</Badge>}
+          {b.open_obd.length > 0 && <Badge tone="warn">Fault {b.open_obd.join(", ")}</Badge>}
+          {b.health != null && <Badge>Health {b.health}</Badge>}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-3">
+      <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
+  const { data: d, error } = useFetch<any>(`/api/sales/${id}`);
+  const [big, setBig] = useState(0);
+  if (error) return <div className="p-4 text-[13px] text-rose-700">{error} <button className="font-semibold text-sky-700" onClick={onBack}>Back</button></div>;
+  if (!d) return <p className="p-4 text-[13px] text-slate-500">Loading…</p>;
+  const x = d.listing, v = d.vehicle, t = d.trust;
+  const photos: { src: string; title: string }[] = [
+    ...(d.images.photo ? [{ src: d.images.photo, title: "Vehicle photo" }] : []),
+    ...d.images.library.map((e: any) => ({ src: e.web_url, title: e.title })),
+    ...d.images.lane.map((im: any) => ({ src: im.url, title: `${im.title} (${dmy(im.date)})` })),
+  ];
+  const shown = photos[Math.min(big, photos.length - 1)];
+  const bad = new Set(d.odometer.rollbacks.map((e: any) => `${e.date}|${e.km}`));
+  return (
+    <div className="flex flex-col gap-3 p-4 text-slate-900">
+      <button onClick={onBack} className="self-start text-[13px] font-semibold text-sky-700">‹ All for sale</button>
+      {shown ? (
+        <figure>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={shown.src} alt={shown.title} className="aspect-[4/3] w-full rounded-2xl object-cover" />
+          <figcaption className="mt-1 text-[11px] text-slate-500">{shown.title}</figcaption>
+          {photos.length > 1 && (
+            <div className="mt-1.5 flex gap-1.5 overflow-x-auto" aria-label="Photos">
+              {photos.map((p, i) => (
+                <button key={i} onClick={() => setBig(i)} aria-label={`Photo ${i + 1}: ${p.title}`} className={`shrink-0 overflow-hidden rounded-lg border-2 ${i === big ? "border-sky-600" : "border-transparent"}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.src} alt="" className="h-12 w-16 object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </figure>
+      ) : (
+        <div>
+          <VehicleThumb vtype={v.vtype} light className="h-36 w-full rounded-2xl" icon={44} />
+          <p className="mt-1 text-[11px] text-slate-500">No photos on file yet. Lane cameras add them at the next inspection.</p>
+        </div>
+      )}
+      <div>
+        <div className="flex items-baseline justify-between gap-2"><b className="font-display text-[19px]">{v.make} {v.model}</b><b className="shrink-0 text-[17px] text-sky-700">{rm(x.asking_price_rm)}</b></div>
+        <div className="text-[12px] text-slate-500">{v.plate} · {v.year} · {fmtN(v.odometer_km)} km · {x.seller === "dealer" ? "Dealer" : "Private seller"}, {x.state}</div>
+        <p className="mt-1 text-[12.5px] italic text-slate-600">“{x.description}”</p>
+      </div>
+      <section className={`rounded-2xl border p-3 ${TONE_BOX[t.level]}`} aria-label="What the record says">
+        <div className="text-[14px] font-bold">{t.label}</div>
+        <ul className="mt-1.5 flex flex-col gap-1.5">
+          {t.points.map((p: any, i: number) => (
+            <li key={i} className="flex gap-2 text-[12.5px] leading-snug">
+              <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: TRUST_COL[p.level] }}>{TRUST_MARK[p.level]}</span>
+              <span>{p.text}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <Section title="Health">
+        <div className="text-[13px]">
+          {d.health.latest != null && (
+            <div>
+              <b className="font-display text-[24px]" style={{ color: TRUST_COL[d.health.latest >= 70 ? "ok" : d.health.latest >= 50 ? "warn" : "bad"] }}>{d.health.latest}</b>
+              <span className="text-slate-500">/100 at the lane on {dmy(d.health.date)}</span>
+            </div>
+          )}
+          {d.health.next_fail && (
+            <div><b>{Math.round(d.health.next_fail.p_fail_next * 100)}%</b> chance of failing the next inspection{nextFailNote(d.health.next_fail) ? ` (${nextFailNote(d.health.next_fail)})` : ""}.</div>
+          )}
+          <p className="mt-1 text-[12px] text-slate-500">{d.health.note}</p>
+        </div>
+      </Section>
+      <Section title={`Inspection history (${d.inspections.length})`}>
+        <ol className="flex flex-col gap-2">
+          {[...d.inspections].reverse().map((i: any) => (
+            <li key={i.id} className="border-t border-slate-100 pt-2 first:border-t-0 first:pt-0">
+              <div className="flex items-center justify-between gap-2"><b className="text-[13px]">{dmy(i.date)}</b><Badge tone={RESULT_TONE[i.result]}>{i.result}</Badge></div>
+              <div className="text-[11.5px] text-slate-500">{i.type_label} · {i.branch}{i.source === "lane" ? " · live lane" : ""}</div>
+              <div className="text-[11.5px] text-slate-600">
+                {i.odometer_km != null ? `${fmtN(i.odometer_km)} km` : "odometer not read"}{i.health != null ? ` · health ${i.health}` : ""} · OBD {!i.obd.read ? "not read" : i.obd.dtcs.length ? i.obd.dtcs.map((c: any) => c.code).join(", ") : "clear"}
+              </div>
+              {i.reasons.length > 0 && <div className="text-[11.5px] text-rose-700">{i.result === "FAIL" ? "Failed on: " : "Noted: "}{i.reasons.slice(0, 3).join("; ")}</div>}
+              <details className="text-[11.5px]">
+                <summary className="cursor-pointer text-sky-700">Measurements</summary>
+                <div className="mt-1 grid grid-cols-1 gap-0.5">
+                  {i.measures.map((m: any) => <div key={m.key} className="flex justify-between gap-2"><span className="text-slate-500">{m.label}</span><b>{fmtN(m.value, Math.abs(m.value) < 10 ? 2 : Math.abs(m.value) < 100 ? 1 : 0)} {m.unit}</b></div>)}
+                </div>
+              </details>
+            </li>
+          ))}
+        </ol>
+      </Section>
+      <Section title="Odometer">
+        <ol className="flex flex-col gap-1 text-[12px]">
+          {d.odometer.points.map((p: any, i: number) => (
+            <li key={i} className={`flex justify-between gap-2 ${bad.has(`${p.date}|${p.km}`) ? "font-semibold text-rose-700" : ""}`}>
+              <span>{dmy(p.date)} · {p.source}</span><span>{fmtN(p.km)} km{bad.has(`${p.date}|${p.km}`) ? " ▼" : ""}</span>
+            </li>
+          ))}
+        </ol>
+        <p className={`mt-1.5 text-[12px] ${d.odometer.consistent ? "text-emerald-700" : "text-rose-700"}`}>
+          {d.odometer.consistent ? "The readings only go up." : `Highest reading ${fmtN(d.odometer.max_recorded_km)} km on ${dmy(d.odometer.max_recorded_date)}.`}
+        </p>
+      </Section>
+      <Section title="OBD fault codes">
+        {!d.obd.latest ? <p className="text-[12.5px] text-slate-600">{d.obd.note}</p> : !d.obd.latest.dtcs.length ? (
+          <p className="text-[12.5px] text-emerald-700">No fault codes at the latest read-out ({dmy(d.obd.latest.date)}).</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-[12.5px]">
+            {d.obd.latest.dtcs.map((c: any) => <li key={c.code}><b className="font-mono text-amber-700">{c.code}</b> {c.description}</li>)}
+            {d.obd.latest.mil_on && <li className="text-rose-700">Check-engine lamp on</li>}
+          </ul>
+        )}
+      </Section>
+      <Section title="Claims and insurance">
+        {!d.claims.length ? <p className="text-[12.5px] text-emerald-700">No insurance claims on record.</p> : (
+          <ul className="flex flex-col gap-1 text-[12.5px]">
+            {d.claims.map((c: any, i: number) => (
+              <li key={i} className={`flex justify-between gap-2 ${c.type === "flood_natural_disaster" ? "font-semibold text-rose-700" : ""}`}><span>{c.label}</span><span>{rm(c.amount_rm)} · {dmy(c.date)}</span></li>
+            ))}
+          </ul>
+        )}
+        {d.insurance && <p className="mt-1.5 text-[11.5px] text-slate-500">Insured: {d.insurance.type}, {d.insurance.insurer}, no-claim discount {d.insurance.ncd_pct}%.</p>}
+      </Section>
+      {d.report && (
+        <Section title="Latest PUSPAKOM report">
+          <div className="flex items-center justify-between gap-2 text-[12.5px]"><span>{d.report.kind} · {dmy(d.report.created_at)}</span><Badge tone={RESULT_TONE[d.report.verdict]}>{d.report.verdict}</Badge></div>
+          <a className="mt-1.5 inline-block text-[12.5px] font-semibold text-sky-700 underline" href={`/verify/${d.report.verify_token}`}>Verify the report</a>
+        </Section>
+      )}
+      <p className="text-[10.5px] text-slate-400">Synthetic listing and history; lane reports and health scores are live. Fictional vehicle.</p>
+    </div>
+  );
+}
+
+function Sale({ listing, onOpen }: { listing: string | null; onOpen: (id: string | null) => void }) {
+  const [kind, setKind] = useState("");
+  const [q, setQ] = useState("");
+  const list = useFetch<any>(listing ? null : "/api/sales", { kind, q });
+  if (listing) return <SaleDetail id={listing} onBack={() => onOpen(null)} />;
+  return (
+    <div className="flex flex-col gap-3 p-4 text-slate-900">
+      <div>
+        <div className="font-display text-[18px] font-bold">Vehicles for sale</div>
+        <p className="text-[12.5px] text-slate-500">Every car and motorcycle comes with its full inspection record: odometer, fault codes, claims and photos.</p>
+      </div>
+      <div role="group" aria-label="Vehicle type" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 text-[12.5px] font-semibold">
+        {[["", "All"], ["car", "Cars"], ["motorcycle", "Motorcycles"]].map(([k, l]) => (
+          <button key={k} aria-pressed={kind === k} onClick={() => setKind(k)} className={`rounded-lg py-1.5 ${kind === k ? "bg-white text-sky-700 shadow-sm" : "text-slate-500"}`}>{l}</button>
+        ))}
+      </div>
+      <input aria-label="Search vehicles for sale" placeholder="Make, model or plate" className="rounded-xl border border-slate-300 px-3 py-2 text-[13px]" value={q} onChange={(e) => setQ(e.target.value)} />
+      {!list.data ? <p className="text-[13px] text-slate-500">Loading…</p> : !list.data.listings.length ? <p className="text-[13px] text-slate-500">Nothing for sale matches.</p>
+        : list.data.listings.map((r: any) => <SaleCard key={r.listing_id} r={r} onOpen={() => onOpen(r.listing_id)} />)}
+      <p className="text-[10.5px] text-slate-400">Synthetic listings of fictional vehicles.</p>
+    </div>
+  );
+}
 
 function Passport({ plate, refreshKey }: { plate: string; refreshKey: number }) {
   const { data: p } = useFetch<any>(`/api/owner/passport/${encodeURIComponent(plate)}`, undefined, [refreshKey]);
@@ -27,7 +222,11 @@ function Passport({ plate, refreshKey }: { plate: string; refreshKey: number }) 
         <div className="mt-1 font-display text-[24px] font-bold">{v.plate}</div>
         <div className="text-[13px] opacity-90">{v.make} {v.model} · {v.year} · {fmtN(v.odometer_km)} km</div>
         <div className="mt-3 flex items-center justify-between">
-          <div><div className="text-[11px] opacity-75">Latest health score</div><div className="font-display text-[28px] font-bold">{p.health ?? "–"}</div></div>
+          {p.health != null || !p.latest ? (
+            <div><div className="text-[11px] opacity-75">Latest health score</div><div className="font-display text-[28px] font-bold">{p.health ?? "–"}</div></div>
+          ) : (
+            <div><div className="text-[11px] opacity-75">Latest inspection · {dmy(p.latest.date)}</div><div className="font-display text-[28px] font-bold">{p.latest.result}</div></div>
+          )}
           {p.reminders?.map((r: any) => <div key={r.kind} className="text-right text-[12px]"><div className="opacity-75">Road tax expires</div><b>{dmy(r.date)}</b><div className="opacity-75">in {r.days} days</div></div>)}
         </div>
       </div>
@@ -38,11 +237,15 @@ function Passport({ plate, refreshKey }: { plate: string; refreshKey: number }) 
             {p.certificates.map((c: any, i: number) => (
               <li key={i} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[3px] font-display text-[14px] font-bold"
-                  style={{ borderColor: c.score == null ? "#CBD5E1" : c.score < 50 ? "#F87171" : c.score < 70 ? "#FBBF24" : "#34D399", color: "#0F172A" }}>{c.score ?? "–"}</span>
+                  title={c.score != null ? "Health score from the lane" : c.result}
+                  style={{ borderColor: (c.score ?? (c.result === "PASS" ? 100 : c.result === "FAIL" ? 0 : 60)) < 50 ? "#F87171" : (c.score ?? (c.result === "PASS" ? 100 : 60)) < 70 ? "#FBBF24" : "#34D399", color: "#0F172A" }}>
+                  {c.score ?? (c.result === "PASS" ? "✓" : c.result === "FAIL" ? "✕" : "!")}
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2"><b className="truncate text-[13px] text-slate-900">{c.kind}</b><span className="shrink-0 text-[11.5px] text-slate-500">{dmy(c.date)}</span></span>
                   <span className="flex items-center gap-2 text-[12px]">
                     <span className={c.result === "PASS" ? "font-semibold text-emerald-600" : c.result === "FAIL" ? "font-semibold text-rose-600" : "font-semibold text-amber-600"}>{c.result}</span>
+                    {c.odometer_km != null && <span className="text-slate-500">{fmtN(c.odometer_km)} km</span>}
                     {c.verify_token && <a className="text-sky-700 underline" href={`/verify/${c.verify_token}`}>Verify</a>}
                   </span>
                 </span>
@@ -312,6 +515,7 @@ const STEPS: { tab: Tab; title: string; sub: string }[] = [
   { tab: "check", title: "Run the self-check", sub: "Tint and headlamp fail first; run it again after fixing" },
   { tab: "book", title: "Book and pay", sub: "Pick a GEAR slot, pay (mock FPX), get the check-in QR" },
   { tab: "passport", title: "See the passport", sub: "The timeline now shows the self-check and the booking" },
+  { tab: "sale", title: "Shop for a used vehicle", sub: "Cars and bikes for sale, each with its whole inspection record" },
 ];
 
 function OwnerApp() {
@@ -320,10 +524,16 @@ function OwnerApp() {
   const user = useUser();
   const plate = (user?.role === "owner" && user.plate) || sp.get("plate") || "DMO 9006";  // an owner sees their own vehicle
   const [tab, setTabState] = useState<Tab>((sp.get("tab") as Tab) || "passport");
+  const [listing, setListingState] = useState<string | null>(sp.get("listing"));
   const [k, setK] = useState(0);
-  const setTab = (t: Tab) => {
+  const screen = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    screen.current?.scrollTo(0, 0);  // a new screen starts at the top
+  }, [tab, listing]);
+  const setTab = (t: Tab, open: string | null = null) => {
     setTabState(t);
-    router.replace(`/owner?plate=${encodeURIComponent(plate)}&tab=${t}`, { scroll: false });
+    setListingState(open);
+    router.replace(`/owner?plate=${encodeURIComponent(plate)}&tab=${t}${open ? `&listing=${open}` : ""}`, { scroll: false });
   };
   return (
     <Shell>
@@ -349,13 +559,14 @@ function OwnerApp() {
             <span className="font-display text-[15px] font-bold">VehicleSense</span>
             <span className="text-[12px] text-slate-500">{plate}</span>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div ref={screen} className="min-h-0 flex-1 overflow-auto">
             {tab === "passport" && <Passport plate={plate} refreshKey={k} />}
             {tab === "book" && <Book plate={plate} onBooked={() => setK((x) => x + 1)} />}
             {tab === "check" && <SelfCheck plate={plate} onDone={() => setK((x) => x + 1)} />}
             {tab === "chat" && <Chat />}
+            {tab === "sale" && <Sale listing={listing} onOpen={(id) => setTab("sale", id)} />}
           </div>
-          <nav className="grid grid-cols-4 border-t border-slate-200 bg-white" aria-label="Owner app tabs">
+          <nav className="grid grid-cols-5 border-t border-slate-200 bg-white" aria-label="Owner app tabs">
             {TABS.map((t) => (
               <button key={t.id} onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
                 className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${tab === t.id ? "text-sky-700" : "text-slate-500"}`}>

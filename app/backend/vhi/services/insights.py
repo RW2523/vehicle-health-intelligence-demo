@@ -264,9 +264,10 @@ def passport(plate: str) -> dict:
         events.append({"date": str(r.claim_date)[:10], "kind": "claim", "title": f"Insurance claim: {r.claim_type.replace('_', ' ')}",
                        "amount_rm": float(r.amount_rm), "source": "insurer feed (synthetic)"})
     events.sort(key=lambda e: e["date"], reverse=True)
-    certs = certificates(vp, reps_out, hist)
-    health = certs[0]["score"] if certs else None
-    return {"vehicle": vp, "events": events, "health": health, "certificates": certs}
+    certs = certificates(reps_out, hist)
+    health = next((c["score"] for c in certs if c["score"] is not None), None)
+    return {"vehicle": vp, "events": events, "health": health, "certificates": certs,
+            "latest": certs[0] if certs else None}
 
 
 CERT_KIND = {"voluntary": "Voluntary inspection", "berkala_B2": "Berkala periodic inspection",
@@ -274,19 +275,13 @@ CERT_KIND = {"voluntary": "Voluntary inspection", "berkala_B2": "Berkala periodi
              "B7_hire_purchase": "B7 hire-purchase", "khas_B2_85_ber": "Special inspection after a total-loss claim"}
 
 
-def certificates(vehicle: dict, reports: list[dict], hist: pd.DataFrame) -> list[dict]:
-    """Every health certificate of a vehicle, newest first: the reports issued in the lane, and each past inspection
-    with the health score of its recorded measurements (the same health model as the lane)."""
-    from ..runtime import rt
-
+def certificates(reports: list[dict], hist: pd.DataFrame) -> list[dict]:
+    """Every certificate of a vehicle, newest first: the reports issued in the lane (with the health score the lane
+    computed and a verify link) and each past inspection with its result and odometer."""
     out = [{"date": r["date"], "kind": r["kind"], "result": r["verdict"], "score": r["health"],
-            "verify_token": r["verify_token"], "source": "report"} for r in reports]
-    fusion = rt().models.fusion if rt().models else None
+            "verify_token": r["verify_token"], "odometer_km": None, "source": "report"} for r in reports]
     for r in hist.to_dict("records"):
-        score = None
-        if fusion is not None:
-            score = fusion.health_score(r, {"year": vehicle.get("year"), "fuel": vehicle.get("fuel"),
-                                            "heavy": vehicle.get("heavy"), "odometer_km": r.get("odometer_km")})["score"]
         out.append({"date": str(r["date"])[:10], "kind": CERT_KIND.get(r["inspection_type"], str(r["inspection_type"]).replace("_", " ")),
-                    "result": r["result"], "score": score, "verify_token": None, "source": "history"})
+                    "result": r["result"], "score": None, "verify_token": None, "odometer_km": int(r["odometer_km"]),
+                    "source": "history"})
     return sorted(out, key=lambda c: c["date"], reverse=True)

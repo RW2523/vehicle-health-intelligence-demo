@@ -92,9 +92,11 @@ Start from **Demo control** (`/`). Lane sessions replay real-time sensor streams
 | **S5** Fleet + regulator | Five operators plus FLEET07: degradation history per vehicle, anomalies, time-to-limit forecasts, pattern reports, bulk booking and next-Berkala fail risk. The regulator view shows real JPJ registrations and live data.gov.my feeds. | Fleet, Vehicle history, Regulator |
 | **S6** Owner app | An assistant in BM, English and Chinese; GEAR slot booking with a mock payment and check-in QR; a self-check (tint and headlamp fail, then pass); the Health Passport. | Owner app |
 
+**Used-vehicle sales.** The owner app's *Sale* tab and *Oversight › Used-vehicle sales* (`/sales`) list 55 cars and motorcycles for sale, each with its whole record: every inspection (history and live lane reports) with its health score, the odometer readings with rollback detection, OBD fault codes, insurance claims and policy, photos and the latest verifiable report, summed up in plain words for the buyer. DMO 9003 (S3) is advertised with a rolled-back odometer and DMO 9002 (S2) with a flood claim. The listings, the 15 motorcycles and their inspections are synthetic (`vhi/seed/sales.py`); the API is `GET /api/sales` and `GET /api/sales/{listing_id}`.
+
 ### Suggested 10-minute walkthrough
 
-Demo control shows this walkthrough as a **guided demo** with live progress, and every page's header links to the next step. The navigation groups the apps by who uses them: *inspection lane* (lane, examiner, reports, AI vision), *fleets and owners* (fleet intelligence, vehicle history, owner app) and *oversight* (HQ, regulator). It becomes an icon rail on small laptops and a menu drawer on phones and tablets.
+Demo control shows this walkthrough as a **guided demo** with live progress, and every page's header links to the next step. The navigation groups the apps by who uses them: *inspection lane* (lane, examiner, reports, AI vision), *fleets and owners* (fleet intelligence, vehicle history, owner app) and *oversight* (HQ, regulator, used-vehicle sales). It becomes an icon rail on small laptops and a menu drawer on phones and tablets.
 
 1. Demo control: start **S1** at 4×.
 2. Open the **Lane** console and watch the sensors and alerts arrive.

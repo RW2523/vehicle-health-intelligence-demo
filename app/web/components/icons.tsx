@@ -11,6 +11,7 @@ export const ICONS: Record<string, string> = {
   owner: "M7 2h10v20H7zM11 18h2",
   hq: "M3 21h18M5 21V8l7-5 7 5v13M9 21v-5h6v5M9 11h.01M15 11h.01",
   regulator: "M3 21h18M4 10h16M12 3l9 5H3zM6 10v8M10 10v8M14 10v8M18 10v8",
+  sale: "M3 12V3h9l9 9-9 9zM7.5 7.5h.01",
   menu: "M4 6h16M4 12h16M4 18h16",
   close: "M6 6l12 12M18 6L6 18",
   arrow: "M5 12h14M13 6l6 6-6 6",
@@ -34,6 +35,7 @@ export const ICONS: Record<string, string> = {
   vib: "M2 12h3l2-5 3 10 3-10 3 10 2-5h4",
   // vehicle placeholder
   car: "M3 13l2-5a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 8l2 5v5h-3M6 18H3v-5h18M7 18a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM13 18a2 2 0 1 0 4 0 2 2 0 0 0-4 0",
+  bike: "M2 16a3.5 3.5 0 1 0 7 0 3.5 3.5 0 0 0-7 0zM15 16a3.5 3.5 0 1 0 7 0 3.5 3.5 0 0 0-7 0zM5.5 16l4-6h5l4 6M14.5 10l-2-4h3M9.5 10l-1.5-2H6",
 };
 
 export function Icon({ name, size = 20, color = "currentColor", width = 1.7, className }: { name: string; size?: number; color?: string; width?: number; className?: string }) {
