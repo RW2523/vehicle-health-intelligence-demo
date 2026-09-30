@@ -5,6 +5,7 @@ import { Shell } from "@/components/Shell";
 import { toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dmy, fmtN } from "@/lib/format";
+import { useUser } from "@/lib/auth";
 import { useFetch } from "@/lib/live";
 
 type Tab = "passport" | "book" | "check" | "chat";
@@ -245,7 +246,8 @@ const STEPS: { tab: Tab; title: string; sub: string }[] = [
 function OwnerApp() {
   const sp = useSearchParams();
   const router = useRouter();
-  const plate = sp.get("plate") || "DMO 9006";
+  const user = useUser();
+  const plate = (user?.role === "owner" && user.plate) || sp.get("plate") || "DMO 9006";  // an owner sees their own vehicle
   const [tab, setTabState] = useState<Tab>((sp.get("tab") as Tab) || "passport");
   const [k, setK] = useState(0);
   const setTab = (t: Tab) => {

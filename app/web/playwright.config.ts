@@ -1,13 +1,14 @@
 import { defineConfig } from "@playwright/test";
+import { STATE } from "./e2e/global-setup";
 
 // End-to-end tests for the six demo sessions. Starts the API and the web app if they are not already running
 // (reuses them when they are). Set VHI_PYTHON to the backend virtualenv's python if it is not on PATH.
 const PY = process.env.VHI_PYTHON || "python3";
 const WEB = process.env.E2E_BASE_URL || "http://localhost:3000";
-const PIN = process.env.E2E_PRESENTER_PIN;
 
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/global-setup.ts",  // logs in as the presenter (E2E_PASSWORD)
   timeout: 120_000,
   expect: { timeout: 20_000 },
   workers: 1,
@@ -20,10 +21,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     launchOptions: process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {},
-    // With VHI_PRESENTER_PIN set on the API, pages act as the presenter's browser: the PIN is stored in the app, which
-    // sends it only to its own API (a header on every request would also reach Google Fonts, whose CORS preflight
-    // then fails). The tests' own API calls carry it through the request fixture in e2e/demo.spec.ts.
-    storageState: PIN ? { cookies: [], origins: [{ origin: new URL(WEB).origin, localStorage: [{ name: "vhi.presenterPin", value: PIN }] }] } : undefined,
+    storageState: STATE,
   },
   webServer: process.env.E2E_NO_SERVER
     ? undefined

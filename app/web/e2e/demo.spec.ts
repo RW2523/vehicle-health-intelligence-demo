@@ -1,10 +1,11 @@
 import { APIRequestContext, expect, Page, test as base } from "@playwright/test";
+import { STATE } from "./global-setup";
 
-const PIN = process.env.E2E_PRESENTER_PIN;
-/** With a presenter PIN on the API, the tests' own API calls carry it (pages keep it in the app: playwright.config.ts). */
+const BASE = process.env.E2E_BASE_URL || "http://localhost:3000";
+/** The tests' own API calls use the presenter's session too. */
 const test = base.extend({
   request: async ({ playwright, baseURL }, use) => {
-    const ctx = await playwright.request.newContext({ baseURL, extraHTTPHeaders: PIN ? { "x-presenter-pin": PIN } : {} });
+    const ctx = await playwright.request.newContext({ baseURL, storageState: STATE });
     await use(ctx);
     await ctx.dispose();
   },
@@ -286,24 +287,40 @@ test.describe("Orientation and navigation", () => {
   });
 });
 
-test.describe("View-only public link", () => {
-  test("a visitor without the PIN can look around, and the presenter PIN unlocks the demo", async ({ browser, request }) => {
-    const st = await (await request.get("/api/system/status")).json();
-    test.skip(!st.presenter?.required || !PIN, "no presenter PIN (VHI_PRESENTER_PIN / E2E_PRESENTER_PIN)");
-    const page = await browser.newPage({ storageState: { cookies: [], origins: [] } });  // a new visitor: no PIN stored
-    await page.goto(process.env.E2E_BASE_URL ? `${process.env.E2E_BASE_URL}/` : "http://localhost:3000/");
-    await expect(page.getByRole("button", { name: "View only", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Fast-forward" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "Presenter PIN" });
-    await expect(dialog.getByText(/View-only link/)).toBeVisible();
-    await dialog.getByLabel("Presenter PIN").fill("0");
-    await dialog.getByRole("button", { name: "Unlock" }).click();
-    await expect(dialog.getByText("That PIN is not right.")).toBeVisible();
-    await dialog.getByLabel("Presenter PIN").fill(PIN!);
-    await dialog.getByRole("button", { name: "Unlock" }).click();
-    await expect(page.getByRole("button", { name: "Presenter", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Fast-forward" }).first().click();
-    await expect(page.getByText("S1 completed instantly")).toBeVisible({ timeout: 180_000 });
+test.describe("Login and roles", () => {
+  async function logIn(page: Page, name: string, password: string) {
+    await page.getByRole("radio", { name: new RegExp(name) }).click();
+    await page.getByLabel("Password").fill(password);
+    await page.getByRole("button", { name: "Log in" }).click();
+  }
+
+  test("a visitor logs in and lands on the apps of their role", async ({ browser }) => {
+    const page = await browser.newPage({ storageState: { cookies: [], origins: [] } });
+    await page.goto(`${BASE}/hq`);
+    await expect(page).toHaveURL(/\/login\?next=%2Fhq/);
+    await logIn(page, "Arjun Ismail", "not the password");
+    await expect(page.getByText("Wrong username or password.")).toBeVisible();
+    await page.getByLabel("Password").fill(process.env.E2E_PASSWORD || "");
+    await page.getByRole("button", { name: "Log in" }).click();
+    // back to the page asked for, which the examiner may not open: their own apps instead
+    await expect(page.getByRole("heading", { name: "Not available to this account" })).toBeVisible();
+    await page.getByRole("link", { name: /Go to your apps/ }).click();
+    await expect(page.getByRole("heading", { name: "Lane console" })).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Apps" });
+    await expect(nav.getByRole("link", { name: /Examiner/ })).toBeVisible();
+    await expect(nav.getByRole("link", { name: /HQ operations|Owner app|Demo control/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Log out" }).click();
+    await expect(page).toHaveURL(/\/login/);
+    await page.close();
+  });
+
+  test("the viewer reads the examiner console but cannot decide", async ({ browser }) => {
+    const page = await browser.newPage({ storageState: { cookies: [], origins: [] } });
+    await page.goto(`${BASE}/login?next=%2Fexaminer%3Fsession%3DS1`);
+    await logIn(page, "Guest viewer", process.env.E2E_VIEWER_PASSWORD || process.env.E2E_PASSWORD || "");
+    await expect(page.getByRole("heading", { name: "Examiner console" })).toBeVisible();
+    await expect(page.getByText("Read only", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
     await page.close();
   });
 });

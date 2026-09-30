@@ -72,10 +72,17 @@ def live_ops() -> dict:
     with session_scope() as s:
         rows = s.execute(select(LiveInspection.status, func.count()).group_by(LiveInspection.status)).all()
         n_alerts = s.execute(select(Alert.status, func.count()).group_by(Alert.status)).all()
-        recent = s.execute(select(LiveInspection).order_by(LiveInspection.started_at.desc()).limit(10)).scalars().all()
+        recent = s.execute(select(LiveInspection).order_by(LiveInspection.started_at.desc()).limit(500)).scalars().all()
+        names = dict(s.execute(select(Branch.branch_id, Branch.name)).all())
+        row = lambda r: {"inspection_id": r.inspection_id, "plate": r.plate, "lane_id": r.lane_id, "branch_id": r.branch_id,
+                         "branch": names.get(r.branch_id, r.branch_id), "session_id": r.session_id, "status": r.status,
+                         "health": r.health_score, "verdict": r.verdict, "started_at": r.started_at.isoformat()}
+        lanes = {}  # the latest inspection on every lane, across all branches (the HQ lane overview)
+        for r in recent:
+            lanes.setdefault(r.lane_id, r)
         return {"inspections_by_status": dict(rows), "alerts_by_status": dict(n_alerts),
-                "recent": [{"inspection_id": r.inspection_id, "plate": r.plate, "lane_id": r.lane_id, "status": r.status,
-                            "health": r.health_score, "verdict": r.verdict, "started_at": r.started_at.isoformat()} for r in recent]}
+                "recent": [row(r) for r in recent[:10]],
+                "lanes": [row(r) for r in sorted(lanes.values(), key=lambda r: (r.branch_id, r.lane_id))]}
 
 
 def audit() -> dict:

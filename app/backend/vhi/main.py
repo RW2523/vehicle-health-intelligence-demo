@@ -4,13 +4,14 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from http.cookies import SimpleCookie
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import presenter
+from . import auth
 from .config import base_url_from, get_settings, request_base_url
 from .runtime import build_runtime
 
@@ -77,21 +78,30 @@ class RequestBaseURL:
             request_base_url.reset(token)
 
 
-class PresenterOnly:
-    """VHI_PRESENTER_PIN: changes to the demo need the presenter PIN (vhi.presenter); reading stays open."""
+class RequireLogin:
+    """Every API, media and live-update request needs a logged-in account whose role may make it (vhi.auth); the
+    account is kept for the request so the endpoints can limit the data to it."""
 
     def __init__(self, app):
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not presenter.guards(scope["method"], scope["path"]):
+        if scope["type"] not in ("http", "websocket") or not auth.needs_login(scope["path"]):
             return await self.app(scope, receive, send)
-        pin = next((v.decode("latin-1") for k, v in scope["headers"] if k.lower() == presenter.HEADER.encode()), None)
-        result = presenter.gate.check(pin)
-        if result == "ok":
-            return await self.app(scope, receive, send)
-        code, detail = presenter.MESSAGES[result]
-        await JSONResponse({"detail": detail, "code": "presenter_pin"}, status_code=code)(scope, receive, send)
+        cookies = SimpleCookie(next((v.decode("latin-1") for k, v in scope["headers"] if k.lower() == b"cookie"), ""))
+        a = auth.verify(cookies[auth.COOKIE].value if auth.COOKIE in cookies else None)
+        method = scope.get("method", "GET")
+        if a is None or not auth.allowed(a, method, scope["path"]):
+            if scope["type"] == "websocket":
+                return await send({"type": "websocket.close", "code": 4401 if a is None else 4403})
+            code, detail = (401, "Log in first.") if a is None else (403, f"Not available to the {a.role} account.")
+            return await JSONResponse({"detail": detail, "code": "login" if a is None else "forbidden"},
+                                      status_code=code)(scope, receive, send)
+        token = auth.current_user.set(a)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            auth.current_user.reset(token)
 
 
 def create_app() -> FastAPI:
@@ -102,10 +112,11 @@ def create_app() -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in s.cors_origins.split(",")],
                        allow_methods=["*"], allow_headers=["*"])
     app.add_middleware(RequestBaseURL)
-    app.add_middleware(PresenterOnly)
+    app.add_middleware(RequireLogin)
+    from .api import auth as auth_api
     from .api import (evidence, fleet, hq, inspections, owner, reference, regulator, reports, sessions, system,
                       vision)
-    for m in (system, reference, sessions, inspections, reports, evidence, vision, owner, fleet, hq, regulator):
+    for m in (auth_api, system, reference, sessions, inspections, reports, evidence, vision, owner, fleet, hq, regulator):
         app.include_router(m.router)
     app.mount("/media/data", StaticFiles(directory=str(s.data_dir)), name="data")
     app.mount("/media/assets", StaticFiles(directory=str(s.assets_dir)), name="assets")

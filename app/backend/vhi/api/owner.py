@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from .. import auth
 from ..db import session_scope
 from ..runtime import rt
 from ..services import assistant, booking, insights
@@ -65,17 +66,27 @@ def gear(branch_id: str = "BR01"):
 
 @router.post("/bookings")
 def create_booking(req: BookReq):
-    vehicle_or_404(req.plate)
+    vehicle_or_404(auth.own_plate(req.plate))
     return booking.create(norm_plate(req.plate), req.branch_id, req.date, req.slot, req.inspection_type, req.gear)
 
 
 @router.post("/bookings/{booking_id}/pay")
 def pay(booking_id: str, req: PayReq):
+    _own_booking(booking_id)
     return booking.pay(booking_id, req.method)
+
+
+def _own_booking(booking_id: str) -> None:
+    with session_scope() as s:
+        b = s.get(Booking, booking_id)
+        if b is None:
+            raise HTTPException(404, "booking not found")
+        auth.own_plate(b.plate)
 
 
 @router.get("/bookings")
 def list_bookings(plate: str):
+    auth.own_plate(plate)
     with session_scope() as s:
         rows = s.execute(select(Booking).where(Booking.plate == norm_plate(plate)).order_by(Booking.created_at.desc())).scalars()
         return [booking.booking_dict(b) for b in rows]
@@ -104,6 +115,7 @@ def booking_qr(booking_id: str):
         b = s.get(B, booking_id)
         if b is None:
             raise HTTPException(404, "booking not found")
+        auth.own_plate(b.plate)
         url = booking.booking_dict(b)["checkin_url"]
     buf = io.BytesIO()
     qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=2).save(buf)
@@ -134,13 +146,13 @@ def self_check_script():
 
 @router.post("/self-check")
 async def self_check(req: SelfCheckReq):
-    vehicle_or_404(req.plate)
+    vehicle_or_404(auth.own_plate(req.plate))
     return await asyncio.to_thread(insights.self_check, norm_plate(req.plate), req.model_dump(), rt().models)
 
 
 @router.get("/passport/{plate}")
 def passport(plate: str):
-    p = insights.passport(plate)
+    p = insights.passport(auth.own_plate(plate))
     if not p:
         raise HTTPException(404, "vehicle not found")
     v = p["vehicle"]

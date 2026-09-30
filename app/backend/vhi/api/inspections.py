@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select, text
 
+from .. import auth
 from ..db import engine, session_scope
 from ..pipeline.processor import alert_dict
 from ..runtime import rt
@@ -46,6 +47,8 @@ def _li_dict(li: LiveInspection) -> dict:
 def list_inspections(status: str | None = None, lane_id: str | None = None, limit: int = 30):
     with session_scope() as s:
         q = select(LiveInspection).order_by(LiveInspection.started_at.desc())
+        if auth.examiner_branch():
+            q = q.where(LiveInspection.branch_id == auth.examiner_branch())
         if status:
             q = q.where(LiveInspection.status == status)
         if lane_id:
@@ -59,6 +62,8 @@ def latest(lane_id: str | None = None, session_id: str | None = None):
     """The newest inspection on a lane or for a session; null before the first run (not an error for the apps)."""
     with session_scope() as s:
         q = select(LiveInspection).order_by(LiveInspection.started_at.desc())
+        if auth.examiner_branch():
+            q = q.where(LiveInspection.branch_id == auth.examiner_branch())
         if lane_id:
             q = q.where(LiveInspection.lane_id == lane_id)
         if session_id:
@@ -75,6 +80,7 @@ def get_inspection(iid: str):
         li = s.get(LiveInspection, iid)
         if li is None:
             raise HTTPException(404, "inspection not found")
+        auth.check_branch(li.branch_id)
         d = _li_dict(li)
         alerts = s.execute(select(Alert).where(Alert.inspection_id == iid).order_by(Alert.rank, Alert.created_at)).scalars().all()
         d["alerts"] = [alert_dict(a) for a in alerts]
@@ -101,15 +107,36 @@ def get_inspection(iid: str):
 
 @router.get("/{iid}/readings")
 def readings(iid: str, sensor: str = Query(...), limit: int = 2000):
+    _in_my_branch(iid)
     df = pd.read_sql(text("select t_s, payload from readings where inspection_id = :i and sensor = :s order by t_s limit :n"),
                      engine(), params={"i": iid, "s": sensor, "n": limit})
     import json as _json
     return [{"t_s": r.t_s, **(_json.loads(r.payload) if isinstance(r.payload, str) else r.payload)} for r in df.itertuples()]
 
 
+def _in_my_branch(iid: str) -> None:
+    with session_scope() as s:
+        li = s.get(LiveInspection, iid)
+        if li is None:
+            raise HTTPException(404, "inspection not found")
+        auth.check_branch(li.branch_id)
+
+
+def _examiner(requested: str) -> str:
+    """An examiner acts as themselves; the presenter may act as any examiner."""
+    a = auth.user()
+    return a.examiner_id if a and a.examiner_id else requested
+
+
 @router.post("/alerts/{alert_id}/decision")
 async def decision(alert_id: str, req: DecisionReq):
-    out = report_svc.decide(alert_id, req.action, req.reason, req.examiner_id)
+    with session_scope() as s:
+        a = s.get(Alert, alert_id)
+        if a is None:
+            raise HTTPException(404, "alert not found")
+        iid = a.inspection_id
+    _in_my_branch(iid)
+    out = report_svc.decide(alert_id, req.action, req.reason, _examiner(req.examiner_id))
     await rt().hub.broadcast(f"inspection:{out['inspection_id']}", "decision", out, remember=False)
     rt().hub.patch_remembered("alert", "alert_id", out)
     return out
@@ -117,7 +144,8 @@ async def decision(alert_id: str, req: DecisionReq):
 
 @router.post("/{iid}/route-senior")
 async def route_senior(iid: str, req: RouteReq):
-    out = report_svc.route_senior(iid, req.examiner_id, req.senior_id, req.note)
+    _in_my_branch(iid)
+    out = report_svc.route_senior(iid, _examiner(req.examiner_id), req.senior_id, req.note)
     await rt().hub.broadcast(f"inspection:{iid}", "route", out, remember=False)
     return out
 
@@ -126,7 +154,10 @@ async def route_senior(iid: str, req: RouteReq):
 async def issue_report(iid: str, req: IssueReq):
     import asyncio
 
-    out = await asyncio.to_thread(report_svc.issue, iid, req.examiner_id, rt().llm, req.senior_signed)
+    _in_my_branch(iid)
+    a = auth.user()
+    senior = a.senior if a and a.examiner_id else req.senior_signed  # a senior examiner signs as themselves
+    out = await asyncio.to_thread(report_svc.issue, iid, _examiner(req.examiner_id), rt().llm, senior)
     await rt().hub.broadcast(f"inspection:{iid}", "report", out, remember=False)
     await rt().hub.broadcast("inspections", "reported", {"inspection_id": iid, "verdict": out["verdict"]}, remember=False)
     return out

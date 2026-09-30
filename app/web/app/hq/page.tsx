@@ -1,10 +1,11 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Bars, LineChart, Scatter } from "@/components/charts";
 import { Shell } from "@/components/Shell";
 import { Card, Kpi, PageHeader, Pill, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { dmy, fmtN, pct } from "@/lib/format";
+import { STATUS_LABEL, dmy, fmtN, pct } from "@/lib/format";
 import { useFetch, useLive } from "@/lib/live";
 
 export default function HQ() {
@@ -57,7 +58,7 @@ export default function HQ() {
   };
   return (
     <Shell>
-      <PageHeader title="HQ operations" sub="Examiner integrity, lane demand, equipment health and the tamper-evident evidence log, across all branches (sessions S4 and S5)."
+      <PageHeader title="HQ operations" sub="Every branch's lanes, examiner integrity, lane demand, equipment health and the tamper-evident evidence log (sessions S4 and S5)."
         actions={<Source kind="synthetic" text="History: synthetic (80 examiners, 20 branches)" />} />
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Kpi label="Flagged examiners" value={I ? I.flagged.length : "–"} sub={I ? I.flagged.join(", ") : ""} color="#F87171" />
@@ -66,6 +67,26 @@ export default function HQ() {
         <Kpi label="Evidence chain" value={audit.data ? (audit.data.verify.intact ? "Intact" : "Broken") : "–"} sub={audit.data ? `${fmtN(audit.data.verify.checked)} entries re-verified` : ""} color={audit.data?.verify.intact ? "#34D399" : "#F87171"} />
         <Kpi label="Live inspections" value={ops.data ? Object.values(ops.data.inspections_by_status).reduce((a: number, b: any) => a + b, 0) as number : "–"} sub={ops.data ? Object.entries(ops.data.inspections_by_status).map(([k, v]) => `${v} ${k}`).join(" · ") : ""} />
       </div>
+      <Card title="Lanes across branches" className="mb-4" right={<Source kind="live_logic" text="Live inspections" />}>
+        {!ops.data?.lanes?.length ? <p className="text-[13px] text-fg-3">No lane has run yet today.</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] whitespace-nowrap text-left text-[12.5px] [&_td]:pr-3 [&_th]:pr-3">
+              <thead className="text-fg-3"><tr><th>Branch</th><th>Lane</th><th>Vehicle</th><th>Status</th><th>Health</th><th>Result</th><th>Started</th><th></th></tr></thead>
+              <tbody>
+                {ops.data.lanes.map((l: any) => (
+                  <tr key={l.lane_id} className="border-t border-ink-600">
+                    <td className="py-1.5">{l.branch}</td><td>Lane {l.lane_id.split("-L")[1]}</td><td><b>{l.plate}</b></td>
+                    <td>{STATUS_LABEL[l.status] || l.status}</td><td>{l.health ?? "–"}</td><td>{l.verdict || "–"}</td>
+                    <td className="text-fg-3">{new Date(l.started_at + "Z").toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}</td>
+                    <td className="flex gap-2 py-1"><Link className="btn btn-sm" href={`/lane?lane=${l.lane_id}`}>Lane</Link><Link className="btn btn-sm" href={`/examiner?id=${l.inspection_id}`}>Inspection</Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-2 text-[11.5px] text-fg-4">The latest inspection on each lane. A branch's own examiners see only their branch; HQ sees them all.</p>
+      </Card>
       <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="Examiner integrity · heavy vehicles" right={<Source kind="live_model" text="z-score + Isolation Forest" />}>
           {I && (

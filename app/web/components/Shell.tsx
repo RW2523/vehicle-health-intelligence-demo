@@ -4,38 +4,39 @@
    phones and tablets. */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
-import { api, presenterPin, PRESENTER_EVENT, setPresenterPin } from "@/lib/api";
+import { ReactNode, useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { ROLE_HOME, User, canOpen, logout, useUser } from "@/lib/auth";
 import { llmLabel, mydate, myt } from "@/lib/format";
 import { useClock } from "@/lib/live";
 import { NextStep } from "./Guide";
 import { Icon } from "./icons";
-import { Modal, toast } from "./ui";
 
-export const NAV = [
-  { group: "Start here", items: [{ href: "/", label: "Demo control", sub: "Guided demo and sessions", icon: "play" }] },
+/** The apps, grouped by who uses them; `roles` open each one besides the presenter and the read-only viewer. */
+export const NAV: { group: string; items: { href: string; label: string; sub: string; icon: string; roles: string[] }[] }[] = [
+  { group: "Start here", items: [{ href: "/", label: "Demo control", sub: "Guided demo and sessions", icon: "play", roles: [] }] },
   {
     group: "Inspection lane",
     items: [
-      { href: "/lane", label: "Lane console", sub: "Live sensors and AI", icon: "lane" },
-      { href: "/examiner", label: "Examiner", sub: "Decide alerts, issue report", icon: "examiner" },
-      { href: "/report", label: "Reports", sub: "Results and QR verification", icon: "report" },
-      { href: "/vision", label: "AI vision", sub: "Photo models on demand", icon: "vision" },
+      { href: "/lane", label: "Lane console", sub: "Live sensors and AI", icon: "lane", roles: ["examiner", "hq"] },
+      { href: "/examiner", label: "Examiner", sub: "Decide alerts, issue report", icon: "examiner", roles: ["examiner", "hq"] },
+      { href: "/report", label: "Reports", sub: "Results and QR verification", icon: "report", roles: ["examiner", "hq"] },
+      { href: "/vision", label: "AI vision", sub: "PUSPAKOM AI system results", icon: "vision", roles: ["examiner", "hq"] },
     ],
   },
   {
     group: "Fleets and owners",
     items: [
-      { href: "/fleet", label: "Fleet intelligence", sub: "Risk, forecasts, bookings", icon: "fleet" },
-      { href: "/fleet/vehicle", label: "Vehicle history", sub: "Wear trend and forecast", icon: "history" },
-      { href: "/owner", label: "Owner app", sub: "Assistant, booking, self-check", icon: "owner" },
+      { href: "/fleet", label: "Fleet intelligence", sub: "Risk, forecasts, bookings", icon: "fleet", roles: ["fleet", "hq"] },
+      { href: "/fleet/vehicle", label: "Vehicle history", sub: "Wear trend and forecast", icon: "history", roles: ["fleet", "hq"] },
+      { href: "/owner", label: "Owner app", sub: "Assistant, booking, self-check", icon: "owner", roles: ["owner"] },
     ],
   },
   {
     group: "Oversight",
     items: [
-      { href: "/hq", label: "HQ operations", sub: "Integrity, demand, audit", icon: "hq" },
-      { href: "/regulator", label: "Regulator", sub: "JPJ and DOE view", icon: "regulator" },
+      { href: "/hq", label: "HQ operations", sub: "Lanes, integrity, demand, audit", icon: "hq", roles: ["hq"] },
+      { href: "/regulator", label: "Regulator", sub: "JPJ and DOE view", icon: "regulator", roles: ["regulator", "hq"] },
     ],
   },
 ];
@@ -77,83 +78,29 @@ function StatusDot() {
   );
 }
 
-/** View-only public link (VHI_PRESENTER_PIN): shows whether this browser can change the demo, and asks for the
- *  presenter PIN when the API refuses a change. Hidden when no PIN is set. */
-function PresenterLock() {
-  const [required, setRequired] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [why, setWhy] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    api.get("/api/system/status").then((s) => setRequired(!!s.presenter?.required)).catch(() => {});
-    setUnlocked(!!presenterPin());
-    const on = (e: Event) => {
-      const d = (e as CustomEvent).detail || {};
-      if (d.message) {  // the API refused a change: a stored PIN is no longer right, so forget it and ask
-        if (presenterPin()) setPresenterPin(null);
-        setRequired(true);
-        setWhy(d.message);
-        setErr(null);
-        setOpen(true);
-      }
-      setUnlocked(!!presenterPin());
-    };
-    window.addEventListener(PRESENTER_EVENT, on);
-    return () => window.removeEventListener(PRESENTER_EVENT, on);
-  }, []);
-  const close = useCallback(() => setOpen(false), []);
-  if (!required) return null;
-  const unlock = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await api.post("/api/system/presenter", { pin });
-      setPresenterPin(pin);
-      setPin("");
-      setOpen(false);
-      toast("Presenter mode on in this browser. Try the action again.", "ok");
-    } catch (x: any) {
-      setErr(x.status === 403 ? "That PIN is not right." : x.message);
-    } finally {
-      setBusy(false);
-    }
-  };
+/** Who is logged in, and the way out. */
+function UserMenu({ user }: { user: User }) {
   return (
-    <>
-      <button className={`chip ${unlocked ? "border-ok/50 text-ok" : "border-warn/50 text-warn"}`} onClick={() => { setWhy(null); setErr(null); setOpen(true); }}
-        title={unlocked ? "Presenter mode: this browser can run the demo" : "View-only link: enter the presenter PIN to run the demo"}>
-        <Icon name={unlocked ? "unlock" : "lock"} size={13} width={2} />
-        <span className="hidden sm:inline">{unlocked ? "Presenter" : "View only"}</span>
+    <span className="flex items-center gap-1.5">
+      <span className="chip border-ink-600 text-fg-2" title={user.title}>
+        <span className="h-2 w-2 rounded-full bg-cyan" />
+        <span className="hidden max-w-[180px] truncate sm:inline">{user.name}</span>
+        <span className="hidden text-fg-4 md:inline">· {user.role === "viewer" ? "read only" : user.role}</span>
+      </span>
+      <button className="btn btn-sm" onClick={logout} aria-label="Log out" title="Log out">
+        <Icon name="logout" size={15} /><span className="hidden sm:inline">Log out</span>
       </button>
-      <Modal open={open} onClose={close} title="Presenter PIN">
-        {unlocked ? (
-          <div className="flex max-w-[420px] flex-col gap-3 text-[13.5px] text-fg-2">
-            <p>This browser is in presenter mode: it can run sessions, decide alerts, issue reports and book.</p>
-            <button className="btn self-start" onClick={() => { setPresenterPin(null); setOpen(false); }}>Lock this browser</button>
-          </div>
-        ) : (
-          <form onSubmit={unlock} className="flex max-w-[420px] flex-col gap-3 text-[13.5px] text-fg-2">
-            <p>{why || "This is a view-only link."} Anyone can look around, ask the assistant and try the photo models. The presenter PIN lets this browser run sessions, decide alerts, issue reports and book.</p>
-            <input className="input font-mono tracking-widest" type="password" inputMode="numeric" autoComplete="off" autoFocus
-              aria-label="Presenter PIN" placeholder="PIN" value={pin} onChange={(e) => setPin(e.target.value)} />
-            {err && <p role="alert" className="text-[12.5px] font-semibold text-bad">{err}</p>}
-            <button className="btn btn-primary self-start" disabled={!pin || busy}>{busy ? "Checking…" : "Unlock"}</button>
-          </form>
-        )}
-      </Modal>
-    </>
+    </span>
   );
 }
 
-function NavLinks({ rail = false, onNavigate }: { rail?: boolean; onNavigate?: () => void }) {
+function NavLinks({ role, rail = false, onNavigate }: { role?: string; rail?: boolean; onNavigate?: () => void }) {
   const path = usePathname();
   const cur = navMatch(path);
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((it) => canOpen(role, it.roles)) })).filter((g) => g.items.length);
   return (
     <nav aria-label="Apps" className="flex flex-col gap-3 py-3">
-      {NAV.map((g) => (
+      {groups.map((g) => (
         <div key={g.group}>
           <div className={rail ? "mx-4 mb-1 border-t border-ink-600 xl:hidden" : "hidden"} />
           <div className={`px-5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-fg-4 ${rail ? "hidden xl:block" : ""}`}>{g.group}</div>
@@ -176,9 +123,9 @@ function NavLinks({ rail = false, onNavigate }: { rail?: boolean; onNavigate?: (
   );
 }
 
-function Brand({ full = true }: { full?: boolean }) {
+function Brand({ full = true, home = "/" }: { full?: boolean; home?: string }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5" aria-label="VehicleSense AI - Demo control">
+    <Link href={home} className="flex items-center gap-2.5" aria-label="VehicleSense AI - home">
       <Logo size={30} />
       {full && (
         <span className="flex flex-col leading-tight">
@@ -194,22 +141,29 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
   const path = usePathname();
   const now = useClock();
   const cur = navMatch(path);
+  const user = useUser();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    if (user === null) location.assign(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+  }, [user]);
   useEffect(() => {
     if (!open) return;
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, [open]);
+  const home = ROLE_HOME[user?.role || ""] || "/";
+  const allowed = !cur || canOpen(user?.role, cur.roles);
+  const guided = user?.role === "presenter" || user?.role === "viewer";
   return (
     <div className="flex min-h-screen">
       <aside className="sticky top-0 hidden h-screen shrink-0 flex-col overflow-y-auto border-r border-ink-600 bg-ink-850 lg:flex lg:w-[72px] xl:w-[236px]">
         <div className="flex h-16 shrink-0 items-center justify-center border-b border-ink-600 px-4 xl:justify-start">
-          <span className="xl:hidden"><Brand full={false} /></span>
-          <span className="hidden xl:block"><Brand /></span>
+          <span className="xl:hidden"><Brand full={false} home={home} /></span>
+          <span className="hidden xl:block"><Brand home={home} /></span>
         </div>
-        <NavLinks rail />
+        <NavLinks role={user?.role} rail />
         <p className="mt-auto hidden px-5 pb-5 text-[11px] leading-relaxed text-fg-4 xl:block">Concept demo · fictional vehicles, owners and examiners.</p>
       </aside>
       {open && (
@@ -217,17 +171,17 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
           <div className="drawer-in absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col overflow-y-auto border-r border-ink-600 bg-ink-850">
             <div className="flex h-16 shrink-0 items-center justify-between border-b border-ink-600 px-4">
-              <Brand />
+              <Brand home={home} />
               <button className="btn btn-sm" aria-label="Close menu" onClick={() => setOpen(false)}><Icon name="close" size={16} /></button>
             </div>
-            <NavLinks onNavigate={() => setOpen(false)} />
+            <NavLinks role={user?.role} onNavigate={() => setOpen(false)} />
           </div>
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-ink-600 bg-ink-900/90 px-4 backdrop-blur lg:px-6">
           <button className="btn btn-sm lg:hidden" aria-label="Open menu" onClick={() => setOpen(true)}><Icon name="menu" size={18} /></button>
-          <span className="lg:hidden"><Brand full={false} /></span>
+          <span className="lg:hidden"><Brand full={false} home={home} /></span>
           {cur && (
             <div className="flex min-w-0 items-center gap-2 text-[13px]">
               <span className="hidden text-fg-4 sm:inline">{cur.group}</span>
@@ -236,17 +190,25 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
             </div>
           )}
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            {context}
-            <NextStep />
-            <PresenterLock />
+            {allowed && context}
+            {guided && <NextStep />}
             <StatusDot />
+            {user && <UserMenu user={user} />}
             <div className="hidden flex-col items-end leading-tight 2xl:flex">
               <span className="text-[11px] text-fg-3">{mydate(now)}</span>
               <span className="font-mono text-[14px] font-semibold">{myt(now)} <span className="text-[10.5px] text-fg-3">MYT</span></span>
             </div>
           </div>
         </header>
-        <main className={`mx-auto w-full min-w-0 flex-1 px-4 py-5 lg:px-6 ${wide ? "" : "max-w-[1600px]"}`}>{children}</main>
+        <main className={`mx-auto w-full min-w-0 flex-1 px-4 py-5 lg:px-6 ${wide ? "" : "max-w-[1600px]"}`}>
+          {!user ? null : allowed ? children : (
+            <div className="card card-pad mx-auto mt-10 max-w-[520px] text-center">
+              <h1 className="font-display text-[20px] font-semibold">Not available to this account</h1>
+              <p className="mt-2 text-[13.5px] text-fg-3">{cur?.label} is not part of the {user.role} apps. You are logged in as {user.name} ({user.title}).</p>
+              <Link className="btn btn-primary mt-4" href={home}>Go to your apps<Icon name="arrow" size={15} /></Link>
+            </div>
+          )}
+        </main>
         <footer className="border-t border-ink-600 px-4 py-3 text-[11.5px] text-fg-4 lg:px-6">
           Concept demo prepared for vehicle-inspection stakeholders. Fictional vehicles, owners and examiners. Every panel says how its content is produced: live model, live logic, simulated, synthetic or real public data.
         </footer>

@@ -11,7 +11,7 @@ os.environ.setdefault("VHI_OLLAMA_URL", "")
 os.environ.setdefault("VHI_LLM_URL", "")
 os.environ.setdefault("VHI_VLM_URL", "")
 os.environ.setdefault("VHI_LLM_KEEP_ALIVE", "")
-os.environ.setdefault("VHI_PRESENTER_PIN", "")  # a PIN in a local .env would lock the tests out
+os.environ["VHI_DEMO_PASSWORD"] = os.environ["VHI_VIEWER_PASSWORD"] = PASSWORD = "test-password"  # not the local .env's
 
 
 @pytest.fixture(scope="session")
@@ -24,6 +24,7 @@ def client():
         from vhi.seed import reset_runtime
         reset_runtime()
     with TestClient(app) as c:
+        assert c.post("/api/auth/login", json={"username": "presenter", "password": PASSWORD}).status_code == 200
         yield c
     shutil.rmtree(_tmp, ignore_errors=True)
 

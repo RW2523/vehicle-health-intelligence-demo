@@ -9,6 +9,7 @@ import { BrakeChart, ENoseChart, PNChart } from "@/components/lanebits";
 import { Bar, Card, Empty, PageHeader, Pill, ScoreRing, Source, Tabs, sourceLabel, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { LANE_SESSIONS, STATUS_LABEL, STEP_LABEL, fmtN, laneOf, pct, scoreColor, sevColor } from "@/lib/format";
+import { useUser } from "@/lib/auth";
 import { useInspection } from "@/lib/inspection";
 
 const SESSIONS = LANE_SESSIONS.map((l) => ({ id: l.session, label: `${l.plate} · ${l.car}` }));
@@ -113,7 +114,12 @@ function ExaminerConsole() {
   const { sessions, setPlayer } = useSessions();
   const [sel, setSel] = useState<string | null>(null);
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [examiner, setExaminer] = useState("VE012");
+  const user = useUser();
+  const [picked, setExaminer] = useState("VE011");
+  // an examiner account acts as itself; the presenter can act as either demo examiner
+  const examiner = user?.examiner_id || picked;
+  const isSenior = user?.examiner_id ? !!user.senior : examiner === "VE001";
+  const readOnly = user?.role === "viewer" || user?.role === "hq";
   const [busy, setBusy] = useState<string | null>(null);
   const insp = L.insp;
   const fusion = L.fusion;
@@ -157,7 +163,7 @@ function ExaminerConsole() {
   const issue = async () => {
     setBusy("issue");
     try {
-      const rep = await api.post(`/api/inspections/${insp.inspection_id}/report`, { examiner_id: examiner, senior_signed: examiner === "VE001" });
+      const rep = await api.post(`/api/inspections/${insp.inspection_id}/report`, { examiner_id: examiner, senior_signed: isSenior });
       toast(`Report issued: ${rep.verdict}`, "ok");
       router.push(`/report?id=${rep.report_id}`);
     } catch (e: any) {
@@ -167,8 +173,12 @@ function ExaminerConsole() {
   };
   const route = async () => {
     await api.post(`/api/inspections/${insp.inspection_id}/route-senior`, { examiner_id: examiner, senior_id: "VE001", note: "Identity checks disagree" });
-    setExaminer("VE001");
-    toast("Routed to senior examiner VE001 (now signed in as VE001)", "ok");
+    if (user?.examiner_id) {
+      toast("Routed to the senior examiner, Priya Hassan (VE001): she signs it off from her own account", "ok");
+    } else {
+      setExaminer("VE001");
+      toast("Routed to senior examiner VE001 (now acting as VE001)", "ok");
+    }
   };
 
   let primary: ReactNode;
@@ -181,11 +191,15 @@ function ExaminerConsole() {
     <Shell>
       <PageHeader title="Examiner console" sub="Every AI alert needs a human decision: confirm it, or dismiss or defer it with a reason. Then issue the report."
         actions={
-          <label className="flex items-center gap-2 text-[12.5px] text-fg-3">Signed in as
-            <select aria-label="Examiner" className="input w-auto py-1.5" value={examiner} onChange={(e) => setExaminer(e.target.value)}>
-              <option value="VE012">Suresh Chandran · VE012</option><option value="VE020">Chong Raj · VE020</option><option value="VE001">Priya Hassan · VE001 (senior)</option>
-            </select>
-          </label>
+          user?.role === "presenter" ? (
+            <label className="flex items-center gap-2 text-[12.5px] text-fg-3">Acting as
+              <select aria-label="Examiner" className="input w-auto py-1.5" value={examiner} onChange={(e) => setExaminer(e.target.value)}>
+                <option value="VE011">Arjun Ismail · VE011</option><option value="VE001">Priya Hassan · VE001 (senior)</option>
+              </select>
+            </label>
+          ) : user?.examiner_id ? (
+            <span className="text-[12.5px] text-fg-3">Signed in as <b className="text-fg">{user.name} · {user.examiner_id}{user.senior ? " (senior)" : ""}</b></span>
+          ) : readOnly ? <span className="chip border-ink-500 text-fg-3">Read only</span> : null
         }>
         <div className="mt-3"><Tabs value={tab} onChange={(v) => router.replace(`/examiner?session=${v}`)} items={SESSIONS} /></div>
       </PageHeader>
@@ -229,18 +243,18 @@ function ExaminerConsole() {
               <div className="mt-1 h-1.5 w-full rounded bg-ink-600"><div className="h-1.5 rounded bg-ok transition-all" style={{ width: `${L.alerts.length ? (100 * decided) / L.alerts.length : 0}%` }} /></div>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:col-span-2 xl:col-span-1 xl:justify-end">
-              {insp.route === "senior" && !locked && examiner !== "VE001" && <button className="btn" onClick={route}>Route to senior examiner</button>}
-              {primary}
+              {insp.route === "senior" && !locked && !isSenior && !readOnly && <button className="btn" onClick={route}>Route to senior examiner</button>}
+              {!readOnly && primary}
             </div>
           </section>
           {insp.route === "senior" && !locked && (
             <div className="mb-4 rounded-xl border border-bad/50 bg-bad/10 px-4 py-2.5 text-[13px] text-bad">
-              Identity checks disagree: only a senior examiner can sign this off. {examiner === "VE001" ? "You are signed in as the senior examiner." : "Route it to the senior examiner, or the report will say REFERRED."}
+              Identity checks disagree: only a senior examiner can sign this off. {isSenior ? "You are signed in as the senior examiner." : "Route it to the senior examiner, or the report will say REFERRED."}
             </div>
           )}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
             <Card title={`Ranked alerts (${L.alerts.length})`}
-              right={open.length > 0 && !locked
+              right={open.length > 0 && !locked && !readOnly
                 ? <button className="btn btn-sm" disabled={!!busy} onClick={confirmAll}>{busy === "all" ? "Confirming…" : `Confirm all ${open.length}`}</button>
                 : <span className="text-[12px] text-fg-3">{decided} decided</span>}>
               <div className="flex flex-col gap-2">
@@ -258,7 +272,7 @@ function ExaminerConsole() {
                         <div className="text-[11.5px] text-fg-3">{a.system} · {a.severity} · {Math.round(a.confidence * 100)}% · {sourceLabel(a.source)}</div>
                       </div>
                     </div>
-                    {a.status === "open" ? (
+                    {a.status === "open" ? (readOnly ? <div className="mt-2 text-[12px] text-fg-3">Open · awaiting the examiner</div> :
                       <div className="mt-2 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <button className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => decide(a, "confirm")}>Confirm</button>
                         <input className="input min-w-[140px] flex-1 py-1.5" placeholder="Reason (to dismiss / defer)" value={reasons[a.alert_id] || ""}

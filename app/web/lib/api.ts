@@ -8,39 +8,15 @@ export class ApiError extends Error {
   }
 }
 
-/* View-only public links (VHI_PRESENTER_PIN): the presenter's PIN is kept in this browser and sent with every call.
-   When the API refuses a change for want of it, the shell's presenter lock asks for it (PRESENTER_EVENT). */
-const PIN_KEY = "vhi.presenterPin";
-export const PRESENTER_EVENT = "vhi:presenter-pin";
-
-export function presenterPin(): string | null {
-  try {
-    return window.localStorage.getItem(PIN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function setPresenterPin(pin: string | null) {
-  try {
-    if (pin) window.localStorage.setItem(PIN_KEY, pin);
-    else window.localStorage.removeItem(PIN_KEY);
-  } catch {}
-  window.dispatchEvent(new CustomEvent(PRESENTER_EVENT, { detail: { changed: true } }));
-}
-
-function withPin(headers: Record<string, string> = {}) {
-  const pin = typeof window !== "undefined" ? presenterPin() : null;
-  return pin ? { ...headers, "x-presenter-pin": pin } : headers;
-}
-
 async function handle(r: Response) {
   if (!r.ok) {
     let msg = r.statusText;
     try {
       const j = await r.json();
       msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail ?? j);
-      if (j.code === "presenter_pin") window.dispatchEvent(new CustomEvent(PRESENTER_EVENT, { detail: { message: msg } }));
+      // the session ended (or never started): back to the login, then on to this page
+      if (r.status === 401 && j.code === "login" && !location.pathname.startsWith("/login"))
+        location.assign(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
     } catch {}
     throw new ApiError(r.status, msg);
   }
@@ -52,14 +28,14 @@ export const api = {
     const qs = params
       ? "?" + new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "") as any).toString()
       : "";
-    return fetch(path + qs, { cache: "no-store", headers: withPin() }).then(handle);
+    return fetch(path + qs, { cache: "no-store" }).then(handle);
   },
   post: (path: string, body?: any) =>
-    fetch(path, { method: "POST", headers: withPin({ "content-type": "application/json" }), body: JSON.stringify(body ?? {}) }).then(handle),
+    fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) }).then(handle),
   upload: (path: string, file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    return fetch(path, { method: "POST", headers: withPin(), body: fd }).then(handle);
+    return fetch(path, { method: "POST", body: fd }).then(handle);
   },
 };
 

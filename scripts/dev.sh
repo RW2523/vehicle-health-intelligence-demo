@@ -118,10 +118,11 @@ cmd_test() { (cd "$BACK" && "$PY" -m pytest -q "$@"); }
 cmd_e2e() {
   local chromium="PW_CHROMIUM="
   [[ -x /opt/pw-browsers/chromium ]] && chromium="PW_CHROMIUM=/opt/pw-browsers/chromium"
-  # a presenter PIN in the API's local settings: the tests act as the presenter
-  local pin="${E2E_PRESENTER_PIN:-$(sed -n 's/^VHI_PRESENTER_PIN=//p' "$BACK/.env" 2>/dev/null | tail -1)}"
+  # the tests log in with the demo passwords from the API's local settings
+  local pw="${E2E_PASSWORD:-$(sed -n 's/^VHI_DEMO_PASSWORD=//p' "$BACK/.env" 2>/dev/null | tail -1)}"
+  local vpw="${E2E_VIEWER_PASSWORD:-$(sed -n 's/^VHI_VIEWER_PASSWORD=//p' "$BACK/.env" 2>/dev/null | tail -1)}"
   (cd "$WEB" && env "$chromium" VHI_PYTHON="$PY" E2E_BASE_URL="${E2E_BASE_URL:-http://localhost:$WEB_PORT}" \
-    E2E_PRESENTER_PIN="$pin" npx playwright test "$@")
+    E2E_PASSWORD="$pw" E2E_VIEWER_PASSWORD="$vpw" npx playwright test "$@")
 }
 
 cmd_logs() { tail -n 50 -f "$RUN/api.log" "$RUN/web.log"; }

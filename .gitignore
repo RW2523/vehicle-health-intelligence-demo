@@ -18,3 +18,5 @@ app/web/tsconfig.tsbuildinfo
 app/backend/*.pt
 app/backend/weights/
 app/backend/.env
+app/web/e2e/.auth/
+.claude/

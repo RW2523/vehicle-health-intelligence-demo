@@ -55,10 +55,12 @@ class Settings(BaseSettings):
     # Public base URL used inside QR codes (the verify page) when a request does not say which address the visitor used.
     public_base_url: str = "http://localhost:3000"
     cors_origins: str = "*"
-    # For a public link: when set, only requests that carry this PIN can change the demo (start sessions, decide
-    # alerts, issue reports, book, run the tamper test); the web apps ask for it once per browser. Everyone else can
-    # look around, ask the assistant and try the photo models. Empty = everything is open.
-    presenter_pin: str = ""
+    # Login (vhi/auth.py): one demo account per role. VHI_DEMO_PASSWORD opens every role account, VHI_VIEWER_PASSWORD
+    # the read-only viewer (defaults to the demo password). Empty demo password = nobody can log in, so set it.
+    demo_password: str = ""
+    viewer_password: str = ""
+    # key that signs the session cookies; empty = a random one kept in VHI_VAR_DIR/auth_secret
+    auth_secret: str = ""
 
     timezone: str = "Asia/Kuala_Lumpur"
     # "Today" for the synthetic world. The curated data was generated on 24 Sep 2026.

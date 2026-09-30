@@ -18,6 +18,7 @@ export const ICONS: Record<string, string> = {
   bolt: "M13 2L4 14h7l-1 8 9-12h-7z",
   lock: "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4",
   unlock: "M5 11h14v10H5zM8 11V7a4 4 0 0 1 7.5-2",
+  logout: "M9 21H5V3h4M16 17l5-5-5-5M21 12H9",
   // fleet issues
   brake: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 8a8 8 0 0 1 4-4",
   tyre: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 3v5M12 16v5M3 12h5M16 12h5",

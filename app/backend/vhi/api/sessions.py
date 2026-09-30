@@ -6,6 +6,7 @@ import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from .. import auth
 from ..runtime import rt
 from ..sim.player import LANE_SESSIONS, session_catalogue
 
@@ -34,9 +35,11 @@ class OverrideReq(BaseModel):
 
 def _player(sid: str):
     try:
-        return rt().player.get(sid)
+        p = rt().player.get(sid)
     except KeyError as e:
         raise HTTPException(404, f"{sid} is not a lane session (lane sessions: {', '.join(LANE_SESSIONS)})") from e
+    auth.check_branch(p.state.lane_id.split("-")[0])  # an examiner runs only the lanes of their branch
+    return p
 
 
 @router.get("")
