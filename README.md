@@ -43,7 +43,7 @@ If a model server is down, the assistant and reports fall back to the template e
 
 `scripts/spark.sh url` prints the addresses and checks them end to end. A fixed hostname on your own domain needs a named Cloudflare tunnel on a domain whose DNS Cloudflare manages.
 
-Anyone with the link can use the demo; there is no login. For a public link, set `VHI_PRESENTER_PIN` (e.g. 8 random digits): visitors can then look around, ask the assistant and try the photo models, but running sessions, deciding alerts, issuing reports, booking and the tamper test need the PIN, which the header's *View only* button asks for once per browser. Wrong PINs are rate-limited (10 a minute). `scripts/spark.sh reset` clears what visitors did (reports, bookings, lane sessions, evidence) and keeps the seeded world.
+Every app is behind a login (see *Logins* below), so a public link shows only the login page and the buyer's QR verification page. `scripts/spark.sh reset` clears what visitors did (reports, bookings, lane sessions, evidence) and keeps the seeded world.
 
 ## On the DGX Spark (Docker)
 
@@ -79,26 +79,26 @@ Open `http://<spark-host>:3000`. The web server also proxies the live WebSocket 
 
   This writes `app/backend/models/vision/*.onnx` and `vision_metrics.json`. At runtime the classifiers run on onnxruntime (15-25 ms per image on the Grace CPU), so the API does not need PyTorch.
 
-## The demo: six sessions
+## The demo: lane replays and walkthroughs
 
-Start from **Demo control** (`/`). Lane sessions replay real-time sensor streams. You can play, pause, change speed, jump to a step, inject changes live, or **Fast-forward** to the end instantly. Everything downstream is computed live from those streams.
+Start from **Demo control** (`/`) as the presenter. S1–S3 are **lane replays**: scripted inspections at the Alam Megah branch (lanes 3, 2 and 1) whose simulated sensor streams play in real time. You can play, pause, change speed, jump to a step, inject changes live, or **Fast-forward** to the end instantly. Everything downstream is computed live from those streams.
 
-| Session | What happens | Where to look |
+| Replay / walkthrough | What happens | Where to look |
 |---|---|---|
-| **S1** DMO 9001 · Scania prime mover | E-nose ammonia slip and hot brake smell, thermal hot hub, particle number showing a removed DPF, roller-brake imbalance, a tyre defect from the image model and wheel-bearing noise. Health score 37; verdict **FAIL**. | Lane → Examiner → Report → Verify |
-| **S2** DMO 9002 · EV, flood history | Flood-damage evidence (cabin image, e-nose musty signal, insurance claim), BMS pack state of health and module spread, EV fault codes. Verdict **CONDITIONAL**. | Lane, Examiner |
-| **S3** DMO 9003 · ownership transfer | The plate is read (OCR), and the chassis-plate OCR and engine-sound fingerprint disagree with the vehicle's history. The inspection is routed to a senior examiner; verdict **REFERRED**. | Examiner |
+| **S1** DMO 9001 · Scania prime mover, periodic inspection (Berkala) | Thermal hot hub, particle number showing a removed DPF, roller-brake imbalance, a tyre defect from the AI tyre scan and wheel-bearing noise. Health score 57; verdict **FAIL**. | Lane → Examiner → Report → Verify |
+| **S2** DMO 9002 · BYD Atto 3 (EV), ownership transfer + hire-purchase (B5 + B7) | Flood-damage evidence (cabin corrosion, HV isolation, insurance claim), BMS pack state of health and module spread, EV fault codes. Verdict **CONDITIONAL**. | Lane, Examiner |
+| **S3** DMO 9003 · Honda Civic, ownership transfer (B5) | The plate is read (OCR); the odometer and engine-sound fingerprint disagree with the vehicle's history, so the inspection is routed to a senior examiner (verdict **REFERRED**). The petrol exhaust-gas test shows CO, HC and lambda. Health 95 with a 40% next-inspection risk, read against 10–12-year-old cars that pass today (38%): mostly age. | Examiner |
 | **S4** HQ | Examiner integrity (VE017 and VE044 flagged), lane-equipment predictive maintenance (BR00 lane 3 roller tester), 14-day demand forecast and roster, and a hash-chain audit with a live tamper test. | HQ |
 | **S5** Fleet + regulator | Five operators plus FLEET07: degradation history per vehicle, anomalies, time-to-limit forecasts, pattern reports, bulk booking and next-Berkala fail risk. The regulator view shows real JPJ registrations and live data.gov.my feeds. | Fleet, Vehicle history, Regulator |
 | **S6** Owner app | An assistant in BM, English and Chinese; GEAR slot booking with a mock payment and check-in QR; a self-check (tint and headlamp fail, then pass); the Health Passport. | Owner app |
 
-**Used-vehicle sales.** The owner app's *Sale* tab and *Oversight › Used-vehicle sales* (`/sales`) list 55 cars and motorcycles for sale, each with its whole record: every inspection (history and live lane reports) with its health score, the odometer readings with rollback detection, OBD fault codes, insurance claims and policy, photos and the latest verifiable report, summed up in plain words for the buyer. DMO 9003 (S3) is advertised with a rolled-back odometer and DMO 9002 (S2) with a flood claim. The listings, the 15 motorcycles and their inspections are synthetic (`vhi/seed/sales.py`); the API is `GET /api/sales` and `GET /api/sales/{listing_id}`.
+**Used-vehicle sales.** The owner app's *Sale* tab and *Oversight › Used-vehicle sales* (`/sales`) list 55 cars and motorcycles for sale, each with its whole record: every inspection (history and live lane reports; a health score comes with a lane report), the odometer readings with rollback detection, OBD fault codes, insurance claims and policy, photos and the latest verifiable report, summed up in plain words for the buyer. DMO 9003 (S3) is advertised with a rolled-back odometer and DMO 9002 (S2) with a flood claim. The listings, the 15 motorcycles and their inspections are synthetic (`vhi/seed/sales.py`); the API is `GET /api/sales` and `GET /api/sales/{listing_id}`.
 
 ### Suggested 10-minute walkthrough
 
 Demo control shows this walkthrough as a **guided demo** with live progress, and every page's header links to the next step. The navigation groups the apps by who uses them: *inspection lane* (lane, examiner, reports, AI vision), *fleets and owners* (fleet intelligence, vehicle history, owner app) and *oversight* (HQ, regulator, used-vehicle sales). It becomes an icon rail on small laptops and a menu drawer on phones and tablets.
 
-1. Demo control: start **S1** at 4×.
+1. Log in as the **Demo presenter**; on Demo control start **S1** at 4×.
 2. Open the **Lane** console and watch the sensors and alerts arrive.
 3. Go to the **Examiner** console:
    - Confirm the alerts. Dismissing one needs a reason.
@@ -107,6 +107,28 @@ Demo control shows this walkthrough as a **guided demo** with live progress, and
 4. **Fleet**: filter by *With photos*, then open VKR 3128 to show its brake-imbalance history, the anomaly and the forecast. Send the pattern report and book an inspection.
 5. **HQ**: click *Run tamper test*.
 6. **Owner app**: ask the assistant in BM, run the self-check twice, then book a slot.
+
+### Logins
+
+One demo account per role; `VHI_DEMO_PASSWORD` opens them all, `VHI_VIEWER_PASSWORD` the read-only viewer.
+
+| Account | Sees |
+|---|---|
+| Demo presenter | every app, including Demo control |
+| Arjun Ismail (examiner) / Priya Hassan (senior examiner) | the lane console, examiner console, reports and AI vision of the Alam Megah branch; decisions and sign-off are recorded as themselves |
+| HQ operations | every branch's lanes (read only), HQ, fleets, regulator, used-vehicle sales |
+| JPJ / DOE officer | the regulator view and used-vehicle sales |
+| Fleet manager | fleet intelligence and vehicle history |
+| Nurul Aina (owner of DMO 9006) | the owner app for her own vehicle |
+| Guest viewer | every app, read only (may still ask the assistant and try the photo models) |
+
+The API enforces the same rules (`vhi/auth.py`). Open without a login: the buyer's verification page and the lane check-in scan, both reached through a QR code.
+
+### What PUSPAKOM's review changed
+
+- **AI vision** presents image results as the output of PUSPAKOM's own systems, as announced publicly: the **Undercarriage AI** (with Keymag Sdn Bhd, in service on the Mobile Truck Service), **Project ASTRA** above-carriage inspection (with UTHM) and **AI tyre scans** (both in development). They are not connected in this demo, so their results arrive as a labelled *demo feed*: our image models play them and are kept, folded away, as *stand-ins*.
+- **E-nose** is a future R&D option: its stream and model run are shown as a research preview but raise no alerts and change no score or result (`VHI_ENOSE_IN_RESULTS=true` uses it as a live sensor).
+- **Owner app**: no AI model details; a full slot suggests the nearest branches with that time free; the passport lists every certificate.
 
 ## Architecture
 
@@ -131,17 +153,17 @@ simulated lane streams (data/curated/sessions/S1–S3)          Next.js web apps
 
 | Model | What it does | Result |
 |---|---|---|
-| Tyre classifier | YOLO11m-cls fine-tuned on the curated tyre images on the DGX Spark GPU (224 px), run with ONNX Runtime | 97.8% validation accuracy (YOLO11n on CPU: 93.9%) |
-| Body-damage classifier | YOLO11s-cls fine-tuned on the GPU at 320 px, 3 classes (normal / breakage / crushed) | 83.8% validation accuracy (YOLO11n on CPU: 75.4%) |
+| Tyre classifier (stand-in for the AI tyre scan) | YOLO11m-cls fine-tuned on the curated tyre images on the DGX Spark GPU (224 px), run with ONNX Runtime | 97.8% validation accuracy (YOLO11n on CPU: 93.9%) |
+| Body-damage classifier (stand-in for Project ASTRA) | YOLO11s-cls fine-tuned on the GPU at 320 px, 3 classes (normal / breakage / crushed) | 83.8% validation accuracy (YOLO11n on CPU: 75.4%) |
 | Assistant and report summaries | Qwen3-30B-A3B NVFP4 on TensorRT-LLM (GPU), grounded on the retrieved knowledge base; or Ollama; or the template engine | — |
 | Photo explanations | Qwen2.5-VL-7B-Instruct on vLLM (GPU): a plain-words second opinion on the same image | — |
 | Corrosion | HSV rust segmentation, calibrated on rust vs clean photos | 89% balanced accuracy |
 | Plate / chassis OCR | RapidOCR (PaddleOCR via ONNX) with Malaysian plate grammar | — |
-| E-nose | XGBoost on the UCI gas-sensor array, plus a Bayesian context prior | 99.4% random split; 72.3% on later batches (sensor drift) |
+| E-nose (future R&D preview, not in the result) | XGBoost on the UCI gas-sensor array, plus a Bayesian context prior | 99.4% random split; 72.3% on later batches (sensor drift) |
 | Engine / fault sound | Log-mel features → logistic regression (9 classes); PCA fingerprint | CV accuracy 76.5%; fingerprint EER 13% |
 | EV battery SOH | BMS modules plus a NASA capacity-fade model | MAE 1.0 SOH points |
 | Health score | LightGBM with SHAP factors, plus a transparent rule layer | AUC 0.989 (time split) |
-| Next-fail / survival | LightGBM plus Weibull AFT (lifelines) | AUC 0.687, concordance 0.70 |
+| Next-fail / survival | Regularised LightGBM, read against vehicles of the same age and class that pass today; Weibull AFT (lifelines) | AUC 0.698, Brier 0.173; concordance 0.70 |
 | Flood damage | LightGBM on physical evidence only; claim history added as a rule | AUC 0.974 |
 | Demand forecast | LightGBM with holidays and lags | 14-day MAPE 6.3% (naive: 10.3%) |
 | Examiner integrity / equipment | z-score plus Isolation Forest; vibration trend to limit | — |
@@ -159,7 +181,8 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 | `VHI_OLLAMA_URL` / `VHI_OLLAMA_MODEL` | none / `qwen3:32b` | local LLM for the assistant and report summaries; falls back to the template engine (labelled in the UI). Use a model that can answer without a reasoning pass: `qwen3:32b` or `qwen3:30b-a3b-instruct-2507-q4_K_M` (fast MoE). The tag `qwen3:30b-a3b` now resolves to the Thinking-2507 model, which always reasons first. For photo explanations through Ollama, set `VHI_VLM_URL=http://127.0.0.1:11434/v1` and `VHI_VLM_MODEL=qwen2.5vl:7b` |
 | `VHI_VLM_URL` / `VHI_VLM_MODEL` | none | optional vision-language model (OpenAI-compatible) for photo explanations on the AI vision page |
 | `VHI_LLM_KEEP_ALIVE` | none | keep the Ollama models loaded, e.g. `30m`: sent with every call and renewed every 4 minutes while the API runs, so the first answer after a quiet spell does not wait ~10 s for the model to load (TensorRT-LLM and vLLM keep theirs loaded anyway) |
-| `VHI_PRESENTER_PIN` | none | view-only public link: changes to the demo need this PIN (the web apps ask for it once per browser); reading, the assistant and the photo models stay open. `make e2e` reads it from `app/backend/.env` |
+| `VHI_DEMO_PASSWORD` / `VHI_VIEWER_PASSWORD` | none | the login passwords: every role account / the read-only viewer (defaults to the demo password). `make e2e` reads them from `app/backend/.env` |
+| `VHI_ENOSE_IN_RESULTS` | `false` | use the e-nose as a live lane sensor (alerts, health points, flood evidence) instead of a research preview |
 | `VHI_PUBLIC_BASE_URL` | `http://localhost:3000` | base URL for report and check-in links and QR codes when a request does not carry the visitor's address (the web server forwards it) |
 | `VHI_DATA_DIR`, `VHI_VAR_DIR` | repo `data/curated`, `app/backend/var` | data and runtime-state locations |
 | `VHI_API_INTERNAL` | `http://127.0.0.1:8000` | where the web server forwards `/api` (fixed at `next build` time) |
