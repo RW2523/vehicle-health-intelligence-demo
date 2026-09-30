@@ -250,3 +250,50 @@ class Setting(Base):
     __tablename__ = "settings_kv"
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[dict] = mapped_column(JSON)
+
+
+class VehicleLocation(Base):
+    """Flood watch: each vehicle's district and approximate position (synthetic - see vhi.seed.floodwatch)."""
+    __tablename__ = "vehicle_locations"
+    vehicle_id: Mapped[str] = mapped_column(String(12), primary_key=True)
+    state: Mapped[str] = mapped_column(String(40))
+    district: Mapped[str] = mapped_column(String(60), index=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lon: Mapped[float] = mapped_column(Float)
+
+
+class FloodRefresh(Base):
+    """One fetch of the JPS river levels: when, from where, and how many stations were at each status."""
+    __tablename__ = "flood_refreshes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    fetched_at: Mapped[str] = mapped_column(String(19), index=True)  # Malaysia time
+    source: Mapped[str] = mapped_column(String(12))  # live / snapshot
+    counts: Mapped[dict] = mapped_column(JSON, default=dict)
+    errors: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class FloodReading(Base):
+    """A station's water level as JPS reported it: one row per JPS reading time, so repeated fetches add nothing."""
+    __tablename__ = "flood_readings"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    station_id: Mapped[str] = mapped_column(String(24))
+    reading_at: Mapped[str] = mapped_column(String(16))  # Malaysia time, as JPS shows it
+    level: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(12))
+    fetched_at: Mapped[str] = mapped_column(String(19))
+
+    __table_args__ = (Index("ix_flood_readings_st", "station_id", "reading_at", unique=True),)
+
+
+class FloodInvitation(Base):
+    """Mock: an owner invited for a flood-damage or corrosion inspection. Recorded only; no message is sent."""
+    __tablename__ = "flood_invitations"
+    invite_id: Mapped[str] = mapped_column(String(16), primary_key=True, default=lambda: "FI" + _uuid()[:8])
+    vehicle_id: Mapped[str] = mapped_column(String(12), index=True)
+    plate: Mapped[str] = mapped_column(String(16))
+    scope: Mapped[str] = mapped_column(String(24))
+    district: Mapped[str] = mapped_column(String(60), default="")
+    risk: Mapped[int] = mapped_column(Integer)
+    recommendation: Mapped[str] = mapped_column(String(60))
+    reasons: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)

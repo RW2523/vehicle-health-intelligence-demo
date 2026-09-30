@@ -54,7 +54,7 @@ def test_examiner_reaches_the_lanes_of_their_branch_only(s1):
     assert me["role"] == "examiner" and me["branch_id"] == "BR00" and me["examiner_id"] == "VE011"
     insp = ex.get("/api/inspections/latest", params={"session_id": "S1"}).json()
     assert insp["inspection_id"] == s1["inspection_id"]
-    for path in ("/api/hq/ops", "/api/owner/passport/DMO%209006", "/api/fleet/overview"):
+    for path in ("/api/hq/ops", "/api/owner/passport/DMO%209006", "/api/fleet/overview", "/api/floodwatch/invitations"):
         assert ex.get(path).status_code == 403, path
     assert ex.post("/api/evidence/tamper-test").status_code == 403
     with session_scope() as s:  # an inspection at another branch
@@ -94,6 +94,10 @@ def test_hq_and_regulator(client):
     assert hq.get("/api/owner/passport/DMO%209006").status_code == 403
     reg = login("regulator")
     assert reg.get("/api/regulator").status_code == 200 and reg.get("/api/hq/ops").status_code == 403
+    # oversight: used-vehicle sales and flood watch
+    for c in (hq, reg):
+        assert c.get("/api/sales").status_code == 200 and c.get("/api/floodwatch/invitations").status_code == 200
+    assert login("owner").get("/api/floodwatch/invitations").status_code == 403
 
 
 def test_logout(client):
