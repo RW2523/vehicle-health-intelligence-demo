@@ -24,6 +24,7 @@ from ..ml.acoustic import LABELS as AC_LABELS
 from ..ml.vision import annotate
 from ..services import dtc as dtc_svc
 from ..services import evidence
+from ..services import inspection_systems as systems
 from ..tables import Alert, Booking, LiveInspection, Reading, Setting, Vehicle, _uuid
 
 log = logging.getLogger("vhi.processor")
@@ -286,6 +287,10 @@ class StreamProcessor:
         res = await self._model(c, "enose", self.rt.models.enose.analyse, np.array(c.enose_t), np.array(c.enose_x))
         self._context_fuse(c, res)
         c.results["enose"] = res
+        if not self.rt.settings.enose_in_results:  # R&D preview only: no alerts, no rule points, no flood evidence
+            res["rnd"] = True
+            await self._push(c, "result", {"key": "enose", "value": res})
+            return
         if final:
             await self._retract_enose(c, {e["condition"] for e in res["events"]})
         for e in res["events"]:
@@ -604,8 +609,9 @@ class StreamProcessor:
         out = self._evfile(c, f"{p['kind']}_{n}.jpg")
         await asyncio.to_thread(annotate, p["path"], out, r["boxes"],
                                 f"Corrosion {r['corrosion_score']}/10 ({r['level']}) - {p.get('camera')}")
+        system = systems.for_frame(p["kind"])
         item = {"kind": p["kind"], "camera": p.get("camera"), "source_image": self._media_url(p["path"]),
-                "annotated": self._media_url(str(out)), "model": "corrosion segmentation", **r}
+                "annotated": self._media_url(str(out)), "model": "corrosion segmentation", "system": system, **r}
         c.results.setdefault("images", []).append(item)
         if p["kind"] == "undercarriage":
             c.measurements["corrosion_score_0_10"] = max(c.measurements.get("corrosion_score_0_10", 0), r["corrosion_score"])
@@ -616,11 +622,11 @@ class StreamProcessor:
         if r["corrosion_score"] >= 4:
             where = "Undercarriage" if p["kind"] == "undercarriage" else "Cabin floor / seat rails"
             await self._alert(c, f"corrosion:{p['kind']}", f"{where} corrosion {r['corrosion_score']}/10 ({r['level']})",
-                              f"{len(r['boxes'])} corroded region(s) segmented. "
+                              f"{systems.label(system)}: {len(r['boxes'])} corroded region(s). "
                               + ("Corrosion inside the cabin is a flood indicator." if p["kind"] == "cabin" else
                                  "Check structural members and brake lines."),
                               "Lights & body", "high" if r["corrosion_score"] >= 7 else "medium",
-                              min(0.97, 0.6 + r["corrosion_score"] / 25), "live_logic", {"image": item}, replace=True)
+                              min(0.97, 0.6 + r["corrosion_score"] / 25), "system_feed", {"image": item}, replace=True)
         await self._push(c, "result", {"key": "images", "value": c.results["images"]}, lane=True)
 
     async def _image_cls(self, c: LaneCtx, p: dict, task: str) -> None:
@@ -629,8 +635,9 @@ class StreamProcessor:
         out = self._evfile(c, f"{task}_{n}.jpg")
         banner = f"{r.get('label', 'model unavailable')} ({r.get('p', 0):.0%}) - {r.get('arch')}" if r.get("available") else "model unavailable"
         await asyncio.to_thread(annotate, p["path"], out, [], banner)
+        system = systems.for_frame(p["kind"], task)
         item = {"kind": p["kind"], "camera": p.get("camera"), "source_image": self._media_url(p["path"]),
-                "annotated": self._media_url(str(out)), "model": f"{task} classifier", **r}
+                "annotated": self._media_url(str(out)), "model": f"{task} classifier", "system": system, **r}
         c.results.setdefault("images", []).append(item)
         evidence.append("image_analysis", {"kind": p["kind"], "result": r.get("class"), "p": r.get("p"),
                                            "image_sha256": evidence.file_sha256(p["path"])}, c.inspection_id)
@@ -638,15 +645,15 @@ class StreamProcessor:
             if task == "tyre" and r["class"] == "defective" and r["p"] >= 0.6:
                 c.measurements["tyre_defect_p"] = r["p"]
                 await self._alert(c, "tyre:defect", f"Tyre defect detected ({r['p']:.0%})",
-                                  "Cracking, uneven wear or damage on the tyre scanner image. Measure tread depth to confirm.",
-                                  "Tyres", "high" if r["p"] >= 0.85 else "medium", r["p"], "live_model", {"image": item},
+                                  f"{systems.label(system)}: cracking, uneven wear or damage on the tyre. Measure tread "
+                                  "depth to confirm.", "Tyres", "high" if r["p"] >= 0.85 else "medium", r["p"], "system_feed", {"image": item},
                                   fail_item=r["p"] >= 0.85, replace=True)
             if task == "damage" and r["class"] != "normal" and r["p"] >= 0.5:
                 c.measurements["structural_anomaly"] = c.measurements.get("structural_anomaly", False) or r["class"] == "crushed"
                 c.results["body_damage"] = {"class": r["class"], "p": r["p"], "camera": p.get("camera")}
                 await self._alert(c, "body:damage", f"{r['label']} - {p.get('camera', '').replace(' camera', '')}",
-                                  "ASTRA-style above-carriage check: panel damage or previous repair. Check the repair "
-                                  "history and panel gaps.", "Lights & body", "medium", r["p"], "live_model", {"image": item},
+                                  f"{systems.label(system)}: panel damage or previous repair. Check the repair "
+                                  "history and panel gaps.", "Lights & body", "medium", r["p"], "system_feed", {"image": item},
                                   replace=True)
         await self._push(c, "result", {"key": "images", "value": c.results["images"]}, lane=True)
 
@@ -725,9 +732,9 @@ class StreamProcessor:
         if pack and pack.get("max_c", 0) > 42:
             rules.append({"rule": f"Thermal: battery hot-spot {pack['max_c']} °C", "system": "EV battery & electrics", "points": 6})
         if c.measurements.get("tyre_defect_p", 0) >= 0.6:
-            rules.append({"rule": "Tyre image: defect", "system": "Tyres", "points": 10})
+            rules.append({"rule": "AI tyre scan: defect", "system": "Tyres", "points": 10})
         if c.results.get("body_damage"):
-            rules.append({"rule": "Body image: panel damage / repair", "system": "Lights & body", "points": 5})
+            rules.append({"rule": "Project ASTRA: panel damage / repair", "system": "Lights & body", "points": 5})
         # every other confirmed-looking alert the history model cannot see costs points too (capped per system)
         covered = ("thermal:", "tyre:", "enose:", "acoustic:", "flood", "body:", "identity:", "route:", "anpr:")
         extra: dict[str, float] = {}
@@ -750,7 +757,7 @@ class StreamProcessor:
                 rules.append({"rule": f"Flood probability {flood['p']:.0%}", "system": "Lights & body", "points": 12})
                 await self._alert(c, "flood", f"Likely flood damage ({flood['p']:.0%})",
                                   "Physical-evidence model (corrosion, HV isolation, battery health) plus transparent rules for "
-                                  "claim history and e-nose. "
+                                  "claim history" + (" and e-nose. " if self.rt.settings.enose_in_results else ". ")
                                   + "; ".join(flood["signals"]), "Lights & body", "high", flood["p"], "live_model", {"flood": flood})
         h = await self._model(c, "health", m.fusion.health_score, dict(c.measurements), veh, rules)
         with session_scope() as s:

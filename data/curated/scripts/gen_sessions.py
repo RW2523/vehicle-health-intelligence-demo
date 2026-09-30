@@ -89,7 +89,7 @@ def save(sid, meta, streams):
     json.dump(meta, open(f"{SES}/{sid}.json", "w"), indent=1, default=str)
 
 # ---- S1 tampered diesel prime mover ----
-save("S1", dict(session="S1", title="Tampered diesel prime mover - Berkala at Alam Megah", branch_id="BR00",
+save("S1", dict(session="S1", title="Scania prime mover · periodic inspection (Berkala)", branch_id="BR00",
     vehicle=dict(plate="DMO 9001", make="Scania", model="P-Series Prime Mover", year=2022, usage="lorry", fuel="diesel", euro_class="Euro 5",
                  dpf_fitted=True, scr_fitted=True, odometer_km=412300, fleet_id="FLEET07", axles=3),
     injected_faults=["dpf_removed", "scr_fault_adblue_bypass", "dragging_brake_axle2_R", "wheel_bearing_axle1_L"],
@@ -104,7 +104,7 @@ save("S1", dict(session="S1", title="Tampered diesel prime mover - Berkala at Al
          instruments=dict(smoke_opacity_pct=18.5, suspension_eff_pct=[71, 69, 66], side_slip_m_per_km=3.1, headlamp_dev_pct=1.2, tint_vlt_pct=72)))
 
 # ---- S2 used EV with flood history ----
-save("S2", dict(session="S2", title="Used EV with flood history - B5 + B7 for sale with bank loan", branch_id="BR01",
+save("S2", dict(session="S2", title="BYD Atto 3 (EV) · ownership transfer + hire-purchase (B5 + B7)", branch_id="BR00",
     vehicle=dict(plate="DMO 9002", make="BYD", model="Atto 3", year=2022, usage="private", fuel="ev", odometer_km=58200, axles=2),
     prior_claims=[dict(date="2025-12-10", type="flood_natural_disaster", amount_rm=38400, ber=False)],
     injected_faults=["flood_immersion_dec_2025", "hv_isolation_marginal", "cell_module_hotspot", "undercarriage_corrosion"],
@@ -120,7 +120,7 @@ save("S2", dict(session="S2", title="Used EV with flood history - B5 + B7 for sa
          instruments=dict(hv_isolation_mohm=1.8, suspension_eff_pct=[74, 72], side_slip_m_per_km=1.4, headlamp_dev_pct=0.8, tint_vlt_pct=70, adas_self_test="advisory only")))
 
 # ---- S3 suspicious private car ----
-save("S3", dict(session="S3", title="Suspicious sedan - B5 ownership transfer", branch_id="BR02",
+save("S3", dict(session="S3", title="Honda Civic · ownership transfer (B5)", branch_id="BR00",
     vehicle=dict(plate="DMO 9003", make="Honda", model="Civic", year=2016, usage="private", fuel="petrol", odometer_km=96400, axles=2),
     prior_inspections=[dict(date="2024-03-14", type="B5_MV15", odometer_km=171300, engine_fingerprint="FP-A"),
                        dict(date="2025-06-02", type="voluntary", odometer_km=182900, engine_fingerprint="FP-A")],
@@ -140,7 +140,7 @@ ex = hv.groupby("examiner_id").agg(n=("result", "size"), pass_rate=("result", la
 ex["z_pass"] = ((ex.pass_rate - ex.pass_rate.mean()) / ex.pass_rate.std()).round(2)
 ex["evidence_conflict_rate"] = (ex.evidence_fail_rate - (1 - ex.pass_rate)).clip(lower=0).round(3)
 eq = pd.read_parquet(f"{SYN}/lane_equipment_telemetry.parquet")
-save("S4", dict(session="S4", title="HQ integrity analytics + lane predictive maintenance",
+save("S4", dict(session="S4", title="HQ: examiner integrity and lane maintenance",
     expected=dict(outlier_examiners=ex.sort_values("z_pass", ascending=False).head(2).index.tolist(),
                   hash_chain_audit="all records intact", failing_device="BR00 lane 3 roller_brake_tester")),
     dict(examiner_stats=ex.reset_index(), equipment=eq[(eq.branch_id == "BR00")]))
@@ -149,14 +149,14 @@ save("S4", dict(session="S4", title="HQ integrity analytics + lane predictive ma
 fleet = veh[veh.fleet_id == "FLEET07"]
 fi = ins[ins.vehicle_id.isin(fleet.vehicle_id)].sort_values("date").groupby("vehicle_id").tail(1)
 bk = pd.read_parquet(f"{SYN}/bookings_daily.parquet")
-save("S5", dict(session="S5", title="Fleet operator (FLEET07) + JPJ/DOE regulator view", fleet_id="FLEET07",
+save("S5", dict(session="S5", title="Fleet operator (FLEET07) and regulator view", fleet_id="FLEET07",
     expected=dict(fleet_size=len(fleet), trucks_at_risk_next_berkala=int((fi.fail_reasons != "").sum()),
                   forecast_branch="BR00 Alam Megah")),
     dict(fleet_vehicles=fleet, fleet_last_inspection=fi, bookings_BR00=bk[bk.branch_id == "BR00"],
          remote_sensing=pd.read_parquet(f"{SYN}/remote_sensing_roadside.parquet")))
 
 # ---- S6 customer journey ----
-save("S6", dict(session="S6", title="Customer journey - BM assistant, GEAR booking, self-check, passport", branch_id="BR01",
+save("S6", dict(session="S6", title="Owner app: assistant, booking, self-check, passport", branch_id="BR01",
     vehicle=dict(plate="DMO 9006", make="Perodua", model="Myvi", year=2019, usage="private", fuel="petrol", odometer_km=74100),
     assistant_script=[dict(user_bm="Saya nak jual kereta, pemeriksaan apa yang saya perlu?", intent="which_inspection", answer_type="B5/MV15 (+B7 if buyer takes loan)"),
                       dict(user_bm="Ada slot esok di Glenmarie?", intent="gear_slot", answer_type="GEAR next-day slot list")],

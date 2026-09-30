@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     vlm_url: str = ""
     vlm_model: str = ""
 
+    # The e-nose is a future R&D sensor: its stream and model run are shown as a preview, but it raises no alerts and does
+    # not change the health score, the flood probability or the result. True = use it as a live lane sensor.
+    enose_in_results: bool = False
+
     # Session player defaults
     player_speed: float = 1.0
     player_tick_s: float = 0.25

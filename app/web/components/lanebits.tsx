@@ -1,7 +1,7 @@
 "use client";
 import { LineChart } from "./charts";
-import { Pill, Source } from "./ui";
-import { STEP_LABEL, fmtN } from "@/lib/format";
+import { Pill, Source, sourceLabel } from "./ui";
+import { STEP_LABEL, SYSTEM_NAME, fmtN } from "@/lib/format";
 
 const ENOSE_COLORS = ["#22D3EE", "#60A5FA", "#A78BFA", "#F472B6", "#FB923C", "#FBBF24", "#34D399", "#2DD4BF",
   "#38BDF8", "#818CF8", "#C084FC", "#F87171", "#FACC15", "#4ADE80", "#94A3B8", "#E879F9"];
@@ -121,7 +121,7 @@ export function OBDChart({ obd, height = 150 }: { obd: { t: number; rpm: number 
 }
 
 export function Frames({ images, onOpen }: { images: any[]; onOpen?: (img: any) => void }) {
-  if (!images?.length) return <p className="text-[13px] text-fg-3">Camera frames arrive during the undercarriage and above-carriage steps.</p>;
+  if (!images?.length) return <p className="text-[13px] text-fg-3">Results arrive from PUSPAKOM's undercarriage, above-carriage (ASTRA) and tyre-scan systems during those lane steps.</p>;
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
       {images.map((im, i) => (
@@ -130,8 +130,8 @@ export function Frames({ images, onOpen }: { images: any[]; onOpen?: (img: any) 
           <img src={im.annotated} alt={`${im.kind} frame`} className="h-40 w-full object-cover" />
           <div className="flex flex-col gap-1 p-2.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[12.5px] font-semibold capitalize">{im.kind} · {im.camera}</span>
-              <Source kind={im.model === "corrosion segmentation" ? "live_logic" : "live_model"} />
+              <span className="text-[12.5px] font-semibold">{SYSTEM_NAME[im.system] || im.kind} · {im.camera}</span>
+              <Source kind="system_feed" text="Demo feed" />
             </div>
             <span className="text-[12px] text-fg-3">
               {im.corrosion_score !== undefined ? `Corrosion ${im.corrosion_score}/10 · ${im.boxes?.length || 0} regions` : `${im.label} (${Math.round((im.p || 0) * 100)}%)`}
@@ -150,7 +150,7 @@ export function AlertMini({ a }: { a: any }) {
       <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: c }} />
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-semibold">{a.title}</div>
-        <div className="text-[11.5px] text-fg-3">{a.system} · {Math.round(a.confidence * 100)}% · {a.source.replace("_", " ")}</div>
+        <div className="text-[11.5px] text-fg-3">{a.system} · {Math.round(a.confidence * 100)}% · {sourceLabel(a.source)}</div>
       </div>
       {a.fail_item && <Pill color="#F87171">fail item</Pill>}
     </div>

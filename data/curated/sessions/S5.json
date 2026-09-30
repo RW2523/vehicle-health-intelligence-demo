@@ -1,6 +1,6 @@
 {
  "session": "S5",
- "title": "Fleet operator (FLEET07) + JPJ/DOE regulator view",
+ "title": "Fleet operator (FLEET07) and regulator view",
  "fleet_id": "FLEET07",
  "expected": {
   "fleet_size": 43,

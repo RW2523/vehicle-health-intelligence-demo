@@ -4,7 +4,7 @@ import time
 
 def test_live_playback_controls(client):
     st = client.post("/api/sessions/S3/start", json={"speed": 8}).json()
-    assert st["status"] == "playing" and st["lane_id"] == "BR02-L1"
+    assert st["status"] == "playing" and st["lane_id"] == "BR00-L1"
     time.sleep(1.2)
     st = client.post("/api/sessions/S3/pause").json()
     assert st["status"] == "paused" and st["t"] > 1

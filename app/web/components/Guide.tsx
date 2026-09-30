@@ -9,7 +9,7 @@ import { Icon } from "./icons";
 import { toast } from "./ui";
 
 export const GUIDE = [
-  { id: "start", path: "/", href: "/", title: "Start S1", sub: "A tampered diesel prime mover drives into lane 3" },
+  { id: "start", path: "/", href: "/", title: "Start S1", sub: "Lane replay: a diesel prime mover comes in for its periodic inspection" },
   { id: "lane", path: "/lane", href: "/lane?lane=BR00-L3", title: "Watch the lane", sub: "Sensors stream in and AI alerts appear live" },
   { id: "examiner", path: "/examiner", href: "/examiner?session=S1", title: "Decide the alerts", sub: "Confirm, dismiss with a reason, or defer; then issue" },
   { id: "report", path: "/report", href: "/report", title: "Read the report", sub: "Plain-words summary, QR code, what the buyer sees" },

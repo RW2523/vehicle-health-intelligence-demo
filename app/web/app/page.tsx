@@ -64,15 +64,17 @@ function Hero({ status }: { status: any }) {
 
 const LINKS: Record<string, { href: string; label: string }[]> = {
   S1: [{ href: "/lane?lane=BR00-L3", label: "Lane console" }, { href: "/examiner?session=S1", label: "Examiner" }],
-  S2: [{ href: "/lane?lane=BR01-L2", label: "Lane console" }, { href: "/examiner?session=S2", label: "Examiner" }],
-  S3: [{ href: "/lane?lane=BR02-L1", label: "Lane console" }, { href: "/examiner?session=S3", label: "Examiner" }],
+  S2: [{ href: "/lane?lane=BR00-L2", label: "Lane console" }, { href: "/examiner?session=S2", label: "Examiner" }],
+  S3: [{ href: "/lane?lane=BR00-L1", label: "Lane console" }, { href: "/examiner?session=S3", label: "Examiner" }],
   S4: [{ href: "/hq", label: "HQ integrity & maintenance" }],
   S5: [{ href: "/fleet?fleet=FLEET07", label: "Fleet portal (FLEET07)" }, { href: "/regulator", label: "Regulator view" }],
   S6: [{ href: "/owner?plate=DMO%209006", label: "Owner app" }],
 };
-const FEATURES: Record<string, string> = {
-  S1: "5, 7, 8, 10–13, 15, 16, 19–21, 23, 24", S2: "8, 11, 12, 17–19, 24, 25, 32", S3: "5, 6, 9, 13, 14, 22, 24",
-  S4: "23, 26, 31", S5: "20, 27–30", S6: "1–4, 25",
+// What each lane replay shows, for the presenter (the card title only names the vehicle and the inspection)
+const SHOWS: Record<string, string> = {
+  S1: "Shows: DPF removed (particle number), hot brake hub, brake imbalance, tyre defect, wheel-bearing noise",
+  S2: "Shows: EV battery health, flood-damage evidence, EV fault codes",
+  S3: "Shows: plate and chassis OCR, odometer rollback, engine-sound mismatch, routing to a senior examiner",
 };
 
 export default function DemoControl() {
@@ -91,8 +93,8 @@ export default function DemoControl() {
       <Hero status={status} />
       <GuideCard s1Player={sessions.find((s) => s.session_id === "S1")?.player} />
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-[18px] font-semibold">Sessions</h2>
-        <p className="text-[13px] text-fg-3">Lane sessions replay real-time sensor streams; every result downstream is computed live.</p>
+        <h2 className="font-display text-[18px] font-semibold">Lane replays and walkthroughs</h2>
+        <p className="text-[13px] text-fg-3">A lane replay plays a scripted inspection (simulated sensors) in real time; every result downstream is computed live. Walkthroughs open the other apps.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_400px]">
         <div id="sessions" className="grid scroll-mt-20 grid-cols-1 gap-4 lg:grid-cols-2">
@@ -102,12 +104,13 @@ export default function DemoControl() {
                 <div>
                   <div className="flex items-center gap-2">
                     <Pill color="#22D3EE">{s.session_id}</Pill>
-                    <span className="text-[12px] text-fg-3">Features {FEATURES[s.session_id]}</span>
+                    <span className="text-[12px] font-semibold uppercase tracking-wide text-fg-3">{s.kind === "lane" ? "Lane replay" : "Walkthrough"}</span>
                   </div>
                   <h2 className="mt-2 font-display text-[16px] font-semibold leading-snug">{s.title}</h2>
                   {s.vehicle && (
                     <p className="mt-1 text-[12.5px] text-fg-3">{s.vehicle.plate} · {s.vehicle.make} {s.vehicle.model} · {s.vehicle.year} · {fmtN(s.vehicle.odometer_km)} km</p>
                   )}
+                  {SHOWS[s.session_id] && <p className="mt-1 text-[12px] text-fg-4">{SHOWS[s.session_id]}</p>}
                 </div>
                 {s.kind === "lane" && <span className="chip border-ink-500 text-fg-3">{s.lane_id}</span>}
               </div>
@@ -188,7 +191,7 @@ function metricLine(m: any): string {
     case "tyre":
     case "damage": return `validation accuracy ${(x.top1_val_accuracy * 100).toFixed(1)}% on ${x.n_val} held-out images`;
     case "corrosion": return `balanced accuracy ${(x.balanced_accuracy * 100).toFixed(0)}% (rust vs clean vehicle photos)`;
-    case "enose": return `accuracy ${(x.holdout_accuracy_random_split * 100).toFixed(1)}% random split · ${(x.holdout_accuracy_later_batches_drift * 100).toFixed(1)}% on later batches (drift)`;
+    case "enose": return `future R&D, not in the result · accuracy ${(x.holdout_accuracy_random_split * 100).toFixed(1)}% random split · ${(x.holdout_accuracy_later_batches_drift * 100).toFixed(1)}% on later batches (drift)`;
     case "acoustic": return `CV accuracy ${(x.cv_accuracy * 100).toFixed(1)}% · macro-F1 ${x.cv_macro_f1} · fingerprint EER ${(x.fingerprint_eer * 100).toFixed(0)}%`;
     case "soh": return `SOH from discharge MAE ${x.soh_from_discharge_mae_pct} pts (NASA)`;
     case "fusion": return `health AUC ${x.health.holdout_auc_time_split} · next-fail AUC ${x.next_fail.holdout_auc} · flood AUC ${x.flood.holdout_auc_physical_evidence_only} (physical evidence)`;

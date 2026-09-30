@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from ..ml import ocr
 from ..ml.vision import annotate
 from ..runtime import rt
+from ..services import inspection_systems as systems
 from ..services.library import library
 
 router = APIRouter(prefix="/api/vision", tags=["vision"])
@@ -43,9 +44,11 @@ def list_captures():
         e = src.get(x["id"])
         return e and {"library_id": e["id"], "title": e["title"], "full_url": e["full_url"], "web_url": e["web_url"],
                       "width": e["width"], "height": e["height"], "source_files": e["source_files"]}
-    return {"source": "Sample images: AI boxes pre-drawn on the capture, findings as labelled in the sample set",
+    return {"source": "Demo feed: sample images with the findings of the PUSPAKOM AI system each capture stands for, "
+                      "boxes pre-drawn", **systems.catalogue(),
             "rules": c["rules"], "cases": [{**x, "original_url": f"/media/assets/captures/{x['original']}",
-                                             "ai_url": f"/media/assets/captures/{x['ai']}", "source_image": source(x)}
+                                             "ai_url": f"/media/assets/captures/{x['ai']}", "source_image": source(x),
+                                             "system": systems.for_capture(x)}
                                             for x in c["cases"]]}
 
 

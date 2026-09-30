@@ -12,7 +12,12 @@ const SOURCE: Record<string, { label: string; c: string }> = {
   mock: { label: "Mock UI", c: "#9AA8BF" },
   llm: { label: "Local LLM", c: "#22D3EE" },
   template: { label: "Template engine", c: "#9AA8BF" },
+  rnd: { label: "Future R&D", c: "#C084FC" },
+  system_feed: { label: "PUSPAKOM AI · demo feed", c: "#38BDF8" },
 };
+
+/** The plain label of a data source ("live_model" -> "Live model"). */
+export const sourceLabel = (kind: string) => SOURCE[kind]?.label || kind.replaceAll("_", " ");
 
 /** Honest data label shown on every panel (live model / live logic / simulated / real / synthetic ...). */
 export function Source({ kind, text }: { kind: string; text?: string }) {

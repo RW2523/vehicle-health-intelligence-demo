@@ -46,7 +46,7 @@ test.describe("S1 lane → examiner → report → public verification", () => {
     await expect(page.getByRole("heading", { name: "Examiner console" })).toBeVisible();
     await expect(page.getByText("Why this health score")).toBeVisible();
     await expect(page.getByText(/Ranked alerts \(\d+\)/)).toBeVisible();
-    await expect(page.getByRole("tab", { name: "S1 · DMO 9001" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "DMO 9001 · Scania P-Series prime mover" })).toHaveAttribute("aria-selected", "true");
 
     // dismissing without a reason is refused
     await page.getByRole("button", { name: "Dismiss", exact: true }).first().click();
@@ -173,12 +173,17 @@ test.describe("S6 owner app", () => {
 });
 
 test.describe("AI vision", () => {
-  test("runs the live damage model on a curated capture", async ({ page }) => {
+  test("shows PUSPAKOM's AI systems as the source, with the stand-in models folded away", async ({ page }) => {
     await page.goto("/vision");
     await expect(page.getByRole("heading", { name: "AI vision inspection" })).toBeVisible();
+    await expect(page.getByText("PUSPAKOM with Keymag Sdn Bhd")).toBeVisible();
+    await expect(page.getByText("Project ASTRA", { exact: true })).toBeVisible();
+    await expect(page.getByText("In service", { exact: true })).toBeVisible();
+    await expect(page.getByText("In development", { exact: true })).toHaveCount(2);
+    await expect(page.getByRole("button", { name: "Run", exact: true })).toBeHidden();
+    await page.getByText("Demo stand-in models").click();
     await page.getByRole("button", { name: "Run", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Run", exact: true })).toBeEnabled({ timeout: 60_000 });
-    await expect(page.getByText(/onnx|YOLO|confidence|%/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Stand-in model result" })).toBeVisible({ timeout: 60_000 });
   });
 
   test("image library maps every source image to its case and fleet vehicles", async ({ page }) => {
@@ -222,7 +227,7 @@ test.describe("AI vision", () => {
 
 test.describe("GPU models and live updates", () => {
   test("the lane console connects to the live WebSocket through the web origin", async ({ page }) => {
-    await page.goto("/lane?lane=BR02-L1");
+    await page.goto("/lane?lane=BR00-L1");
     await expect(page.getByText("Live", { exact: true })).toBeVisible();
   });
 
@@ -230,6 +235,7 @@ test.describe("GPU models and live updates", () => {
     const st = await (await request.get("/api/system/status")).json();
     test.skip(!st.vlm?.reachable, "no vision-language model configured (VHI_VLM_URL)");
     await page.goto("/vision");
+    await page.getByText("Demo stand-in models").click();
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await page.getByRole("button", { name: /Explain in plain words/ }).click();
     await expect(page.getByText("In plain words")).toBeVisible({ timeout: 90_000 });

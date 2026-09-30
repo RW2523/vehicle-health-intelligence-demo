@@ -25,9 +25,9 @@ log = logging.getLogger("vhi.player")
 
 LANE_SESSIONS = {
     "S1": dict(lane_id="BR00-L3", inspection_type="Berkala (commercial, B2)", report_kind="Berkala inspection report"),
-    "S2": dict(lane_id="BR01-L2", inspection_type="B5 ownership + B7 hire-purchase, EV",
+    "S2": dict(lane_id="BR00-L2", inspection_type="B5 ownership + B7 hire-purchase, EV",
                report_kind="EV Health Certificate + B5/B7 report"),
-    "S3": dict(lane_id="BR02-L1", inspection_type="B5 ownership transfer (MV15)", report_kind="B5 inspection report"),
+    "S3": dict(lane_id="BR00-L1", inspection_type="B5 ownership transfer (MV15)", report_kind="B5 inspection report"),
 }
 # Extra scripted frames used by the sessions (sample captures shipped in app assets)
 EXTRA_MEDIA = {
@@ -44,11 +44,10 @@ PRESETS = {
     "S1": [
         {"id": "dpf_refitted", "label": "DPF refitted (PN x0.05)", "overrides": {"pn.pn_per_cm3*": 0.05}},
         {"id": "brake_fixed", "label": "Dragging brake fixed (A2R hub 60 °C)", "overrides": {"thermal.A2R": 60.0}},
-        {"id": "scr_fixed", "label": "SCR repaired (no DTCs, no NH3)", "overrides": {"obd.dtcs": "", "enose.suppress": True}},
+        {"id": "scr_fixed", "label": "SCR repaired (no fault codes)", "overrides": {"obd.dtcs": "", "enose.suppress": True}},
     ],
     "S2": [
         {"id": "hv_ok", "label": "HV isolation healthy (6 MOhm)", "overrides": {"instrument.hv_isolation_mohm": 6.0}},
-        {"id": "no_offgas", "label": "No electrolyte off-gas", "overrides": {"enose.suppress": True}},
     ],
     "S3": [
         {"id": "odo_ok", "label": "Odometer consistent (190,500 km)", "overrides": {"odometer.km": 190500}},

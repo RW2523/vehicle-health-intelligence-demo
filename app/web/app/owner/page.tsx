@@ -2,9 +2,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Shell } from "@/components/Shell";
-import { Source, toast } from "@/components/ui";
+import { toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { dmy, fmtN, llmLabel } from "@/lib/format";
+import { dmy, fmtN } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 type Tab = "passport" | "book" | "check" | "chat";
@@ -41,7 +41,6 @@ function Passport({ plate, refreshKey }: { plate: string; refreshKey: number }) 
               {e.kind === "claim" && `RM ${fmtN(e.amount_rm)}`}
               {e.kind === "report" && <a className="text-sky-700 underline" href={`/verify/${e.verify_token}`}>Verify report</a>}
               {e.kind === "booking" && e.status}
-              {" "}<span className="text-slate-400">· {e.source}</span>
             </div>
           </li>
         ))}
@@ -84,7 +83,7 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
         <div className="text-[13px] text-slate-600">{branches.data?.find((b) => b.branch_id === booking.branch_id)?.name} · {dmy(booking.date)} {booking.slot} {booking.gear ? "· GEAR" : ""}</div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`/api/owner/bookings/${booking.booking_id}/qr.svg`} alt="Check-in QR code" className="h-44 w-44" />
-        <div className="text-[12px] text-slate-500">Show this QR at the lane entry. RM {booking.price_rm.toFixed(2)} paid · {booking.payment_ref} (mock gateway)</div>
+        <div className="text-[12px] text-slate-500">Show this QR at the lane entry. RM {booking.price_rm.toFixed(2)} paid · {booking.payment_ref}</div>
         <button className="rounded-xl border border-slate-300 px-4 py-2 text-[13px] font-semibold" onClick={() => { setBooking(null); setSlot(null); }}>Make another booking</button>
       </div>
     );
@@ -175,7 +174,7 @@ function SelfCheck({ plate, onDone }: { plate: string; onDone: () => void }) {
           {res.items.map((it: any, i: number) => (
             <div key={i} className="flex items-start gap-2 rounded-xl border border-slate-200 p-2.5 text-[12.5px]">
               <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${it.ok ? "bg-emerald-500" : "bg-rose-500"}`}>{it.ok ? "✓" : "!"}</span>
-              <div><b>{it.item}</b> · {it.value}{it.p ? ` (${Math.round(it.p * 100)}%)` : ""}<div className="text-slate-500">{it.advice || it.source}</div></div>
+              <div><b>{it.item}</b> · {it.value}{it.p ? ` (${Math.round(it.p * 100)}%)` : ""}{it.advice && <div className="text-slate-500">{it.advice}</div>}</div>
             </div>
           ))}
         </div>
@@ -220,7 +219,6 @@ function Chat() {
             {m.tool?.slots?.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">{m.tool.slots.map((s: string) => <span key={s} className="rounded-md border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[11px]">{s} GEAR</span>)}</div>
             )}
-            {m.source && <div className="mt-1 text-[10px] text-slate-400">{llmLabel(m.source) ? `Local LLM · ${llmLabel(m.source)}` : "Template engine"}{m.kb ? ` · source: ${m.kb}` : ""}{m.lang ? ` · ${m.lang}` : ""}</div>}
           </div>
         ))}
         {busy && <div className="w-16 rounded-xl bg-white px-3 py-2 text-[13px] text-slate-400">…</div>}
@@ -250,8 +248,6 @@ function OwnerApp() {
   const plate = sp.get("plate") || "DMO 9006";
   const [tab, setTabState] = useState<Tab>((sp.get("tab") as Tab) || "passport");
   const [k, setK] = useState(0);
-  const status = useFetch<any>("/api/system/status");
-  const llm = llmLabel(status.data?.llm?.backend);
   const setTab = (t: Tab) => {
     setTabState(t);
     router.replace(`/owner?plate=${encodeURIComponent(plate)}&tab=${t}`, { scroll: false });
@@ -273,11 +269,6 @@ function OwnerApp() {
               </li>
             ))}
           </ol>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Source kind="live_model" text="Tyre + engine-sound models" />
-            <Source kind={llm ? "llm" : "template"} text={llm ? `Assistant: ${llm}` : "Assistant: template engine"} />
-            <Source kind="mock" text="Payment: mock gateway" />
-          </div>
         </div>
         <div className="flex h-[780px] max-h-[calc(100vh-7rem)] min-h-[600px] w-full max-w-[390px] flex-col overflow-hidden rounded-[36px] border-[10px] border-[#1A2233] bg-[#F5F7FA] shadow-2xl"
           style={{ colorScheme: "light" }}>

@@ -1,6 +1,6 @@
 {
  "session": "S4",
- "title": "HQ integrity analytics + lane predictive maintenance",
+ "title": "HQ: examiner integrity and lane maintenance",
  "expected": {
   "outlier_examiners": [
    "VE017",

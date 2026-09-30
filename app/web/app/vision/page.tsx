@@ -5,7 +5,7 @@ import { IMAGE_KIND, ImageCard, ImageViewer, LibImage } from "@/components/Image
 import { Shell } from "@/components/Shell";
 import { Card, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { llmLabel } from "@/lib/format";
+import { SYSTEM_NAME, llmLabel } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 const FILTERS = [
@@ -22,6 +22,37 @@ function outcome(c: any) {
   if (h) return { label: "Fail · fix and retest", c: "#F87171" };
   if (m) return { label: "Pass with advisory", c: "#FBBF24" };
   return { label: "Pass · cosmetic only", c: "#34D399" };
+}
+
+const STATUS: Record<string, [string, string]> = { in_service: ["In service", "#34D399"], in_development: ["In development", "#FBBF24"] };
+
+/** PUSPAKOM's own AI inspection systems, whose results this page shows (as announced publicly). */
+function Systems({ systems, sources, feed }: { systems: any[]; sources: string[]; feed: string }) {
+  return (
+    <section className="mb-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {systems.filter((s) => STATUS[s.status]).map((s) => (
+          <div key={s.id} className="card card-pad">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="font-display text-[15.5px] font-semibold">{s.name}</div>
+                <div className="text-[12px] text-fg-3">{s.by}</div>
+              </div>
+              <span className="shrink-0 whitespace-nowrap"><Pill color={STATUS[s.status][1]}>{STATUS[s.status][0]}</Pill></span>
+            </div>
+            <p className="mt-2 text-[12.5px] text-fg-2">{s.status_text}.</p>
+            <p className="mt-1 text-[12px] text-fg-3">Detects: {s.detects.join(", ")}.</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11.5px] text-fg-4">
+        {feed} As announced publicly:{" "}
+        {sources.map((u, i) => (
+          <span key={u}>{i ? ", " : ""}<a href={u} target="_blank" rel="noreferrer" className="text-cyan hover:underline">{new URL(u).hostname.replace("www.", "")}</a></span>
+        ))}.
+      </p>
+    </section>
+  );
 }
 
 function Vision() {
@@ -122,8 +153,8 @@ function Vision() {
   const clip = mode === "ai" ? 100 : mode === "orig" ? 0 : split;
   return (
     <Shell>
-      <PageHeader title="AI vision inspection" sub="Inspection captures with their findings, the image library they come from, and the live image models: run them on any capture, a curated photo or your own upload."
-        actions={<Source kind="sample" text="Sample images · AI boxes pre-drawn" />}>
+      <PageHeader title="AI vision inspection" sub="Results from PUSPAKOM's own AI inspection systems, collected into the inspection record for the examiner: the undercarriage scanner, Project ASTRA above-carriage inspection and AI tyre scans."
+        actions={<Source kind="system_feed" text="Demo feed · sample images" />}>
         <div className="mt-3">
           <Tabs value={view} onChange={setView} items={[
             { id: "cases", label: `Captures · ${cases.length}` },
@@ -131,6 +162,7 @@ function Vision() {
           ]} />
         </div>
       </PageHeader>
+      {view === "cases" && data?.systems && <Systems systems={data.systems} sources={data.sources} feed={data.feed} />}
       {view === "cases" && cur && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_minmax(320px,0.9fr)]">
           <Card className="flex max-h-[860px] flex-col">
@@ -150,7 +182,7 @@ function Vision() {
                     <img src={c.original_url} alt="" className="h-16 w-12 shrink-0 rounded-lg object-cover" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-[13.5px] font-semibold">{c.title}</span>
-                      <span className="block truncate text-[12px] text-fg-3">{c.vehicle} · {c.camera}</span>
+                      <span className="block truncate text-[12px] text-fg-3">{SYSTEM_NAME[c.system]} · {c.vehicle}</span>
                       <span className="text-[12px]" style={{ color: o.c }}>{c.findings.length} finding{c.findings.length > 1 ? "s" : ""} · {o.label.split(" ·")[0]}</span>
                     </span>
                   </button>
@@ -175,7 +207,12 @@ function Vision() {
               <Tabs value={mode} onChange={setMode} items={[{ id: "orig", label: "Original" }, { id: "ai", label: "AI overlay" }, { id: "cmp", label: "Compare" }]} />
               {mode === "cmp" && <input aria-label="Compare position" type="range" min={0} max={100} value={split} onChange={(e) => setSplit(+e.target.value)} className="flex-1 accent-cyan" />}
             </div>
-            <Card title="Run the live model on this capture" right={<Source kind="live_model" />}>
+            <details className="card card-pad group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                <span className="h-title">Demo stand-in models</span>
+                <Source kind="live_model" text="Stand-in, not PUSPAKOM's model" />
+              </summary>
+              <p className="mb-3 mt-2 text-[12.5px] text-fg-3">Until PUSPAKOM's systems are connected, these image models play their results in the demo. Try them on this capture, a curated photo or your own upload.</p>
               <div className="flex flex-wrap items-center gap-2">
                 <Tabs size="sm" value={task} onChange={setTask} items={TASKS} />
                 <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => run({ task, capture_id: cur.id })}>{busy ? "Running…" : "Run"}</button>
@@ -198,17 +235,17 @@ function Vision() {
                   })}
                 </div>
               )}
-            </Card>
+            </details>
           </div>
           <div className="flex flex-col gap-4">
             <Card>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="label">{cur.group === "lane" ? "Malaysia lane capture" : cur.group === "close" ? "Close-up inspection" : "Fleet inspection case"}</div>
+                  <div className="label">{SYSTEM_NAME[cur.system]} · {cur.group === "lane" ? "Malaysia lane" : cur.group === "close" ? "close-up" : "fleet inspection"}</div>
                   <h2 className="font-display text-[22px] font-semibold">{cur.title}</h2>
                   <p className="text-[13px] text-fg-3">{cur.vehicle} · {cur.camera}</p>
                 </div>
-                <Source kind="sample" />
+                <Source kind={cur.system === "examiner" ? "sample" : "system_feed"} text={cur.system === "examiner" ? "Sample photo" : "Demo feed"} />
               </div>
               {cur.source_image && images.length > 0 && (
                 <button className="mt-2 text-left text-[12.5px] text-cyan hover:underline"
@@ -247,7 +284,7 @@ function Vision() {
               <div className="mt-3 rounded-xl border border-ink-600 bg-ink-850 p-3 text-[13px]"><div className="label mb-1 text-cyan">Next step</div>{cur.next_step}</div>
             </Card>
             {live && (
-              <Card title="Live model result" right={<Source kind={live.runs_as === "live logic" ? "live_logic" : "live_model"} />}>
+              <Card title="Stand-in model result" right={<Source kind={live.runs_as === "live logic" ? "live_logic" : "live_model"} />}>
                 <div className="flex gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={live.annotated_url} alt="model output" className="h-44 w-44 rounded-xl object-cover" />

@@ -50,11 +50,16 @@ export const llmLabel = (backend?: string | null) => {
   return [LLM_ENGINES[engine] || engine, model].filter(Boolean).join(" · ");
 };
 
-/** The scripted lane sessions and the lane each one runs on. */
+/** PUSPAKOM's AI inspection systems that image results come from (vhi/services/inspection_systems.py). */
+export const SYSTEM_NAME: Record<string, string> = {
+  undercarriage: "Undercarriage AI", astra: "Project ASTRA", tyre: "AI tyre scan", examiner: "Examiner close-up",
+};
+
+/** The lane replays: the vehicle each one drives through which lane of the Alam Megah branch (BR00). */
 export const LANE_SESSIONS = [
-  { session: "S1", lane: "BR00-L3", label: "Alam Megah · Lane 3", plate: "DMO 9001" },
-  { session: "S2", lane: "BR01-L2", label: "Glenmarie · Lane 2", plate: "DMO 9002" },
-  { session: "S3", lane: "BR02-L1", label: "Batu Caves · Lane 1", plate: "DMO 9003" },
+  { session: "S1", lane: "BR00-L3", label: "Lane 3", plate: "DMO 9001", car: "Scania P-Series prime mover" },
+  { session: "S2", lane: "BR00-L2", label: "Lane 2", plate: "DMO 9002", car: "BYD Atto 3 (EV)" },
+  { session: "S3", lane: "BR00-L1", label: "Lane 1", plate: "DMO 9003", car: "Honda Civic" },
 ];
 export const laneOf = (session?: string | null) => LANE_SESSIONS.find((s) => s.session === session)?.lane;
 export const laneSession = (lane?: string | null) => LANE_SESSIONS.find((s) => s.lane === lane);

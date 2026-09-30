@@ -6,12 +6,12 @@ import { Icon } from "@/components/icons";
 import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
 import { BrakeChart, ENoseChart, PNChart } from "@/components/lanebits";
-import { Bar, Card, Empty, PageHeader, Pill, ScoreRing, Source, Tabs, toast } from "@/components/ui";
+import { Bar, Card, Empty, PageHeader, Pill, ScoreRing, Source, Tabs, sourceLabel, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { LANE_SESSIONS, STATUS_LABEL, STEP_LABEL, fmtN, laneOf, pct, scoreColor, sevColor } from "@/lib/format";
 import { useInspection } from "@/lib/inspection";
 
-const SESSIONS = LANE_SESSIONS.map((l) => ({ id: l.session, label: `${l.session} · ${l.plate}` }));
+const SESSIONS = LANE_SESSIONS.map((l) => ({ id: l.session, label: `${l.plate} · ${l.car}` }));
 
 function Spectrogram({ img, hl }: { img: number[][]; hl?: number[] }) {
   if (!img?.length) return null;
@@ -255,7 +255,7 @@ function ExaminerConsole() {
                           <span className="text-[13.5px] font-semibold">{a.title}</span>
                           {a.fail_item && <Pill color="#F87171">fail item</Pill>}
                         </div>
-                        <div className="text-[11.5px] text-fg-3">{a.system} · {a.severity} · {Math.round(a.confidence * 100)}% · {a.source.replace("_", " ")}</div>
+                        <div className="text-[11.5px] text-fg-3">{a.system} · {a.severity} · {Math.round(a.confidence * 100)}% · {sourceLabel(a.source)}</div>
                       </div>
                     </div>
                     {a.status === "open" ? (

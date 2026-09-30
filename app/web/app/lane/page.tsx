@@ -7,14 +7,14 @@ import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
 import { AlertMini, BrakeChart, ENoseChart, Frames, Instruments, OBDChart, PNChart, Timeline } from "@/components/lanebits";
 import { Card, Empty, Modal, PageHeader, Pill, Source, Tabs } from "@/components/ui";
-import { LANE_SESSIONS, STATUS_LABEL, fmtN } from "@/lib/format";
+import { LANE_SESSIONS, STATUS_LABEL, SYSTEM_NAME, fmtN } from "@/lib/format";
 import { useInspection } from "@/lib/inspection";
 
-const LANES = LANE_SESSIONS.map((l) => ({ id: l.lane, label: l.label, session: l.session, plate: l.plate }));
+const LANES = LANE_SESSIONS.map((l) => ({ id: l.lane, label: l.label, session: l.session, plate: l.plate, car: l.car }));
 const STORY: Record<string, string> = {
-  S1: "a tampered diesel prime mover: removed DPF, ammonia slip, a hot brake hub and a damaged tyre",
-  S2: "a used EV with flood history, for sale with a bank loan: battery health, flood evidence, EV fault codes",
-  S3: "a sedan changing owner whose chassis plate, odometer and engine sound disagree with its history",
+  S1: "a periodic inspection (Berkala): particle number, brakes, tyres and the undercarriage",
+  S2: "an ownership transfer and hire-purchase inspection (B5 + B7): battery health, flood evidence and EV fault codes",
+  S3: "an ownership transfer inspection (B5): plate, chassis number, odometer and engine sound are checked against its history",
 };
 
 function LaneConsole() {
@@ -33,12 +33,13 @@ function LaneConsole() {
     <Shell context={<Pill color={L.connected ? "#34D399" : "#9AA8BF"}>{L.connected ? "Live" : "Connecting…"}</Pill>}>
       <PageHeader title="Lane console" sub="What the lane sees as it happens: sensor streams, AI results and alerts. The examiner decides them next."
         actions={insp ? <>{controls}<Link className="btn" href={`/examiner?session=${laneInfo.session}`}>Examiner console<Icon name="arrow" size={15} /></Link></> : null}>
-        <div className="mt-3"><Tabs value={lane} onChange={(v) => router.replace(`/lane?lane=${v}`)} items={LANES.map((l) => ({ id: l.id, label: `${l.label} · ${l.session}` }))} /></div>
+        <div className="mt-3"><Tabs value={lane} onChange={(v) => router.replace(`/lane?lane=${v}`)} items={LANES.map((l) => ({ id: l.id, label: `${l.plate} · ${l.car}` }))} /></div>
       </PageHeader>
       {insp && (
         <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-ink-600 bg-ink-850 px-4 py-2.5 text-[13px]">
           <b>{insp.plate}</b>
           <span className="text-fg-3">{insp.vehicle?.make} {insp.vehicle?.model}</span>
+          <span className="chip border-ink-500 text-fg-3">{laneInfo.label}</span>
           <span className="text-fg-3">·</span>
           <span>{STATUS_LABEL[insp.status] || insp.status}</span>
           {insp.status === "in_lane" && L.player?.status === "playing" && <span className="flex items-center gap-1.5 text-ok"><span className="h-2 w-2 rounded-full bg-ok pulse-dot" />streaming</span>}
@@ -47,8 +48,8 @@ function LaneConsole() {
         </div>
       )}
       {!insp ? (
-        <Empty title={`${laneInfo.label} is idle`} actions={controls}>
-          {laneInfo.session} drives {laneInfo.plate} through this lane: {STORY[laneInfo.session]}. Start it to watch the sensors and AI live, or fast-forward to the finished result.
+        <Empty title={`${laneInfo.plate} has not entered ${laneInfo.label.toLowerCase()} yet`} actions={controls}>
+          Lane replay {laneInfo.session}: {laneInfo.plate} ({laneInfo.car}) comes in for {STORY[laneInfo.session]}. Start it to watch the sensors and AI live, or fast-forward to the finished result.
         </Empty>
       ) : (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -97,13 +98,16 @@ function LaneConsole() {
               <Instruments instruments={L.instruments} results={r} />
             </Card>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <Card title="E-nose · 16 channels @ 2 Hz" right={<Source kind="simulated" text="Simulated sensor · UCI signatures" />}>
+              <Card title="E-nose · research preview" right={<Source kind={r.enose?.rnd === false ? "simulated" : "rnd"} text={r.enose?.rnd === false ? "Simulated sensor" : "Future R&D · not in the result"} />}>
                 <ENoseChart enose={L.enose} events={r.enose?.events || []} />
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(r.enose?.events || []).map((e: any, i: number) => (
-                    <Pill key={i} color="#F87171">{e.condition.replaceAll("_", " ")} · {e.level} · {Math.round(e.p * 100)}%{e.fused_with ? " · fused" : ""}</Pill>
+                    <Pill key={i} color={r.enose?.rnd ? "#C084FC" : "#F87171"}>{e.condition.replaceAll("_", " ")} · {e.level} · {Math.round(e.p * 100)}%{e.fused_with ? " · fused" : ""}</Pill>
                   ))}
                 </div>
+                {r.enose?.rnd !== false && (
+                  <p className="mt-2 text-[12px] text-fg-3">A 16-channel gas-sensor array is a future R&D option, not current lane equipment. Its simulated signals are shown for research only: they raise no alerts and do not change the health score or the result.</p>
+                )}
               </Card>
               <Card title="Brake roller · force per wheel (kN)" right={<Source kind="simulated" />}>
                 <BrakeChart brake={L.brake} />
@@ -118,7 +122,7 @@ function LaneConsole() {
                 )}
               </Card>
             </div>
-            <Card title="Camera frames · AI results" right={<Source kind="live_model" />}>
+            <Card title="PUSPAKOM AI systems · results" right={<Source kind="system_feed" />}>
               <Frames images={r.images || []} onOpen={setZoom} />
             </Card>
           </div>
@@ -128,9 +132,10 @@ function LaneConsole() {
             </Card>
             <Card title="Lane sensors">
               <div className="flex flex-wrap gap-1.5">
-                {["ANPR camera", "Chassis OCR", "OBD-II dongle", "PN counter", "Opacimeter", "E-nose (16 ch)", "Roller brake tester", "Suspension tester", "Side-slip plate", "Headlamp tester", "Tint meter", "Pit cameras", "Thermal camera", "Microphones"].map((x) => (
+                {["ANPR camera", "Chassis OCR", "OBD-II dongle", "PN counter", "Opacimeter", "Gas analyser (CO, HC, λ)", "Roller brake tester", "Suspension tester", "Side-slip plate", "Headlamp tester", "Tint meter", "Pit cameras", "Thermal camera", "Microphones"].map((x) => (
                   <span key={x} className="chip border-ink-500 text-fg-2"><span className="h-1.5 w-1.5 rounded-full bg-ok" />{x}</span>
                 ))}
+                <span className="chip border-ink-500 text-fg-3" title="Future R&D option, not current lane equipment"><span className="h-1.5 w-1.5 rounded-full bg-[#C084FC]" />E-nose (R&D)</span>
               </div>
             </Card>
             <Card title={`Live alerts (${L.alerts.length})`}>
@@ -141,7 +146,7 @@ function LaneConsole() {
           </div>
         </div>
       )}
-      <Modal open={!!zoom} onClose={() => setZoom(null)} title={zoom ? `${zoom.kind} · ${zoom.camera}` : ""}>
+      <Modal open={!!zoom} onClose={() => setZoom(null)} title={zoom ? `${SYSTEM_NAME[zoom.system] || zoom.kind} · ${zoom.camera}` : ""}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {zoom && <img src={zoom.annotated} alt="annotated frame" className="max-h-[70vh] rounded-lg" />}
       </Modal>

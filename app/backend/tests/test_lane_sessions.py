@@ -12,8 +12,15 @@ def test_s1_tampered_diesel(s1):
     c = codes(s1)
     assert "pn:high" in c                        # DPF removal caught by PN although opacity passes
     assert {"dtc:P2002", "dtc:P20EE", "dtc:P2BAD"} <= c
-    assert "enose:nh3_slip_scr" in c              # e-nose picks up NH3 slip
+    # the e-nose is a future R&D sensor: its preview still sees the NH3 slip, but it raises no alert
+    assert not any(x.startswith("enose:") for x in c)
+    assert s1["results"]["enose"]["rnd"] is True
+    assert "nh3_slip_scr" in {e["condition"] for e in s1["results"]["enose"]["events"]}
     assert "thermal:A2R" in c                     # dragging brake on axle 2 right
+    # image results arrive as the demo feed of PUSPAKOM's own AI systems, not as our model's analysis
+    tyre = next(a for a in s1["alerts"] if a["code"] == "tyre:defect")
+    assert tyre["source"] == "system_feed" and tyre["detail"].startswith("AI tyre scan (PUSPAKOM)")
+    assert {im["system"] for im in s1["results"]["images"]} == {"undercarriage", "tyre"}
     assert "acoustic:wheel_bearing_or_suspension" in c
     assert s1["results"]["instruments"]["smoke_opacity_pct"]["verdict"] == "pass"
     assert s1["results"]["pn"]["opacity_misleading"] is True
@@ -28,7 +35,8 @@ def test_s1_tampered_diesel(s1):
 
 def test_s2_flooded_ev(s2):
     c = codes(s2)
-    assert "flood" in c and "enose:ev_electrolyte_offgas" in c and "ev:hv_isolation" in c
+    assert "flood" in c and "ev:hv_isolation" in c and not any(x.startswith("enose:") for x in c)
+    assert "e-nose" not in " ".join(s2["fusion"]["flood"]["signals"])
     assert s2["fusion"]["flood"]["p"] >= 0.8
     assert 60 <= s2["results"]["ev"]["pack_soh_pct"] <= 75
     assert s2["results"]["adas"]["status"] == "advisory only"
@@ -43,6 +51,8 @@ def test_s3_identity(s3):
     assert fp["engine_changed"] is True and fp["similarity"] < fp["threshold"]
     assert s3["results"]["chassis"]["match"] is True
     assert "body:damage" in c
+    body = next(a for a in s3["alerts"] if a["code"] == "body:damage")
+    assert body["source"] == "system_feed" and body["detail"].startswith("Project ASTRA (PUSPAKOM with Universiti Tun Hussein Onn")
 
 
 def test_report_requires_decisions_then_verifies(client, s1):
@@ -109,3 +119,11 @@ def test_readings_stored(client, s1):
     time.sleep(1.5)  # readings are flushed to the database every second
     en = client.get(f"/api/inspections/{s1['inspection_id']}/readings", params={"sensor": "enose"}).json()
     assert len(en) > 500 and len(en[0]["ch"]) == 16
+
+
+def test_enose_as_a_live_sensor_when_switched_on(client, monkeypatch):
+    monkeypatch.setattr(get_settings(), "enose_in_results", True)
+    assert client.post("/api/sessions/S1/start", json={"fast": True}).status_code == 200
+    s1 = client.get("/api/inspections/latest", params={"session_id": "S1"}).json()
+    assert "enose:nh3_slip_scr" in codes(s1)
+    assert any(r["rule"].startswith("E-nose") for r in s1["fusion"]["health"]["rules"])

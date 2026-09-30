@@ -111,6 +111,9 @@ def test_regulator(client):
 def test_vision(client):
     caps = client.get("/api/vision/captures").json()["cases"]
     assert len(caps) == 23
+    vis = client.get("/api/vision/captures").json()
+    assert {s["id"] for s in vis["systems"]} == {c["system"] for c in caps} == {"undercarriage", "astra", "tyre", "examiner"}
+    assert next(s for s in vis["systems"] if s["id"] == "undercarriage")["status"] == "in_service"
     # every capture links to its full-resolution source image in the demo library, and the files are served
     assert all(c["source_image"] for c in caps)
     lane2 = next(c for c in caps if c["title"] == "Lane 3 · Case 2")
