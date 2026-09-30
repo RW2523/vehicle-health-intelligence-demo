@@ -31,6 +31,26 @@ function Passport({ plate, refreshKey }: { plate: string; refreshKey: number }) 
           {p.reminders?.map((r: any) => <div key={r.kind} className="text-right text-[12px]"><div className="opacity-75">Road tax expires</div><b>{dmy(r.date)}</b><div className="opacity-75">in {r.days} days</div></div>)}
         </div>
       </div>
+      {p.certificates?.length > 0 && (
+        <>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">Health certificates · {p.certificates.length}</div>
+          <ol className="flex flex-col gap-2">
+            {p.certificates.map((c: any, i: number) => (
+              <li key={i} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[3px] font-display text-[14px] font-bold"
+                  style={{ borderColor: c.score == null ? "#CBD5E1" : c.score < 50 ? "#F87171" : c.score < 70 ? "#FBBF24" : "#34D399", color: "#0F172A" }}>{c.score ?? "–"}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2"><b className="truncate text-[13px] text-slate-900">{c.kind}</b><span className="shrink-0 text-[11.5px] text-slate-500">{dmy(c.date)}</span></span>
+                  <span className="flex items-center gap-2 text-[12px]">
+                    <span className={c.result === "PASS" ? "font-semibold text-emerald-600" : c.result === "FAIL" ? "font-semibold text-rose-600" : "font-semibold text-amber-600"}>{c.result}</span>
+                    {c.verify_token && <a className="text-sky-700 underline" href={`/verify/${c.verify_token}`}>Verify</a>}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
       <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">Timeline</div>
       <ol className="flex flex-col gap-2">
         {p.events.map((e: any, i: number) => (
@@ -50,6 +70,20 @@ function Passport({ plate, refreshKey }: { plate: string; refreshKey: number }) 
   );
 }
 
+// Without the phone's location (not allowed, or a plain-http address, where browsers do not offer it), start from the
+// owner's home area.
+const HOME = { lat: 3.0567, lon: 101.5851, label: "your home area (Subang Jaya)" };
+
+function useHere() {
+  const [here, setHere] = useState<{ lat: number; lon: number; label: string } | null>(null);
+  useEffect(() => {
+    if (!navigator.geolocation || !window.isSecureContext) return setHere(HOME);
+    navigator.geolocation.getCurrentPosition((p) => setHere({ lat: p.coords.latitude, lon: p.coords.longitude, label: "your location" }),
+      () => setHere(HOME), { timeout: 4000, maximumAge: 600000 });
+  }, []);
+  return here;
+}
+
 function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
   const [selling, setSelling] = useState(true);
   const [loan, setLoan] = useState(true);
@@ -62,6 +96,25 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
   const slots = useFetch<any>(date ? "/api/owner/slots" : null, { branch_id: branch, date });
   const [slot, setSlot] = useState<any>(null);
   const [booking, setBooking] = useState<any>(null);
+  const [wanted, setWanted] = useState<string | null>(null);  // a full time: look for it at nearby branches
+  const [pending, setPending] = useState<{ branch: string; time: string } | null>(null);  // pick once that branch's slots load
+  const where = useHere();
+  const dayFull = !!slots.data && !slots.data.slots.some((s: any) => s.available);
+  const near = useFetch<any>(where && date && (wanted || dayFull) ? "/api/owner/nearby-slots" : null,
+    { date, time: wanted || undefined, lat: where?.lat, lon: where?.lon, exclude: branch });
+  useEffect(() => {
+    if (pending && slots.data?.branch_id === pending.branch) {
+      setSlot(slots.data.slots.find((s: any) => s.time === pending.time && s.available) || null);
+      setPending(null);
+    }
+  }, [slots.data, pending]);
+  const moveTo = (b: any, time: string) => {
+    setBranch(b.branch_id);
+    setSlot(null);
+    setWanted(null);
+    setPending({ branch: b.branch_id, time });
+  };
+  const branchName = branches.data?.find((b) => b.branch_id === branch)?.name;
   useEffect(() => { if (types.data) setItype(types.data.recommended[0]); }, [types.data]);
   useEffect(() => { if (gear.data && !date) setDate(gear.data.date); }, [gear.data, date]);
   const price = (types.data?.types.find((t: any) => t.code === itype)?.price || 0) + (slot?.gear ? types.data?.gear_surcharge_rm || 0 : 0);
@@ -104,19 +157,37 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
         ))}
       </div>
       <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">2 · Where and when?</div>
-      <select aria-label="Branch" className="rounded-xl border border-slate-300 px-3 py-2 text-[13px]" value={branch} onChange={(e) => { setBranch(e.target.value); setSlot(null); }}>
+      <select aria-label="Branch" className="rounded-xl border border-slate-300 px-3 py-2 text-[13px]" value={branch} onChange={(e) => { setBranch(e.target.value); setSlot(null); setWanted(null); }}>
         {(branches.data || []).map((b) => <option key={b.branch_id} value={b.branch_id}>{b.name}</option>)}
       </select>
-      <input aria-label="Date" type="date" className="rounded-xl border border-slate-300 px-3 py-2 text-[13px]" value={date} onChange={(e) => { setDate(e.target.value); setSlot(null); }} />
+      <input aria-label="Date" type="date" className="rounded-xl border border-slate-300 px-3 py-2 text-[13px]" value={date} onChange={(e) => { setDate(e.target.value); setSlot(null); setWanted(null); }} />
       {gear.data && date === gear.data.date && <div className="rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-800">Tomorrow: GEAR premium slots available (+RM {gear.data.surcharge_rm}).</div>}
       <div className="grid grid-cols-4 gap-1.5">
         {(slots.data?.slots || []).map((s: any) => (
-          <button key={s.time} disabled={!s.available} onClick={() => setSlot(s)}
-            className={`rounded-lg border px-1 py-1.5 text-[12px] ${slot?.time === s.time ? "border-sky-600 bg-sky-600 text-white" : s.gear ? "border-amber-400 bg-amber-50" : "border-slate-200"} disabled:opacity-35`}>
-            {s.time}{s.gear && <span className="block text-[9.5px] font-bold">GEAR</span>}
+          <button key={s.time} onClick={() => (s.available ? (setSlot(s), setWanted(null)) : (setSlot(null), setWanted(s.time)))}
+            aria-label={s.available ? s.time : `${s.time} full`}
+            className={`rounded-lg border px-1 py-1.5 text-[12px] ${slot?.time === s.time ? "border-sky-600 bg-sky-600 text-white" : !s.available ? (wanted === s.time ? "border-rose-400 bg-rose-50 text-rose-700" : "border-slate-200 text-slate-400") : s.gear ? "border-amber-400 bg-amber-50" : "border-slate-200"}`}>
+            {s.time}{s.gear && s.available && <span className="block text-[9.5px] font-bold">GEAR</span>}{!s.available && <span className="block text-[9.5px]">Full</span>}
           </button>
         ))}
       </div>
+      {(wanted || dayFull) && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-[12.5px] text-amber-900">
+          <b>{wanted ? `${wanted} is full at ${branchName}.` : `${branchName} is full on this day.`}</b>{" "}
+          Nearest branches {wanted ? `with ${wanted} free` : "with free slots"}, from {where?.label}:
+          <div className="mt-2 flex flex-col gap-1.5">
+            {near.loading && <span className="text-amber-700">Looking…</span>}
+            {near.data?.branches?.map((b: any) => (
+              <button key={b.branch_id} onClick={() => moveTo(b, b.time_free ? wanted! : b.other_times[0])}
+                className="flex items-center justify-between gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-slate-900">
+                <span><b>{b.name}</b> <span className="text-slate-500">· {b.km} km</span></span>
+                <span className="text-[12px] font-semibold text-emerald-700">{b.time_free ? `${wanted} free` : `free ${b.other_times.join(", ")}`}</span>
+              </button>
+            ))}
+            {near.data && !near.data.branches.length && <span>No nearby branch has a free slot then. Try another day.</span>}
+          </div>
+        </div>
+      )}
       <button disabled={!slot || !itype} onClick={confirm} className="mt-1 rounded-xl bg-sky-600 px-4 py-3 text-[14px] font-semibold text-white disabled:opacity-40">
         {slot ? `Pay RM ${price.toFixed(2)} (FPX) and book ${slot.time}` : "Choose a slot"}
       </button>

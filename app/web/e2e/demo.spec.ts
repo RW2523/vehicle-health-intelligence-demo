@@ -164,12 +164,30 @@ test.describe("S6 owner app", () => {
 
   test("books and pays for an inspection, gets a check-in QR", async ({ page }) => {
     await page.goto("/owner?plate=DMO%209006&tab=book");
-    const slot = page.locator("div.grid-cols-4 button:enabled").first();
+    const slot = page.locator("div.grid-cols-4 button:not([aria-label$='full'])").first();
     await expect(slot).toBeVisible();
     await slot.click();
     await page.getByRole("button", { name: /^Pay RM/ }).click();
     await expect(page.getByText("Booking confirmed")).toBeVisible();
     await expect(page.getByAltText("Check-in QR code")).toBeVisible();
+  });
+
+  test("a full slot suggests the nearest branches with that time free, on the same screen", async ({ page }) => {
+    await page.goto("/owner?plate=DMO%209006&tab=book");
+    const full = page.locator("div.grid-cols-4 button[aria-label$='full']").first();
+    await expect(full).toBeVisible();
+    const time = (await full.getAttribute("aria-label"))!.replace(" full", "");
+    await full.click();
+    await expect(page.getByText(`${time} is full at Glenmarie.`)).toBeVisible();
+    await page.getByRole("button", { name: / km/ }).first().click();
+    await expect(page.getByLabel("Branch")).not.toHaveValue("BR01");
+    await expect(page.getByRole("button", { name: /^Pay RM .* and book/ })).toBeEnabled();
+  });
+
+  test("the passport lists every health certificate", async ({ page }) => {
+    await page.goto("/owner?plate=DMO%209006&tab=passport");
+    await expect(page.getByText(/Health certificates · \d+/)).toBeVisible();
+    await expect(page.getByText("Voluntary inspection").first()).toBeVisible();
   });
 });
 

@@ -243,17 +243,18 @@ def passport(plate: str) -> dict:
         checks = s.execute(select(SelfCheck).where(SelfCheck.plate == plate).order_by(SelfCheck.created_at)).scalars().all()
         books = s.execute(select(Booking).where(Booking.plate == plate).order_by(Booking.created_at)).scalars().all()
         events = []
-        for r in reps:
-            events.append({"date": r.created_at.date().isoformat(), "kind": "report", "title": f"{r.kind}: {r.verdict}",
-                           "health": (r.data.get("health") or {}).get("score"), "verify_token": r.verify_token, "source": "live"})
+        reps_out = [{"date": r.created_at.date().isoformat(), "kind": r.kind, "verdict": r.verdict,
+                     "health": (r.data.get("health") or {}).get("score"), "verify_token": r.verify_token} for r in reps]
+        for r in reps_out:
+            events.append({"date": r["date"], "kind": "report", "title": f"{r['kind']}: {r['verdict']}",
+                           "health": r["health"], "verify_token": r["verify_token"], "source": "live"})
         for c in checks:
             events.append({"date": c.created_at.date().isoformat(), "kind": "self_check", "title": f"Self-check: {c.verdict}",
                            "items": c.results.get("items", []), "source": "live"})
         for b in books:
             events.append({"date": b.date, "kind": "booking", "title": f"Booked {b.inspection_type} {b.slot}"
                            + (" (GEAR)" if b.gear else ""), "status": b.status, "source": "live"})
-    hist = pd.read_sql(text("select date, inspection_type, result, fail_reasons, odometer_km, branch_id from hist_inspections "
-                       "where vehicle_id = :v"), engine(), params={"v": vp["vehicle_id"]})
+    hist = pd.read_sql(text("select * from hist_inspections where vehicle_id = :v"), engine(), params={"v": vp["vehicle_id"]})
     for r in hist.itertuples():
         events.append({"date": str(r.date)[:10], "kind": "inspection", "title": f"{r.inspection_type}: {r.result}",
                        "odometer_km": int(r.odometer_km), "fail_reasons": r.fail_reasons, "source": "history (synthetic)"})
@@ -263,5 +264,29 @@ def passport(plate: str) -> dict:
         events.append({"date": str(r.claim_date)[:10], "kind": "claim", "title": f"Insurance claim: {r.claim_type.replace('_', ' ')}",
                        "amount_rm": float(r.amount_rm), "source": "insurer feed (synthetic)"})
     events.sort(key=lambda e: e["date"], reverse=True)
-    health = next((e["health"] for e in events if e.get("health") is not None), None)
-    return {"vehicle": vp, "events": events, "health": health}
+    certs = certificates(vp, reps_out, hist)
+    health = certs[0]["score"] if certs else None
+    return {"vehicle": vp, "events": events, "health": health, "certificates": certs}
+
+
+CERT_KIND = {"voluntary": "Voluntary inspection", "berkala_B2": "Berkala periodic inspection",
+             "berkala_ehailing": "Berkala periodic inspection (e-hailing)", "B5_MV15": "B5 ownership transfer (MV15)",
+             "B7_hire_purchase": "B7 hire-purchase", "khas_B2_85_ber": "Special inspection after a total-loss claim"}
+
+
+def certificates(vehicle: dict, reports: list[dict], hist: pd.DataFrame) -> list[dict]:
+    """Every health certificate of a vehicle, newest first: the reports issued in the lane, and each past inspection
+    with the health score of its recorded measurements (the same health model as the lane)."""
+    from ..runtime import rt
+
+    out = [{"date": r["date"], "kind": r["kind"], "result": r["verdict"], "score": r["health"],
+            "verify_token": r["verify_token"], "source": "report"} for r in reports]
+    fusion = rt().models.fusion if rt().models else None
+    for r in hist.to_dict("records"):
+        score = None
+        if fusion is not None:
+            score = fusion.health_score(r, {"year": vehicle.get("year"), "fuel": vehicle.get("fuel"),
+                                            "heavy": vehicle.get("heavy"), "odometer_km": r.get("odometer_km")})["score"]
+        out.append({"date": str(r["date"])[:10], "kind": CERT_KIND.get(r["inspection_type"], str(r["inspection_type"]).replace("_", " ")),
+                    "result": r["result"], "score": score, "verify_token": None, "source": "history"})
+    return sorted(out, key=lambda c: c["date"], reverse=True)

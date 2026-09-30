@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import math
 import random
 
 from fastapi import HTTPException
@@ -58,6 +59,37 @@ def slots(branch_id: str, day: str) -> list[dict]:
             taken = booked.count(t) + (0 if is_next_day else _synthetic_taken(branch_id, day, t, lanes))
         free = max(0, lanes - taken) if not gear else max(0, 1 - booked.count(t))
         out.append({"time": t, "free": free, "gear": gear and is_next_day, "available": free > 0 and d.weekday() != 6})
+    return out
+
+
+def _km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in km."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    return 2 * 6371 * math.asin(math.sqrt(a))
+
+
+def _minutes(t: str) -> int:
+    return int(t[:2]) * 60 + int(t[3:])
+
+
+def nearby(day: str, lat: float, lon: float, time: str | None = None, exclude: str | None = None, limit: int = 4) -> list[dict]:
+    """When the owner's branch is full: the branches nearest to them with the chosen time free that day, or failing
+    that the free times closest to it (any free times when no time was chosen)."""
+    with session_scope() as s:
+        branches = [(b.branch_id, b.name, b.lat, b.lon) for b in s.execute(select(Branch)).scalars()
+                    if b.lat is not None and b.branch_id != exclude]
+    out = []
+    for bid, name, blat, blon in sorted(branches, key=lambda b: _km(lat, lon, b[2], b[3])):
+        free = [x for x in slots(bid, day) if x["available"]]
+        at = next((x for x in free if x["time"] == time), None)
+        others = sorted(free, key=lambda x: abs(_minutes(x["time"]) - _minutes(time))) if time else free
+        others = [x["time"] for x in others if x is not at and (not time or abs(_minutes(x["time"]) - _minutes(time)) <= 60)][:3]
+        if at or others:
+            out.append({"branch_id": bid, "name": name, "km": round(_km(lat, lon, blat, blon), 1),
+                        "time_free": at is not None, "free": at["free"] if at else 0, "other_times": others})
+        if len(out) >= limit:
+            break
     return out
 
 

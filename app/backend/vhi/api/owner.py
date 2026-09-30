@@ -59,6 +59,11 @@ def slots(branch_id: str, date: str):
     return {"branch_id": branch_id, "date": date, "slots": booking.slots(branch_id, date)}
 
 
+@router.get("/nearby-slots")
+def nearby_slots(date: str, lat: float, lon: float, time: str | None = None, exclude: str | None = None):
+    return {"date": date, "time": time, "branches": booking.nearby(date, lat, lon, time, exclude)}
+
+
 @router.get("/gear")
 def gear(branch_id: str = "BR01"):
     return booking.gear_slots(branch_id)

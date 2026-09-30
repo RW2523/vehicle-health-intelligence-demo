@@ -164,3 +164,22 @@ def test_fleet_vehicles_carry_their_inspection_images(client):
     rows = {r["plate"]: r for r in client.get("/api/fleet/overview").json()["attention"]}
     assert [i["id"] for i in rows["VKR 3128"]["images"]] == ["07", "i1"] and rows["VKR 3128"]["images"][0]["findings"] == 3
     assert client.get("/api/fleet/vehicles/DMO 1954").json()["images"] == []
+
+
+def test_passport_lists_every_health_certificate(client):
+    p = client.get("/api/owner/passport/DMO%209006").json()
+    certs = p["certificates"]
+    assert len(certs) >= 2 and [c["date"] for c in certs] == sorted((c["date"] for c in certs), reverse=True)
+    assert all(c["score"] is not None and 0 <= c["score"] <= 100 for c in certs)
+    assert p["health"] == certs[0]["score"] and certs[0]["kind"] == "Voluntary inspection"
+
+
+def test_a_full_branch_suggests_the_nearest_branches_with_the_time_free(client):
+    date = client.get("/api/owner/gear", params={"branch_id": "BR01"}).json()["date"]
+    day = client.get("/api/owner/slots", params={"branch_id": "BR01", "date": date}).json()["slots"]
+    full = next(s["time"] for s in day if not s["available"])
+    near = client.get("/api/owner/nearby-slots", params={"date": date, "time": full, "lat": 3.0567, "lon": 101.5851,
+                                                       "exclude": "BR01"}).json()["branches"]
+    assert near and "BR01" not in {b["branch_id"] for b in near}
+    assert [b["km"] for b in near] == sorted(b["km"] for b in near)
+    assert all(b["time_free"] or b["other_times"] for b in near)
