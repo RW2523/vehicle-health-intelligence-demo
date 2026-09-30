@@ -21,19 +21,20 @@ def seeded() -> bool:
 
 def reset_runtime() -> dict:
     """Delete everything the demo creates at run time (lane inspections, alerts, readings, evidence, reports, bookings,
-    self-checks, chats, pattern reports) and keep the seeded world. Stop the API first."""
+    self-checks, chats, pattern reports, flood-inspection invitations) and keep the seeded world. Stop the API first."""
     import shutil
 
     from sqlalchemy import delete
 
     from ..config import get_settings
-    from ..tables import (Alert, Booking, ChatMessage, EvidenceEntry, LiveInspection, PatternReport, Reading, Report,
-                          SelfCheck)
+    from ..tables import (Alert, Booking, ChatMessage, EvidenceEntry, FloodInvitation, LiveInspection, PatternReport,
+                          Reading, Report, SelfCheck)
 
     init_db()
     counts = {}
     with session_scope() as s:
-        for t in (ChatMessage, SelfCheck, PatternReport, Report, EvidenceEntry, Alert, Reading, Booking, LiveInspection):
+        for t in (ChatMessage, SelfCheck, PatternReport, Report, EvidenceEntry, Alert, Reading, Booking, LiveInspection,
+                  FloodInvitation):
             counts[t.__tablename__] = s.execute(delete(t)).rowcount
     shutil.rmtree(get_settings().evidence_dir, ignore_errors=True)
     log.info("runtime state cleared: %s", counts)
@@ -45,9 +46,11 @@ def run(force: bool = False) -> bool:
     from .core import seed_data_fleets, seed_history, seed_reference, seed_vehicles
     from .demo import seed_session_vehicles
     from .fleet import seed_showcase_fleets
+    from .floodwatch import seed_vehicle_locations
 
     init_db()
     if seeded() and not force:
+        seed_vehicle_locations()  # fills itself in on a database seeded before flood watch existed
         return False
     t = time.time()
     seed_reference()
@@ -56,6 +59,7 @@ def run(force: bool = False) -> bool:
     seed_data_fleets()
     seed_session_vehicles()
     seed_showcase_fleets()
+    seed_vehicle_locations()
     with session_scope() as s:
         s.merge(Setting(key="seed_version", value={"v": SEED_VERSION, "at": time.time()}))
     log.info("seeded in %.1fs", time.time() - t)
