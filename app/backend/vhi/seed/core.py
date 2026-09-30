@@ -101,11 +101,24 @@ def seed_vehicles() -> None:
     log.info("vehicles: %d", len(rows))
 
 
+def with_lambda(df: pd.DataFrame) -> pd.DataFrame:
+    """The synthetic history has CO and HC for petrol engines but no lambda: derive it, so past exhaust-gas tests show
+    all three. A rich mixture (high CO) reads below 1; misfire or a lean mixture (high HC, little CO) above 1."""
+    rng = np.random.default_rng(11)
+    co, hc = df["co_pct"].astype(float), df["hc_ppm"].astype(float)
+    lam = (1.0 + rng.normal(0, 0.006, len(df)) - 0.03 * (co - 0.5).clip(lower=0)
+           + 0.00005 * (hc - 300).clip(lower=0) * (co < 0.6))
+    df["lambda"] = lam.round(3).where(co.notna())
+    return df
+
+
 def seed_history() -> None:
     data = get_settings().data_dir
     eng = engine()
     for table, rel in HIST_TABLES.items():
         df = pd.read_parquet(data / rel)
+        if table == "hist_inspections":
+            df = with_lambda(df)
         for c in df.columns:
             if df[c].dtype == object:
                 df[c] = df[c].where(df[c].notna(), None)

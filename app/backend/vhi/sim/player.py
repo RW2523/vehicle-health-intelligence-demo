@@ -35,7 +35,7 @@ EXTRA_MEDIA = {
 }
 # When each non-stream measurement is published (seconds into the session)
 INSTRUMENT_AT = {
-    "smoke_opacity_pct": 125, "co_pct": 125, "hc_ppm": 125, "hv_isolation_mohm": 120,
+    "smoke_opacity_pct": 125, "co_pct": 125, "hc_ppm": 125, "lambda": 125, "hv_isolation_mohm": 120,
     "suspension_eff_pct": 226, "side_slip_m_per_km": 242, "headlamp_dev_pct": 270, "tint_vlt_pct": 276,
     "adas_self_test": 372,
 }

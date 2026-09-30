@@ -111,18 +111,7 @@ def train(ins: pd.DataFrame, veh: pd.DataFrame, claims: pd.DataFrame, out: Path)
     impute = {f: float(X.loc[y == 0, f].median()) for f in always}
     (out / "fusion_impute.json").write_text(json.dumps(impute, indent=1))
 
-    # ---- next-inspection fail risk: features at visit k -> FAIL at visit k+1
-    ins["next_result"] = ins.groupby("vehicle_id")["result"].shift(-1)
-    ins["next_date"] = ins.groupby("vehicle_id")["date"].shift(-1)
-    pairs = ins[ins.next_result.notna()].reset_index(drop=True)
-    Xp = _frame(pairs, veh)
-    Xp["prev_fail"] = (pairs["result"] == "FAIL").astype(float)
-    yp = (pairs["next_result"] == "FAIL").astype(int).to_numpy()
-    cutp = int(len(Xp) * 0.8)
-    mp = lgb.train(PARAMS, lgb.Dataset(Xp.iloc[:cutp], yp[:cutp]), num_boost_round=300)
-    auc_next = roc_auc_score(yp[cutp:], mp.predict(Xp.iloc[cutp:]))
-    nextfail = lgb.train(PARAMS, lgb.Dataset(Xp, yp), num_boost_round=300)
-    nextfail.save_model(str(out / "nextfail_lgbm.txt"))
+    next_fail = train_next_fail(ins, veh, out)
 
     # ---- survival: months from each visit to the next FAIL (censored at the last visit)
     surv = _survival_frame(ins, veh)
@@ -151,13 +140,51 @@ def train(ins: pd.DataFrame, veh: pd.DataFrame, claims: pd.DataFrame, out: Path)
 
     base_rate = float(y.mean())
     metrics = {"health": {"rows": int(len(X)), "fail_rate": round(base_rate, 3), "holdout_auc_time_split": round(float(auc), 3)},
-               "next_fail": {"pairs": int(len(Xp)), "holdout_auc": round(float(auc_next), 3)},
+               "next_fail": next_fail,
                "survival": {"rows": int(len(surv)), "concordance": round(c_index, 3), "model": "Weibull AFT (lifelines)"},
                "flood": {"vehicles": int(len(fl)), "positives": int(fy.sum()), "holdout_auc": round(float(auc_flood), 3),
                          "holdout_auc_physical_evidence_only": round(float(auc_phys), 3),
                          "note": "synthetic labels: every flooded car has a flood claim, so the full AUC is optimistic"}}
     (out / "fusion_metrics.json").write_text(json.dumps(metrics, indent=1))
     return metrics
+
+
+# The next-inspection model sees one noisy visit at a time (holdout AUC ~0.7), so it is kept smooth: small trees,
+# many rows per leaf and L2, which also scores better on the time split than the health model's settings.
+NF_PARAMS = dict(PARAMS, num_leaves=15, min_data_in_leaf=120, lambda_l2=5.0, learning_rate=0.03)
+NF_ROUNDS = 400
+AGE_BANDS = [(0, 3), (4, 6), (7, 9), (10, 12), (13, 99)]
+
+
+def _age_band(age: float) -> tuple[int, int]:
+    return next((b for b in AGE_BANDS if b[0] <= age <= b[1]), AGE_BANDS[-1])
+
+
+def train_next_fail(ins: pd.DataFrame, veh: pd.DataFrame, out: Path) -> dict:
+    """Next-inspection fail risk: features at visit k -> FAIL at visit k+1. Also keeps, per age band and vehicle class,
+    how often a vehicle that passes today fails its next inspection, so the risk can be read against its peers."""
+    ins = ins.sort_values("date").reset_index(drop=True)
+    ins["next_result"] = ins.groupby("vehicle_id")["result"].shift(-1)
+    pairs = ins[ins.next_result.notna()].reset_index(drop=True)
+    Xp = _frame(pairs, veh)
+    Xp["prev_fail"] = (pairs["result"] == "FAIL").astype(float)
+    yp = (pairs["next_result"] == "FAIL").astype(int).to_numpy()
+    cutp = int(len(Xp) * 0.8)
+    mp = lgb.train(NF_PARAMS, lgb.Dataset(Xp.iloc[:cutp], yp[:cutp]), num_boost_round=NF_ROUNDS)
+    pred = mp.predict(Xp.iloc[cutp:])
+    nextfail = lgb.train(NF_PARAMS, lgb.Dataset(Xp, yp), num_boost_round=NF_ROUNDS)
+    nextfail.save_model(str(out / "nextfail_lgbm.txt"))
+    passed = pairs["result"] != "FAIL"
+    peers = {}
+    for heavy in (0, 1):
+        for lo, hi in AGE_BANDS:
+            sel = passed & (Xp["heavy"] == heavy) & Xp["age_years"].between(lo, hi)
+            if sel.sum() >= 30:
+                peers[f"{heavy}:{lo}-{hi}"] = {"rate": round(float(yp[sel.to_numpy()].mean()), 3), "n": int(sel.sum())}
+    (out / "nextfail_peers.json").write_text(json.dumps(peers, indent=1))
+    return {"pairs": int(len(Xp)), "holdout_auc": round(float(roc_auc_score(yp[cutp:], pred)), 3),
+            "holdout_brier": round(float(np.mean((pred - yp[cutp:]) ** 2)), 4),
+            "model": "LightGBM, regularised (15 leaves, >=120 rows per leaf, L2)"}
 
 
 SURV_COLS = ["age_years", "heavy", "brake_efficiency_pct", "brake_imbalance_pct", "suspension_efficiency_pct",
@@ -223,6 +250,8 @@ class FusionModels:
         self.aft = joblib.load(models_dir / "survival_aft.joblib")
         p = models_dir / "fusion_impute.json"
         self.impute = json.loads(p.read_text()) if p.exists() else {}
+        p = models_dir / "nextfail_peers.json"
+        self.peers = json.loads(p.read_text()) if p.exists() else {}
 
     def _row(self, measurements: dict, vehicle: dict) -> tuple[pd.DataFrame, list[str]]:
         row = pd.DataFrame([feature_row(measurements, vehicle)], columns=FEATURES)
@@ -268,6 +297,14 @@ class FusionModels:
         row, _ = self._row(measurements, vehicle)
         row["prev_fail"] = float(failed_now)
         p = float(self.nextfail.predict(row)[0])
+        contrib = self.nextfail.predict(row, pred_contrib=True)[0][:-1]
+        # yes/no features that are off ("not heavy", "no warning lamp") are not a reason worth naming
+        off = [f for f in ("heavy", "is_diesel", "is_ev", "prev_fail", "tyre_pressure_low", "obd_mil_on", "structural_anomaly")
+               if not row.at[0, f]]
+        drivers = sorted(((f, c) for f, c in zip(row.columns, contrib) if f not in off), key=lambda t: -abs(t[1]))[:3]
+        age = float(row.at[0, "age_years"])
+        lo, hi = _age_band(age)
+        peer = self.peers.get(f"{int(row.at[0, 'heavy'])}:{lo}-{hi}")
         srow = row[SURV_COLS].copy()
         defaults = {"brake_efficiency_pct": 65, "brake_imbalance_pct": 8, "suspension_efficiency_pct": 68,
                     "tyre_tread_min_mm": 4.5, "corrosion_score_0_10": 2, "n_dtcs": 0}
@@ -275,7 +312,13 @@ class FusionModels:
             if srow[c].isna().any():
                 srow[c] = defaults.get(c, 0.0)
         med = float(self.aft.predict_median(srow).iloc[0])
-        return {"p_fail_next": round(p, 3), "months_to_failure_median": round(min(med, 120.0), 1)}
+        return {"p_fail_next": round(p, 3), "months_to_failure_median": round(min(med, 120.0), 1),
+                # read the risk against vehicles of the same age and class that pass today, and say what drives it
+                "peer_rate": peer["rate"] if peer else None,
+                "peer": f"{'heavy vehicles' if row.at[0, 'heavy'] else 'vehicles'} {lo}-{hi} years old that pass today"
+                if hi < 99 else f"{'heavy vehicles' if row.at[0, 'heavy'] else 'vehicles'} over {lo - 1} years old that pass today",
+                "drivers": [{"feature": f, "label": "Previous result" if f == "prev_fail" else PRETTY.get(f, f),
+                             "direction": "raises" if c > 0 else "lowers", "logit": round(float(c), 3)} for f, c in drivers]}
 
     # ---------- flood
     def flood_probability(self, feats: dict) -> dict:

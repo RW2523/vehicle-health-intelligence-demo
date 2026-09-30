@@ -9,6 +9,7 @@ from sqlalchemy import delete
 from ..config import get_settings
 from ..db import engine, session_scope
 from ..tables import Setting, Vehicle
+from .core import with_lambda
 
 SESSION_VEHICLES = {
     "S1": dict(vehicle_id="SV9001", vtype="Prime mover", owner_type="company", owner_name="Alam Megah Haulage",
@@ -77,6 +78,6 @@ def seed_session_vehicles() -> None:
                           "inspection_type": "voluntary", "odometer_km": odo, "tyre_tread_min_mm": 4.8 - k})
 
     eng = engine()
-    pd.DataFrame(hist_rows).to_sql("hist_inspections", eng, if_exists="append", index=False)
+    with_lambda(pd.DataFrame(hist_rows)).to_sql("hist_inspections", eng, if_exists="append", index=False)
     if claims:
         pd.DataFrame(claims).to_sql("hist_claims", eng, if_exists="append", index=False)

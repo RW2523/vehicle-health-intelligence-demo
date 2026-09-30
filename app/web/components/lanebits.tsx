@@ -32,6 +32,7 @@ const TILES: [string, string, string, (v: any) => string][] = [
   ["smoke_opacity_pct", "Smoke opacity", "%", (v) => `${v}`],
   ["co_pct", "CO", "%", (v) => `${v}`],
   ["hc_ppm", "HC", "ppm", (v) => `${v}`],
+  ["lambda", "Lambda (λ)", "", (v) => Number(v).toFixed(2)],
   ["hv_isolation_mohm", "HV isolation", "MΩ", (v) => `${v}`],
   ["suspension_eff_pct", "Suspension eff.", "%", (v) => (Array.isArray(v) ? v.join(" / ") : `${v}`)],
   ["side_slip_m_per_km", "Side slip", "m/km", (v) => `${v}`],

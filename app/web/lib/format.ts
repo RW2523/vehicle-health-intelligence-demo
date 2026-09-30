@@ -50,6 +50,13 @@ export const llmLabel = (backend?: string | null) => {
   return [LLM_ENGINES[engine] || engine, model].filter(Boolean).join(" · ");
 };
 
+/** The next-inspection risk against its peers: "38% for vehicles 10-12 years old that pass today · mostly vehicle age". */
+export function nextFailNote(nf: any): string | null {
+  if (!nf || nf.peer_rate == null) return null;
+  const top = (nf.drivers || []).find((d: any) => d.direction === "raises");
+  return `${Math.round(nf.peer_rate * 100)}% for ${nf.peer}${top ? ` · mostly ${top.label.toLowerCase()}` : ""}`;
+}
+
 /** PUSPAKOM's AI inspection systems that image results come from (vhi/services/inspection_systems.py). */
 export const SYSTEM_NAME: Record<string, string> = {
   undercarriage: "Undercarriage AI", astra: "Project ASTRA", tyre: "AI tyre scan", examiner: "Examiner close-up",

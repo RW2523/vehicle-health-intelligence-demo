@@ -64,6 +64,21 @@ def _verdict(li: LiveInspection, alerts: list[Alert], senior_signed: bool) -> tu
     return "PASS", notes + [a.title for a in advis]
 
 
+def next_fail_sentence(nf: dict, has_fails: bool) -> str:
+    """The next-inspection risk read against vehicles like this one, so a good health score and a sizeable risk (which
+    grows mostly with age) tell one story."""
+    # learnt from consecutive visits, where a failed vehicle comes back repaired: after a FAIL it is the risk once fixed
+    s = f"{'Once the failed items are fixed, there is' if has_fails else 'There is'} a {nf['p_fail_next']:.0%} chance of failing the next inspection"
+    if nf.get("peer_rate") is not None:
+        diff = nf["p_fail_next"] - nf["peer_rate"]
+        how = "about the same as" if abs(diff) < 0.05 else ("higher than" if diff > 0 else "lower than")
+        s += f", {how} other {nf['peer']} ({nf['peer_rate']:.0%})"
+    top = next((d for d in nf.get("drivers", []) if d["direction"] == "raises"), None)
+    if top:
+        s += f"; the main reason is {top['label'].lower()}"
+    return s + "."
+
+
 def _template_summary(li: LiveInspection, data: dict) -> str:
     v = data["vehicle"]
     name = f"{v.get('make', '')} {v.get('model', '')} ({li.plate})".strip()
@@ -89,7 +104,7 @@ def _template_summary(li: LiveInspection, data: dict) -> str:
         parts.append(f"Vehicle Health Score {h['score']}/100.")
     nf = data.get("next_fail")
     if nf:
-        parts.append(f"Without repairs there is a {nf['p_fail_next']:.0%} chance of failing the next inspection.")
+        parts.append(next_fail_sentence(nf, bool(fails)))
     dismissed = [f for f in data["findings"] if f["status"] == "dismissed"]
     if dismissed:
         parts.append(f"The examiner reviewed and dismissed {len(dismissed)} AI alert{'s' if len(dismissed) > 1 else ''}, with reasons recorded.")

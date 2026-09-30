@@ -20,7 +20,7 @@ ARTIFACTS = {
     "enose": ["enose.joblib"],
     "acoustic": ["acoustic.joblib"],
     "soh": ["soh.joblib"],
-    "fusion": ["health_lgbm.txt", "nextfail_lgbm.txt", "flood_lgbm.txt", "survival_aft.joblib"],
+    "fusion": ["health_lgbm.txt", "nextfail_lgbm.txt", "nextfail_peers.json", "flood_lgbm.txt", "survival_aft.joblib"],
     "demand": ["demand_lgbm.txt"],
     "corrosion": ["corrosion_calibration.json"],
 }

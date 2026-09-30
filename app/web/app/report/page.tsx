@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { Icon } from "@/components/icons";
 import { Shell } from "@/components/Shell";
 import { Card, Empty, PageHeader, Pill, ScoreRing, Source, toast } from "@/components/ui";
-import { dmy, fmtN, llmLabel, pct, scoreColor } from "@/lib/format";
+import { nextFailNote, dmy, fmtN, llmLabel, pct, scoreColor } from "@/lib/format";
 import { useFetch, useLive } from "@/lib/live";
 
 const VCOL: Record<string, string> = { PASS: "#34D399", FAIL: "#F87171", CONDITIONAL: "#FBBF24", REFERRED: "#60A5FA" };
@@ -117,7 +117,7 @@ function ReportView() {
                   ))}
                 </div>
               </div>
-              {d.next_fail && <p className="mt-3 text-[13px]">Next-inspection fail risk <b>{pct(d.next_fail.p_fail_next)}</b> if nothing is repaired.</p>}
+              {d.next_fail && <p className="mt-3 text-[13px]">Next-inspection fail risk <b>{pct(d.next_fail.p_fail_next)}</b>.{nextFailNote(d.next_fail) && <span className="block text-[12px] text-fg-3">Compare: {nextFailNote(d.next_fail)}.</span>}</p>}
               {d.flood && <p className="text-[13px]">Flood probability <b>{pct(d.flood.p)}</b>.</p>}
             </Card>
             <Card title="Evidence chain">

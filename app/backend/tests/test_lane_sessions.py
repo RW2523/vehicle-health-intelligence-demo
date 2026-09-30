@@ -51,6 +51,12 @@ def test_s3_identity(s3):
     assert fp["engine_changed"] is True and fp["similarity"] < fp["threshold"]
     assert s3["results"]["chassis"]["match"] is True
     assert "body:damage" in c
+    # a good health score and the next-inspection risk tell one story: the risk is read against vehicles of the same
+    # age that pass today, and its main reason (here age) is named
+    nf = s3["fusion"]["next_fail"]
+    assert s3["health_score"] >= 90 and abs(nf["p_fail_next"] - nf["peer_rate"]) < 0.1
+    assert nf["peer"] == "vehicles 10-12 years old that pass today" and nf["drivers"][0]["label"] == "Vehicle age"
+    assert "Heavy vehicle" not in {d["label"] for d in nf["drivers"]}
     body = next(a for a in s3["alerts"] if a["code"] == "body:damage")
     assert body["source"] == "system_feed" and body["detail"].startswith("Project ASTRA (PUSPAKOM with Universiti Tun Hussein Onn")
 
@@ -127,3 +133,17 @@ def test_enose_as_a_live_sensor_when_switched_on(client, monkeypatch):
     s1 = client.get("/api/inspections/latest", params={"session_id": "S1"}).json()
     assert "enose:nh3_slip_scr" in codes(s1)
     assert any(r["rule"].startswith("E-nose") for r in s1["fusion"]["health"]["rules"])
+
+
+def test_petrol_exhaust_gas_test_shows_lambda_with_co_and_hc(client, s3):
+    ins = s3["results"]["instruments"]
+    assert {"co_pct", "hc_ppm", "lambda"} <= set(ins)
+    assert ins["lambda"]["value"] == 1.01 and ins["lambda"]["verdict"] == "pass" and ins["lambda"]["limit"] == "0.97-1.03"
+    # a rich mixture fails the test and reaches the examiner as a fail item
+    assert client.post("/api/sessions/S3/start", json={"fast": True, "overrides": {"instrument.lambda": 0.92}}).status_code == 200
+    rich = client.get("/api/inspections/latest", params={"session_id": "S3"}).json()
+    lam = next(a for a in rich["alerts"] if a["code"] == "emissions:lambda")
+    assert lam["fail_item"] and "rich" in lam["detail"]
+    # past petrol inspections carry lambda too (derived from their CO and HC)
+    hist = client.get("/api/vehicles/DMO 9006/history").json()
+    assert any(h.get("lambda") for h in (hist.get("inspections") if isinstance(hist, dict) else hist))

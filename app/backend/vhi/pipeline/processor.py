@@ -30,6 +30,7 @@ from ..tables import Alert, Booking, LiveInspection, Reading, Setting, Vehicle, 
 log = logging.getLogger("vhi.processor")
 
 SEV_W = {"high": 3, "medium": 2, "low": 1}
+LAMBDA_RANGE = (0.97, 1.03)
 ENOSE_INFO = {
     "nh3_slip_scr": ("Ammonia slip from the SCR system", "Engine & emissions", "high",
                      "AdBlue dosing fault or bypass. Matches SCR fault codes when present."),
@@ -447,14 +448,26 @@ class StreamProcessor:
             c.measurements["smoke_opacity_pct"] = v
             limit = 50
             verdict = "fail" if v > limit else "pass"
-        elif f == "co_pct":
-            c.measurements["co_pct"] = v
-            limit = 3.5
-            verdict = "fail" if v > limit else "pass"
-        elif f == "hc_ppm":
-            c.measurements["hc_ppm"] = v
-            limit = 600
-            verdict = "fail" if v > limit else "pass"
+        elif f in ("co_pct", "hc_ppm", "lambda"):
+            # the petrol exhaust-gas test: CO, HC and lambda (air-fuel ratio, at high idle)
+            c.measurements[f] = v
+            if f == "lambda":
+                # lambda 1 +/- 0.03 for catalyst petrol engines: the EU roadworthiness reference (Directive
+                # 2014/45/EU), shown until the Malaysian limit is confirmed
+                limit = f"{LAMBDA_RANGE[0]}-{LAMBDA_RANGE[1]}"
+                verdict = "pass" if LAMBDA_RANGE[0] <= v <= LAMBDA_RANGE[1] else "fail"
+            else:
+                limit = 3.5 if f == "co_pct" else 600
+                verdict = "fail" if v > limit else "pass"
+            if verdict == "fail":
+                title = {"co_pct": f"CO {v}% (limit 3.5%)", "hc_ppm": f"HC {v} ppm (limit 600 ppm)",
+                         "lambda": f"Lambda {v} (outside {limit})"}[f]
+                why = {"co_pct": "Too much carbon monoxide at idle: a rich mixture or a failed catalytic converter.",
+                       "hc_ppm": "Too many unburnt hydrocarbons: misfire, worn engine or a failed catalytic converter.",
+                       "lambda": ("The air-fuel ratio is " + ("rich" if v < LAMBDA_RANGE[0] else "lean") + ": the engine "
+                                  "management or the oxygen sensor is not holding the mixture the catalyst needs.")}[f]
+                await self._alert(c, f"emissions:{f}", title, why, "Engine & emissions", "high", 0.99, "simulated",
+                                  {f: v}, fail_item=True)
         elif f == "hv_isolation_mohm":
             c.measurements["hv_isolation_mohm"] = v
             limit = 2.0

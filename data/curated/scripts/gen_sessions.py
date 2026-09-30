@@ -130,7 +130,7 @@ save("S3", dict(session="S3", title="Honda Civic · ownership transfer (B5)", br
     media=dict(body_images=pick("images/vehicle_damage/r_breakage/*.jpg", 2), plate_images=pick("images/plates_my/real_plate_photo/*.jpg", 1),
                audio=pick("audio/engine_normal_idle/*.wav", 2))),
     dict(enose=enose_stream(480, []), obd=obd_stream(480, [], 720, 60), brake_roller=brake_roller(2, 66, 9, 4), thermal=thermal(2),
-         instruments=dict(co_pct=0.3, hc_ppm=110, suspension_eff_pct=[63, 61], side_slip_m_per_km=2.2, headlamp_dev_pct=1.1, tint_vlt_pct=55)))
+         instruments=dict(co_pct=0.3, hc_ppm=110, **{"lambda": 1.01}, suspension_eff_pct=[63, 61], side_slip_m_per_km=2.2, headlamp_dev_pct=1.1, tint_vlt_pct=55)))
 
 # ---- S4 HQ integrity + predictive maintenance (uses synthetic history) ----
 ins = pd.read_parquet(f"{SYN}/inspections.parquet"); veh = pd.read_parquet(f"{SYN}/vehicles.parquet")

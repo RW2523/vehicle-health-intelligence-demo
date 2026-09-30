@@ -1,6 +1,7 @@
 {
  "co_pct": 0.3,
  "hc_ppm": 110,
+ "lambda": 1.01,
  "suspension_eff_pct": [
   63,
   61

@@ -6,7 +6,9 @@
  },
  "next_fail": {
   "pairs": 10236,
-  "holdout_auc": 0.687
+  "holdout_auc": 0.698,
+  "holdout_brier": 0.1727,
+  "model": "LightGBM, regularised (15 leaves, >=120 rows per leaf, L2)"
  },
  "survival": {
   "rows": 10236,

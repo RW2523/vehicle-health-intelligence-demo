@@ -8,7 +8,7 @@ import { Shell } from "@/components/Shell";
 import { BrakeChart, ENoseChart, PNChart } from "@/components/lanebits";
 import { Bar, Card, Empty, PageHeader, Pill, ScoreRing, Source, Tabs, sourceLabel, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { LANE_SESSIONS, STATUS_LABEL, STEP_LABEL, fmtN, laneOf, pct, scoreColor, sevColor } from "@/lib/format";
+import { LANE_SESSIONS, STATUS_LABEL, STEP_LABEL, fmtN, laneOf, nextFailNote, pct, scoreColor, sevColor } from "@/lib/format";
 import { useUser } from "@/lib/auth";
 import { useInspection } from "@/lib/inspection";
 
@@ -230,7 +230,7 @@ function ExaminerConsole() {
               <div className="text-[12.5px] text-fg-2">
                 {h ? (
                   <>
-                    {fusion.next_fail && <div>Next-test fail risk <b>{pct(fusion.next_fail.p_fail_next)}</b></div>}
+                    {fusion.next_fail && <div>Next-test fail risk <b>{pct(fusion.next_fail.p_fail_next)}</b>{nextFailNote(fusion.next_fail) && <div className="max-w-[230px] text-[11.5px] leading-snug text-fg-3">{nextFailNote(fusion.next_fail)}</div>}</div>}
                     {fusion.flood && <div>Flood likelihood <b>{pct(fusion.flood.p)}</b></div>}
                     <div className="text-fg-3">Fusion model + rules</div>
                   </>

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from ..db import init_db, session_scope
 from ..tables import Setting
 
-SEED_VERSION = 5
+SEED_VERSION = 6
 log = logging.getLogger("vhi.seed")
 
 
