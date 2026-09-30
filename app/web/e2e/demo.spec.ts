@@ -141,6 +141,44 @@ test.describe("S5 fleet + regulator", () => {
   });
 });
 
+test.describe("Flood watch", () => {
+  test("JPS stations by status, districts at risk and the vehicles to inspect", async ({ page, request }) => {
+    const o = await (await request.get("/api/floodwatch")).json();
+    await page.goto("/flood");
+    await expect(page.getByRole("heading", { name: "Flood watch" })).toBeVisible();
+    // every panel says where its data comes from: JPS live (with the fetch time) or the committed snapshot
+    await expect(page.getByText(/Real · JPS (Public InfoBanjir · fetched|snapshot, fetched)/).first()).toBeVisible();
+    await expect(page.getByRole("img", { name: "JPS water-level stations by status" })).toBeVisible();
+    await expect(page.getByText("Stations by state")).toBeVisible();
+    await expect(page.getByText("Vehicles and districts: synthetic")).toBeVisible();
+    const exposed = o.live.high + o.live.medium;
+    if (exposed) await expect(page.locator("[data-flood-vehicle]").first()).toBeVisible();
+    else await expect(page.getByText(/No (district is exposed|vehicle is exposed|vehicle at risk)/).first()).toBeVisible();
+  });
+
+  test("a past flood ranks the claimants first; a vehicle's reasons and the mock invitation", async ({ page }) => {
+    await page.goto("/flood");
+    await page.getByRole("tab", { name: /Dec 2021 · Klang Valley floods/ }).click();
+    await expect(page.getByText(/Real event \(public record\)/)).toBeVisible();
+    await expect(page.getByText("Claims: synthetic")).toBeVisible();
+    const first = page.locator("[data-flood-vehicle]").first();
+    await expect(first.getByText(/Flood insurance claim for this flood/)).toBeVisible();
+    await first.getByRole("button", { name: "Details" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("How the score adds up")).toBeVisible();
+    await expect(dialog.getByText(/-> risk \d+/)).toBeVisible();
+    await expect(dialog.getByText("Mock: recorded, no message is sent")).toBeVisible();
+    const invite = dialog.getByRole("button", { name: "Invite for flood inspection" });
+    if (await invite.count()) {
+      await invite.click();
+      await expect(page.getByText(/Invitation recorded for .* \(mock: no message is sent\)/)).toBeVisible();
+    }
+    await expect(dialog.getByText(/^Invited /)).toBeVisible();
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await expect(page.getByText("Invitations sent")).toBeVisible();
+  });
+});
+
 test.describe("S6 owner app", () => {
   test("assistant answers in BM and offers GEAR slots", async ({ page }) => {
     await page.goto("/owner?plate=DMO%209006&tab=chat");
@@ -270,7 +308,7 @@ test.describe("Orientation and navigation", () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const base = process.env.E2E_BASE_URL || "http://localhost:3000";
     const wide: Record<string, number> = {};  // page -> pixels it scrolls sideways
-    for (const path of ["/", "/lane", "/examiner", "/report", "/vision", "/fleet", "/fleet/vehicle/VKR%203128", "/owner", "/hq", "/regulator"]) {
+    for (const path of ["/", "/lane", "/examiner", "/report", "/vision", "/fleet", "/fleet/vehicle/VKR%203128", "/owner", "/hq", "/regulator", "/flood"]) {
       await page.goto(base + path, { waitUntil: "networkidle" });  // with its data: wide tables only appear then
       const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       if (over > 1) wide[path] = over;

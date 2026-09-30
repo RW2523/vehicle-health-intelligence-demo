@@ -1,6 +1,8 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { Bars, LineChart } from "@/components/charts";
+import { MalaysiaMap } from "@/components/MalaysiaMap";
 import { Shell } from "@/components/Shell";
 import { Card, Kpi, PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -8,26 +10,10 @@ import { fmtN, pct } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-// Peninsular + East Malaysia bounding box for the simple map projection
-const BB = { lon0: 99.5, lon1: 119.5, lat0: 0.8, lat1: 7.5 };
-// Approximate coastline / border outlines (lon, lat) - illustrative only
-const PENINSULAR: [number, number][] = [[100.13, 6.44], [100.4, 6.6], [100.8, 6.3], [101.1, 5.9], [101.6, 5.8], [102.1, 6.2], [102.35, 6.15],
-  [103.1, 5.5], [103.4, 4.8], [103.45, 4.2], [103.4, 3.8], [103.8, 2.6], [104.2, 1.9], [104.25, 1.4], [103.5, 1.27], [103.0, 1.6],
-  [102.5, 2.0], [101.9, 2.5], [101.3, 2.9], [101.1, 3.4], [100.7, 3.9], [100.6, 4.4], [100.35, 5.0], [100.4, 5.5], [100.3, 6.0]];
-const BORNEO: [number, number][] = [[109.6, 1.9], [110.3, 1.7], [111.0, 1.6], [111.4, 2.4], [113.0, 3.1], [114.0, 4.6], [115.0, 5.0],
-  [115.4, 5.3], [116.0, 6.0], [116.8, 7.0], [117.3, 6.6], [117.7, 6.4], [118.1, 5.8], [119.2, 5.2], [118.6, 4.4], [117.6, 4.2],
-  [116.0, 4.3], [115.6, 4.0], [115.0, 2.5], [114.5, 1.5], [113.0, 1.2], [112.0, 1.0], [111.0, 1.0], [110.0, 0.95], [109.6, 1.5]];
 
-function MalaysiaMap({ branches, sites }: { branches: any[]; sites: any[] }) {
-  const W = 900, H = 320;
-  const x = (lon: number) => ((lon - BB.lon0) / (BB.lon1 - BB.lon0)) * W;
-  const y = (lat: number) => H - ((lat - BB.lat0) / (BB.lat1 - BB.lat0)) * H;
+function BranchMap({ branches, sites }: { branches: any[]; sites: any[] }) {
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded-xl bg-ink-950" role="img" aria-label="Branch and roadside-sensing map">
-      {/* simplified outlines (approximate lon/lat) */}
-      {[PENINSULAR, BORNEO].map((poly, i) => (
-        <path key={i} d={"M" + poly.map(([lo, la]) => `${x(lo).toFixed(1)} ${y(la).toFixed(1)}`).join(" L") + " Z"} fill="#132038" stroke="#2A3957" />
-      ))}
+    <MalaysiaMap label="Branch and roadside-sensing map">{({ x, y }) => (<>
       {branches.filter((b) => b.lat).map((b) => (
         <g key={b.branch_id}>
           <circle cx={x(b.lon)} cy={y(b.lat)} r={4 + b.fail_rate * 30} fill="#F59E0B" opacity="0.35" />
@@ -39,7 +25,7 @@ function MalaysiaMap({ branches, sites }: { branches: any[]; sites: any[] }) {
           <rect x={x(s.lon) - 5} y={y(s.lat) - 5} width="10" height="10" fill="#F87171" transform={`rotate(45 ${x(s.lon)} ${y(s.lat)})`}><title>{`${s.site}: ${s.high_emitters} high emitters / ${s.readings}`}</title></rect>
         </g>
       ))}
-    </svg>
+    </>)}</MalaysiaMap>
   );
 }
 
@@ -100,7 +86,7 @@ export default function Regulator() {
           </div>
           <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
             <Card title="Branches (fail rate) and roadside remote-sensing sites" right={<><Source kind="synthetic" text="Branches: synthetic" /><Source kind="simulated" text="Sites: simulated" /></>}>
-              <MalaysiaMap branches={r.branches} sites={r.remote_sensing.sites} />
+              <BranchMap branches={r.branches} sites={r.remote_sensing.sites} />
               <div className="mt-2 flex gap-4 text-[11.5px] text-fg-3"><span><span className="text-warn">●</span> branch (size = fail rate)</span><span><span className="text-bad">◆</span> remote-sensing site</span></div>
             </Card>
             <Card title="High-emitter hits (latest)" right={<Source kind="simulated" />}>
@@ -127,6 +113,7 @@ export default function Regulator() {
               <div className="rounded-lg border border-ink-600 bg-ink-850 p-3">
                 <div className="label mb-1">JPS flood stations</div>
                 <div className="text-[12px] text-fg-2">{(r.web.flood_stations.records || r.web.flood_stations.data || []).length || 0} stations in the snapshot (used for flood-risk context).</div>
+                <Link href="/flood" className="mt-1 inline-block text-[12px] font-semibold text-cyan hover:underline">Flood watch: every state's river levels and the vehicles to inspect ›</Link>
               </div>
             </div>
           </Card>

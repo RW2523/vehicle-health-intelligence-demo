@@ -36,6 +36,7 @@ export const NAV = [
     items: [
       { href: "/hq", label: "HQ operations", sub: "Integrity, demand, audit", icon: "hq" },
       { href: "/regulator", label: "Regulator", sub: "JPJ and DOE view", icon: "regulator" },
+      { href: "/flood", label: "Flood watch", sub: "JPS river levels × vehicles", icon: "flood" },
     ],
   },
 ];

@@ -94,7 +94,7 @@ Start from **Demo control** (`/`). Lane sessions replay real-time sensor streams
 
 ### Suggested 10-minute walkthrough
 
-Demo control shows this walkthrough as a **guided demo** with live progress, and every page's header links to the next step. The navigation groups the apps by who uses them: *inspection lane* (lane, examiner, reports, AI vision), *fleets and owners* (fleet intelligence, vehicle history, owner app) and *oversight* (HQ, regulator). It becomes an icon rail on small laptops and a menu drawer on phones and tablets.
+Demo control shows this walkthrough as a **guided demo** with live progress, and every page's header links to the next step. The navigation groups the apps by who uses them: *inspection lane* (lane, examiner, reports, AI vision), *fleets and owners* (fleet intelligence, vehicle history, owner app) and *oversight* (HQ, regulator, flood watch). It becomes an icon rail on small laptops and a menu drawer on phones and tablets.
 
 1. Demo control: start **S1** at 4×.
 2. Open the **Lane** console and watch the sensors and alerts arrive.
@@ -105,6 +105,23 @@ Demo control shows this walkthrough as a **guided demo** with live progress, and
 4. **Fleet**: filter by *With photos*, then open VKR 3128 to show its brake-imbalance history, the anomaly and the forecast. Send the pattern report and book an inspection.
 5. **HQ**: click *Run tamper test*.
 6. **Owner app**: ask the assistant in BM, run the self-check twice, then book a slot.
+
+### Flood watch
+
+**Flood watch** (`/flood`, under *oversight*) sets JPS river levels against the registered vehicles. It shows which vehicles need a flood-damage inspection or an underbody corrosion check, and why.
+
+- **River levels and rainfall (real).** Every state's water-level and rainfall tables come from [JPS Public InfoBanjir](https://publicinfobanjir.water.gov.my/). They are fetched in parallel (about 8 s) and kept for 15 minutes. Opening the page starts a new fetch in the background once the data is older than that; *Refresh from JPS* fetches at most every two minutes.
+- **Station status.** Each station is read against its own JPS thresholds (normal, alert, warning, danger). A 0.00 m level under a positive normal level, or a reading more than a day old, counts as *no reading*.
+- **History.** Every fetch is recorded, so the page shows how the levels moved. A station's own 7-day series also comes from JPS when the site answers.
+- **Offline.** Without the site, the page uses the last stored fetch, or else the committed snapshot `app/backend/assets/web_snapshots/jps_water_levels.json`. The UI labels this "JPS snapshot, fetched …". Station positions come from the JPS station list on data.gov.my (`jps_stations.json`); stations without one are drawn near their district's main town. `python -m vhi.services.jps` (in `app/backend`) refreshes both files.
+- **Vehicles (synthetic).** Each vehicle gets a synthetic district of its state (`vehicle_locations`, seeded by `vhi.seed.floodwatch`).
+- **Past floods.** These are the flood dates in the synthetic insurance claims. Dec 2021 and Nov 2024 match real floods, which are labelled as public record.
+- **Risk.** Transparent scoring logic, with every factor given as a reason in plain words:
+  - exposure of the district (a station at alert, warning or danger, very heavy rain, or a past flood)
+  - raised or lowered by the vehicle (age, ground clearance, EV or hybrid battery, corrosion found before, earlier flood claims)
+  - combined with the LightGBM flood model for vehicles with an inspection history
+- **Invitation (mock).** *Invite for flood inspection* only records the invitation; no message is sent.
+- **API.** `/api/floodwatch` (`/stations`, `/areas`, `/vehicles`, `/vehicles/{plate}`, `/refresh`, `/invitations`); see `/docs`.
 
 ## Architecture
 
