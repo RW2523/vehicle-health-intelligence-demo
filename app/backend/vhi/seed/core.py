@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import delete
 
+from .. import terms
 from ..config import get_settings
 from ..db import engine, session_scope
 from ..tables import Branch, Examiner, Fleet, Vehicle
@@ -119,6 +120,7 @@ def seed_history() -> None:
         df = pd.read_parquet(data / rel)
         if table == "hist_inspections":
             df = with_lambda(df)
+            df["inspection_type"] = df["inspection_type"].map(terms.code)
         for c in df.columns:
             if df[c].dtype == object:
                 df[c] = df[c].where(df[c].notna(), None)
@@ -148,6 +150,6 @@ def seed_data_fleets() -> None:
         for i, fid in enumerate(sorted(fv.fleet_id.unique())):
             name = f"{FLEET_NAMES[i % len(FLEET_NAMES)]} {FLEET_KIND.get(usage[fid], 'Fleet')}"
             if fid == "FLEET07":
-                name = "Alam Megah Haulage"
+                name = "Meridian Haulage"
             s.add(Fleet(fleet_id=fid, name=name, branch_id=home.get(fid, "BR00"), segment=usage[fid],
                         api_key="fk_" + "".join(rng.choice(list("abcdef0123456789"), 20))))

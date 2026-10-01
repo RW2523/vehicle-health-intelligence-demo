@@ -10,6 +10,7 @@ import { Shell } from "@/components/Shell";
 import { Card, Empty, Modal, PageHeader, Pill, ScoreRing, Source, Tabs } from "@/components/ui";
 import { nextFailNote, dmy, fmtN, pct, scoreColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
+import { visitStep } from "@/components/Demo";
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const short = (iso: string) => `${MON[Number(iso.slice(5, 7)) - 1]} '${iso.slice(2, 4)}`;
@@ -190,6 +191,7 @@ function Dossier({ id }: { id: string }) {
   const { data: d, error } = useFetch<any>(`/api/sales/${id}`);
   const [viewer, setViewer] = useState<number | null>(null);
   const [lane, setLane] = useState<any>(null);
+  const [showReport, setShowReport] = useState(false);
   const back = <Link href="/sales" className="btn">‹ All listings</Link>;
   if (error) return <Empty title="Listing not found" actions={back}>{error}</Empty>;
   if (!d) return <Empty>Loading the record…</Empty>;
@@ -242,16 +244,26 @@ function Dossier({ id }: { id: string }) {
               </div>
             </div>
           </Card>
-          <Card title="Latest PUSPAKOM report" right={<Source kind="live_logic" text="Hash-chained report" />}>
+          <div id="report" className="scroll-mt-20">
+          <Card title="Latest inspection report" right={<>{d.report?.synthetic && <Source kind="synthetic" text="Seeded demo record" />}<Source kind="live_logic" text="Hash-chained report" /></>}>
             {d.report ? (
               <div className="flex flex-wrap items-start gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/api/reports/${d.report.report_id}/qr.svg`} alt="QR code to verify the report" className="h-28 w-28 rounded-lg bg-white p-1.5" />
                 <div className="flex min-w-[180px] flex-1 flex-col gap-1.5 text-[13px]">
-                  <span><Pill color={RESULT_COL[d.report.verdict]}>{d.report.verdict}</Pill> <span className="text-fg-3">{d.report.kind} · {dmy(d.report.created_at)}</span></span>
+                  <span><Pill color={RESULT_COL[d.report.verdict]}>{d.report.verdict}</Pill> <span className="text-fg-3">{d.report.kind} · {dmy(d.report.issued_at || d.report.created_at)}</span></span>
                   <p className="text-[12.5px] leading-relaxed text-[#B7C5DA]">{d.report.summary}</p>
+                  {showReport && (
+                    <dl className="fade-in grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg border border-ink-600 bg-ink-850 p-2.5 text-[12.5px]">
+                      <dt className="text-fg-3">Inspection hub</dt><dd>{d.report.branch || "–"}</dd>
+                      <dt className="text-fg-3">Examiner</dt><dd>{d.report.examiner?.name || "–"}{d.report.examiner?.senior ? " (senior)" : ""}</dd>
+                      {d.report.odometer_km != null && <><dt className="text-fg-3">Odometer then</dt><dd><b>{fmtN(d.report.odometer_km)} km</b> <span className="text-fg-3">(advert: {fmtN(v.odometer_km)} km)</span></dd></>}
+                      <dt className="text-fg-3">Confirmed findings</dt><dd>{(d.report.findings || []).join("; ") || "none"}</dd>
+                    </dl>
+                  )}
                   <span className="flex flex-wrap gap-2">
                     <Link className="btn btn-sm btn-primary" href={`/verify/${d.report.verify_token}`}>Verify this report</Link>
+                    {!showReport && <button className="btn btn-sm" onClick={() => { setShowReport(true); visitStep(`/sales?id=${id}#report`); }}>Review the report</button>}
                     <Link className="btn btn-sm" href={`/report?id=${d.report.report_id}`}>Full report</Link>
                   </span>
                 </div>
@@ -260,6 +272,7 @@ function Dossier({ id }: { id: string }) {
               <p className="text-[13px] text-fg-3">No lane report issued for this vehicle in this demo yet{d.pending_lane_inspection ? `; the lane inspection on ${dmy(d.pending_lane_inspection)} is waiting for the examiner` : ""}. The inspection history below is on record.</p>
             )}
           </Card>
+          </div>
         </div>
       </div>
       <div className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">

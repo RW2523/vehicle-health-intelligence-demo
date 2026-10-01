@@ -1,4 +1,4 @@
-"""Live public data fetcher for the PUSPAKOM VHI demo (run on the DGX Spark while it has internet).
+"""Live public data fetcher for the VehicleSense AI demo (run on the DGX Spark while it has internet).
 
 Pulls every 15 minutes, writes timestamped JSON/parquet into ./cache/, and keeps the latest copy as ./latest/<feed>.json
 so the demo keeps working offline. All sources are public Malaysian open data or public GitHub mirrors.
@@ -15,7 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE, LATEST = os.path.join(HERE, "cache"), os.path.join(HERE, "latest")
 os.makedirs(CACHE, exist_ok=True); os.makedirs(LATEST, exist_ok=True)
 
-# Weather locations near demo branches (MET Malaysia location names used by the API)
+# Weather locations near the demo inspection hubs (MET Malaysia location names used by the API)
 BRANCH_TOWNS = ["Shah Alam", "Petaling", "Gombak", "Kuala Lumpur", "Klang", "Seremban", "Melaka", "Johor Bahru",
                 "Kluang", "Ipoh", "Seberang Perai", "Alor Setar", "Kuantan", "Kota Bharu", "Kuala Terengganu",
                 "Kuching", "Miri", "Kota Kinabalu"]

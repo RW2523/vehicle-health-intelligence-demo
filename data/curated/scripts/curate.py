@@ -1,4 +1,4 @@
-"""Curate raw GitHub-sourced datasets into the PUSPAKOM VHI demo data layout.
+"""Curate raw GitHub-sourced datasets into the VehicleSense AI demo data layout.
 
 Output: /home/claude/dl/curated/{images,audio,sensors,tabular}/... + manifest.csv
 Every file row in the manifest records source repo, licence, original path and label.

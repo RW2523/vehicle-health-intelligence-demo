@@ -230,6 +230,15 @@ def vehicle_readings(vid: str, fuel: str, heavy: bool, kmpm: int, rng: random.Ra
     return out
 
 
+# The S1 truck (use cases UC-01 and UC-06): tread wear that speeds up towards the limit, so the fleet portal flags it
+# before its periodic inspection, where the Tyre AI then finds the damaged tyre.
+FLEET07_HERO = {
+    "DMO 9001": dict(metric="tread_depth", v=[8.1, 7.9, 7.6, 7.3, 7.0, 6.6, 6.1, 5.5, 4.8, 4.0, 3.3, 2.6],
+                     events={7: "Telematics: repeated harsh braking on the northern route",
+                             11: "Lane check: uneven wear on axle 2"}),
+}
+
+
 def seed_fleet07_readings() -> None:
     """Readings for the 43 FLEET07 trucks, anchored to each truck's latest synthetic inspection."""
     data = get_settings().data_dir
@@ -246,6 +255,6 @@ def seed_fleet07_readings() -> None:
                 r = last.iloc[0]
                 anchor = {"brake_imbalance": r.brake_imbalance_pct, "tread_depth": r.tyre_tread_min_mm,
                           "damping": r.suspension_efficiency_pct, "smoke_opacity": r.smoke_opacity_pct}
-            rows += vehicle_readings(v.vehicle_id, v.fuel, v.heavy, v.km_per_month, rng, None, anchor)
+            rows += vehicle_readings(v.vehicle_id, v.fuel, v.heavy, v.km_per_month, rng, FLEET07_HERO.get(v.plate), anchor)
         s.bulk_insert_mappings(FleetReading, rows)
     _ = METRICS  # keep import explicit for readers: every metric key above is defined in METRICS

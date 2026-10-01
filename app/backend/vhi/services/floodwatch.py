@@ -28,6 +28,7 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy import delete, select, text
 
+from .. import terms
 from ..config import get_settings
 from ..db import engine, session_scope
 from ..seed.floodwatch import DISTRICTS, area_of, centre, unit
@@ -667,9 +668,11 @@ def vehicle_detail(key: str, scope: str = LIVE) -> dict:
                                          for f in fp["factors"]]
     ins = pd.read_sql(text("select date, inspection_type, result, corrosion_score_0_10 as corr from hist_inspections "
                            "where vehicle_id = :v order by date"), engine(), params={"v": vid})
-    out["inspections"] = [{"date": str(x.date)[:10], "type": x.inspection_type, "result": x.result,
+    out["inspections"] = [{"date": str(x.date)[:10], "type": terms.label(x.inspection_type), "result": x.result,
                            "corrosion": None if pd.isna(x.corr) else float(x.corr)} for x in ins.itertuples()]
     out["flood_claims"] = r.flood_claims if isinstance(r.flood_claims, list) else []
+    from .reports import for_plate
+    out["lane_reports"] = for_plate(out["plate"], 3)
     out["how"] = (f"Exposure {r.exposure:.2f} with vehicle factor {r.susceptibility:.2f}: exposure risk "
                   f"1 - (1 - {r.exposure:.2f})^{r.susceptibility:.2f} = {r.exposure_score:.2f}"
                   + (f"; flood model {_pct(r.p_model)} (counts 0.6 x {r.p_model:.2f})" if r.p_model == r.p_model else

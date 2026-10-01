@@ -26,7 +26,7 @@ export const playerProgress = (p: any) => {
   return { t: Math.min(Math.round(p?.t || 0), dur), dur, pct: Math.min(100, (100 * (p?.t || 0)) / dur) };
 };
 
-export function PlayerControls({ s, onState, compact = false, onFastDone }: { s: any; onState: (p: any) => void; compact?: boolean; onFastDone?: () => void }) {
+export function PlayerControls({ s, onState, compact = false, onFastDone, quiet = false }: { s: any; onState: (p: any) => void; compact?: boolean; onFastDone?: () => void; quiet?: boolean }) {
   const p = s.player;
   const sid = s.session_id;
   const [busy, setBusy] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function PlayerControls({ s, onState, compact = false, onFastDone }: { s:
   );
   const buttons = (
     <>
-      <button className="btn btn-primary" disabled={!!busy} onClick={() => call("start", { speed: p?.speed || (compact ? 4 : 1), overrides: p?.overrides || {} }, `${sid} started - watch it live`)}
+      <button className={`btn ${quiet ? "" : "btn-primary"}`} disabled={!!busy} onClick={() => call("start", { speed: p?.speed || (compact ? 4 : 1), overrides: p?.overrides || {} }, `${sid} started - watch it live`)}
         title={running ? "Start this session again from the beginning" : "Replay the lane sensors in real time"}>
         {running ? "Restart" : status === "finished" ? "Run again" : "Start"}
       </button>

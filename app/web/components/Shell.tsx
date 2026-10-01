@@ -9,17 +9,18 @@ import { api } from "@/lib/api";
 import { ROLE_HOME, User, canOpen, logout, useUser } from "@/lib/auth";
 import { llmLabel, mydate, myt } from "@/lib/format";
 import { useClock } from "@/lib/live";
-import { NextStep } from "./Guide";
+import { DemoBar } from "./Demo";
 import { Icon } from "./icons";
+import { Modal, ProvenanceLegend } from "./ui";
 
 /** The apps, grouped by who uses them; `roles` open each one besides the presenter and the read-only viewer. */
 export const NAV: { group: string; items: { href: string; label: string; sub: string; icon: string; roles: string[] }[] }[] = [
-  { group: "Start here", items: [{ href: "/", label: "Demo control", sub: "Guided demo and sessions", icon: "play", roles: [] }] },
+  { group: "Start here", items: [{ href: "/", label: "Demo control", sub: "Use cases and guided demo", icon: "play", roles: [] }] },
   {
     group: "Inspection lane",
     items: [
       { href: "/lane", label: "Lane console", sub: "Live sensors and AI", icon: "lane", roles: ["examiner", "hq"] },
-      { href: "/examiner", label: "Examiner", sub: "Decide alerts, issue report", icon: "examiner", roles: ["examiner", "hq"] },
+      { href: "/examiner", label: "Examiner", sub: "Review findings, issue report", icon: "examiner", roles: ["examiner", "hq"] },
       { href: "/report", label: "Reports", sub: "Results and QR verification", icon: "report", roles: ["examiner", "hq"] },
       { href: "/vision", label: "AI vision", sub: "Undercarriage, above-carriage, tyre AI", icon: "vision", roles: ["examiner", "hq"] },
     ],
@@ -36,9 +37,9 @@ export const NAV: { group: string; items: { href: string; label: string; sub: st
     group: "Oversight",
     items: [
       { href: "/hq", label: "HQ operations", sub: "Lanes, integrity, demand, audit", icon: "hq", roles: ["hq"] },
-      { href: "/regulator", label: "Regulator", sub: "JPJ and DOE view", icon: "regulator", roles: ["regulator", "hq"] },
+      { href: "/regulator", label: "Regulator", sub: "Registrations, defects, emissions", icon: "regulator", roles: ["regulator", "hq"] },
       { href: "/sales", label: "Used-vehicle sales", sub: "Every listing, full record", icon: "sale", roles: ["hq", "regulator"] },
-      { href: "/flood", label: "Flood watch", sub: "JPS river levels × vehicles", icon: "flood", roles: ["hq", "regulator"] },
+      { href: "/flood", label: "Flood watch", sub: "River levels × registered vehicles", icon: "flood", roles: ["hq", "regulator"] },
     ],
   },
 ];
@@ -73,10 +74,26 @@ function StatusDot() {
   const ok = !!s;
   const llm = s ? llmLabel(s.llm.backend) : null;
   return (
-    <span className="chip border-ink-600 text-fg-2" title={s ? `Assistant and reports: ${llm || "template engine"} · bus ${s.bus.kind} · ${s.database}` : "API not reachable"}>
+    <span className="chip hidden border-ink-600 text-fg-2 sm:inline-flex" title={s ? `Assistant and reports: ${llm || "template engine"} · bus ${s.bus.kind} · ${s.database}` : "API not reachable"}>
       <span className={`h-2 w-2 rounded-full ${ok ? "bg-ok pulse-dot" : checked ? "bg-bad" : "bg-fg-4"}`} />
       <span className="hidden sm:inline">{ok ? `Pipeline live${llm ? " · LLM" : ""}` : checked ? "API offline" : "Connecting…"}</span>
     </span>
+  );
+}
+
+/** What the provenance labels on every panel mean. */
+function DataLabels() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className="btn btn-sm" onClick={() => setOpen(true)} aria-label="What the data labels mean" title="What the data labels mean">
+        <Icon name="info" size={15} /><span className="hidden xl:inline">Data labels</span>
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} title="What the data labels mean">
+        <p className="mb-3 max-w-[640px] text-[13px] text-fg-3">Every card, chart and result says how it was produced. Simulated, synthetic, sample, mock and future R&D content is never presented as live operational data.</p>
+        <ProvenanceLegend />
+      </Modal>
+    </>
   );
 }
 
@@ -84,7 +101,7 @@ function StatusDot() {
 function UserMenu({ user }: { user: User }) {
   return (
     <span className="flex items-center gap-1.5">
-      <span className="chip border-ink-600 text-fg-2" title={user.title}>
+      <span className="chip hidden border-ink-600 text-fg-2 sm:inline-flex" title={user.title}>
         <span className="h-2 w-2 rounded-full bg-cyan" />
         <span className="hidden max-w-[180px] truncate sm:inline">{user.name}</span>
         <span className="hidden text-fg-4 md:inline">· {user.role === "viewer" ? "read only" : user.role}</span>
@@ -193,7 +210,8 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
           )}
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {allowed && context}
-            {guided && <NextStep />}
+            {guided && <DemoBar />}
+            <DataLabels />
             <StatusDot />
             {user && <UserMenu user={user} />}
             <div className="hidden flex-col items-end leading-tight 2xl:flex">
@@ -212,7 +230,7 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
           )}
         </main>
         <footer className="border-t border-ink-600 px-4 py-3 text-[11.5px] text-fg-4 lg:px-6">
-          Concept demo prepared for vehicle-inspection stakeholders. Fictional vehicles, owners and examiners. Every panel says how its content is produced: live model, live logic, simulated, synthetic or real public data.
+          VehicleSense AI concept demo. Fictional vehicles, owners, examiners and inspection hubs. Every panel is labelled with how its content is produced: live feed, public data, live model, live logic, simulated, synthetic, sample, mock or future R&D.
         </footer>
       </div>
     </div>

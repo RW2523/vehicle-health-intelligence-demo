@@ -1,6 +1,6 @@
 {
  "session": "S1",
- "title": "Scania prime mover · periodic inspection (Berkala)",
+ "title": "Scania prime mover · Commercial Periodic Inspection",
  "branch_id": "BR00",
  "vehicle": {
   "plate": "DMO 9001",
@@ -36,8 +36,8 @@
   "thermal": "A2R hub 146C",
   "acoustic": "fault_bad_wheal_bearing",
   "health_score": 41,
-  "next_berkala_fail_risk": 0.83,
-  "examiner_action": "confirm"
+  "examiner_action": "confirm",
+  "next_periodic_fail_risk": 0.83
  },
  "media": {
   "undercarriage_images": [

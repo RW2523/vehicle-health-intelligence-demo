@@ -5,10 +5,13 @@ import { LineChart } from "@/components/charts";
 import { Icon } from "@/components/icons";
 import { ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
 import { Shell } from "@/components/Shell";
-import { Bar, Modal, PageHeader, Source, toast } from "@/components/ui";
+import { NextAction, refreshUseCase, useActiveUseCase } from "@/components/Demo";
+import { Bar, LoadingState, Modal, PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
+import { useUser } from "@/lib/auth";
 import { dmy, fmtN, riskColor, scoreColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
+import { VERDICT } from "@/lib/present";
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const lab = (iso: string) => { const d = new Date(iso); return `${MON[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`; };
@@ -59,6 +62,9 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
   const [zoom, setZoom] = useState<any>(null);
   const [viewer, setViewer] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const { active: uc } = useActiveUseCase();
+  const user = useUser();
+  const canBook = user?.role === "presenter" || user?.role === "fleet";
   useEffect(() => setMetric(null), [plate]);
   useEffect(() => {
     document.querySelector('[data-plate-strip] [aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center" });
@@ -81,6 +87,7 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
       const [b] = await api.post("/api/fleet/bookings", { plates: [plate] });
       toast(b.status ? `${plate}: inspection booked ${dmy(b.date)} ${b.slot}, before the forecast fail date` : b.error, b.status ? "ok" : "err");
       reload();
+      refreshUseCase();
     } finally { setBusy(false); }
   };
   const col = m ? riskColor(m.risk) : "#9AA8BF";
@@ -88,8 +95,12 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
   const fc = m?.forecast;
   return (
     <Shell context={<span className="chip hidden border-ink-500 text-fg-2 xl:inline-flex">Fleet manager view</span>}>
-      <PageHeader title={`Vehicle history · ${plate}`} sub="Twelve months of readings, anomalies, a time-to-limit forecast and the pattern report the operator receives."
-        actions={<Link href="/fleet" className="btn">‹ All flagged vehicles</Link>} />
+      <PageHeader title={`Vehicle history · ${plate}`} sub="Twelve months of readings, anomalies, a time-to-limit forecast, the latest inspection result and the next action."
+        actions={<>
+          <Link href="/fleet" className="btn">‹ Vehicles needing attention</Link>
+          {d && canBook && !d.bookings?.length && <button className="btn btn-primary" disabled={busy} onClick={book}>Book an inspection before the fail date<Icon name="arrow" size={15} /></button>}
+          {d && uc?.plate === plate && (d.bookings?.length || !canBook) ? <NextAction uc={uc} here={`/fleet/vehicle/${encodeURIComponent(plate)}`} /> : null}
+        </>} />
       <div data-plate-strip className="mb-3 flex gap-2 overflow-x-auto pb-1">
         {(ov.data?.attention || []).map((r: any) => (
           <Link key={r.plate} href={`/fleet/vehicle/${encodeURIComponent(r.plate)}`} aria-current={r.plate === plate ? "page" : undefined}
@@ -98,8 +109,31 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
           </Link>
         ))}
       </div>
-      {!d ? <p className="text-fg-3">Loading…</p> : (
+      {!d ? <div className="card card-pad"><LoadingState label={`Loading the history of ${plate}…`} rows={4} /></div> : (
         <>
+          <section className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3 text-[13px]" aria-label="Latest inspection and next action">
+            {d.lane_reports?.[0] ? (() => {
+              const r = d.lane_reports[0];
+              return (
+                <>
+                  <span className="label">Latest inspection</span>
+                  <b style={{ color: VERDICT[r.verdict]?.color }}>{r.verdict}</b>
+                  <span>{r.kind} · {dmy(r.issued_at || r.created_at)}{r.health != null ? ` · health ${r.health}` : ""}</span>
+                  {r.findings?.length > 0 && <span className="text-fg-3">· {r.findings.slice(0, 3).join("; ")}</span>}
+                  <span className="ml-auto flex gap-2"><Link className="btn btn-sm" href={`/report?id=${r.report_id}`}>Report</Link><Link className="btn btn-sm" href={`/verify/${r.verify_token}`}>Verify</Link></span>
+                </>
+              );
+            })() : d.bookings?.length ? (
+              <>
+                <span className="label">Next action</span>
+                <b className="text-cyan">Inspection booked</b>
+                <span>{d.bookings[0].type_label} · {dmy(d.bookings[0].date)} {d.bookings[0].slot} · {d.bookings[0].branch_name}</span>
+                <span className="text-fg-3">· {d.bookings[0].status === "checked_in" ? "checked in at the lane" : "confirmed"}</span>
+              </>
+            ) : (
+              <><span className="label">Next action</span><span className="text-fg-3">No inspection booked. The forecast below says how long this vehicle has before it reaches its fail limit.</span></>
+            )}
+          </section>
           <section className="card mb-3 flex flex-wrap items-center gap-5 p-4">
             {v.photo ? (
               <button className="group relative shrink-0 overflow-hidden rounded-xl" disabled={!images.length} onClick={() => setViewer(0)} aria-label={`Inspection images of ${plate}`}>
@@ -232,8 +266,8 @@ export default function VehicleHistory({ params }: { params: Promise<{ plate: st
               </div>
               <p className="text-[11.5px] text-fg-3">{d.report.rule}</p>
               <div className="mt-auto flex gap-2">
-                <button className="btn btn-primary flex-1" disabled={busy} onClick={send}>{d.report.sent_at ? "Report sent ✓ · send again" : "Send report now"}</button>
-                <button className="btn flex-1" disabled={busy || !!v.booked} onClick={book}>{v.booked ? `Booked ${dmy(v.booked.date)}` : "Book inspection"}</button>
+                <button className="btn flex-1" disabled={busy || !canBook} onClick={send}>{d.report.sent_at ? "Report sent ✓ · send again" : "Send report now"}</button>
+                <button className="btn flex-1" disabled={busy || !!v.booked || !canBook} onClick={book}>{v.booked ? `Booked ${dmy(v.booked.date)}` : "Book inspection"}</button>
               </div>
             </section>
           </div>

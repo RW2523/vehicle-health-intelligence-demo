@@ -1,4 +1,4 @@
-"""Reference data: branches, examiners, vehicles and the mock mySIKAP registry."""
+"""Reference data: inspection hubs, examiners, vehicles and the mock vehicle registry."""
 from __future__ import annotations
 
 import pandas as pd
@@ -52,10 +52,10 @@ def vehicle_history(plate: str):
                   "claims": claims.to_dict("records")})
 
 
-@router.get("/mysikap/{plate}", tags=["mock integrations"])
-def mysikap_lookup(plate: str):
-    """Mock of the JPJ mySIKAP registry lookup used at check-in (fictional records only)."""
+@router.get("/registry/{plate}", tags=["mock integrations"])
+def registry_lookup(plate: str):
+    """Mock of the national vehicle-registry lookup used at check-in (fictional records only)."""
     v = vehicle_or_404(norm_plate(plate))
-    return {"source": "mock mySIKAP (fictional registry)", "plate": v.plate, "chassis_no": v.chassis_no,
+    return {"source": "mock vehicle registry (fictional records)", "plate": v.plate, "chassis_no": v.chassis_no,
             "engine_no": v.engine_no, "make": v.make, "model": v.model, "year": v.year,
             "registered_owner": v.owner_name or "company", "status": "active"}

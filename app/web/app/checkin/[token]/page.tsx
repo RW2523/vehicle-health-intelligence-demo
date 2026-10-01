@@ -15,8 +15,8 @@ export default function CheckIn({ params }: { params: Promise<{ token: string }>
       {b && (
         <div className="card card-pad flex flex-col gap-2">
           <div className="font-display text-[26px] font-bold">{b.plate}</div>
-          <div className="text-[14px]">{b.type_label}{b.gear ? " · GEAR" : ""}</div>
-          <div className="text-[13px] text-fg-3">{dmy(b.date)} · {b.slot} · branch {b.branch_id}</div>
+          <div className="text-[14px]">{b.type_label}{b.gear ? " · Express slot" : ""}</div>
+          <div className="text-[13px] text-fg-3">{dmy(b.date)} · {b.slot} · {b.branch_name || b.branch_id}</div>
           <div className={`mt-2 rounded-xl px-3 py-2 text-[14px] font-semibold ${b.status === "checked_in" ? "bg-ok/15 text-ok" : b.status === "confirmed" ? "bg-cyan/15 text-cyan" : "bg-warn/15 text-warn"}`}>
             {b.status === "checked_in" ? "Checked in at the lane" : b.status === "confirmed" ? "Paid · ready for check-in (ANPR confirms the plate at the lane)" : "Payment pending"}
           </div>

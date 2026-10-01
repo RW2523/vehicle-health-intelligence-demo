@@ -101,7 +101,7 @@ def test_motorcycle_dossier(client):
         for i in d["inspections"]:
             keys = {m["key"] for m in i["measures"]}
             assert BIKE_CHECKS <= keys and not keys & CAR_ONLY
-            assert i["type"] in ("B5_MV15", "voluntary") and i["odometer_km"] > 0
+            assert i["type"] in ("ownership_transfer", "voluntary") and i["odometer_km"] > 0
         if not d["obd"]["supported"]:
             assert "Carburettor" in d["obd"]["note"]
     rolled = [b for b in bikes if "rollback" in b["trust"]["flags"]]

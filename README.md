@@ -79,72 +79,112 @@ Open `http://<spark-host>:3000`. The web server also proxies the live WebSocket 
 
   This writes `app/backend/models/vision/*.onnx` and `vision_metrics.json`. At runtime the classifiers run on onnxruntime (15-25 ms per image on the Grace CPU), so the API does not need PyTorch.
 
-## The demo: lane replays and walkthroughs
+## The demo: nine end-to-end use cases
 
-Start from **Demo control** (`/`) as the presenter. S1–S3 are **lane replays**: scripted inspections at the Alam Megah branch (lanes 3, 2 and 1) whose simulated sensor streams play in real time. You can play, pause, change speed, jump to a step, inject changes live, or **Fast-forward** to the end instantly. Everything downstream is computed live from those streams.
+Log in as the **Demo presenter** and start from **Demo control** (`/`). It opens with what the product does and one
+*Start the recommended demo* button, then lists nine **use cases**. Each card gives the vehicle, the scenario, the
+expected outcome, the time it takes and where its data comes from. *Start* opens the first screen of the journey.
+From then on the header of every page shows the running use case, its step and a link to the next one. Each
+inspection screen shows the **inspection in context**: vehicle, inspection type and ID, hub and lane, examiner, time,
+status, outcome, the journey stepper and one primary next action. Progress is read from the live system (the lane
+inspection, the examiner's decisions, the report, a booking, an invitation, an HQ action) and from the screens the
+presenter has shown (`vhi/services/usecases.py`, `GET /api/usecases`). *Restart* resets only the scenario state the
+use case owns: open bookings of its vehicle, its flood invitation and the HQ exception states. It never touches the
+seeded data.
 
-| Replay / walkthrough | What happens | Where to look |
+| Use case | Journey | Outcome |
 |---|---|---|
-| **S1** DMO 9001 · Scania prime mover, periodic inspection (Berkala) | Thermal hot hub, particle number showing a removed DPF, roller-brake imbalance, a tyre defect from the Tyre AI and wheel-bearing noise. Health score 57; verdict **FAIL**. | Lane → Examiner → Report → Verify |
-| **S2** DMO 9002 · BYD Atto 3 (EV), ownership transfer + hire-purchase (B5 + B7) | Flood-damage evidence (cabin corrosion, HV isolation, insurance claim), BMS pack state of health and module spread, EV fault codes. Verdict **CONDITIONAL**. | Lane, Examiner |
-| **S3** DMO 9003 · Honda Civic, ownership transfer (B5) | The plate is read (OCR); the odometer and engine-sound fingerprint disagree with the vehicle's history, so the inspection is routed to a senior examiner (verdict **REFERRED**). The petrol exhaust-gas test shows CO, HC and lambda. Health 95 with a 40% next-inspection risk, read against 10–12-year-old cars that pass today (38%): mostly age. | Examiner |
-| **S4** HQ | Examiner integrity (VE017 and VE044 flagged), lane-equipment predictive maintenance (BR00 lane 3 roller tester), 14-day demand forecast and roster, and a hash-chain audit with a live tamper test. | HQ |
-| **S5** Fleet + regulator | Five operators plus FLEET07: degradation history per vehicle, anomalies, time-to-limit forecasts, pattern reports, bulk booking and next-Berkala fail risk. The regulator view shows real JPJ registrations and live data.gov.my feeds. | Fleet, Vehicle history, Regulator |
-| **S6** Owner app | An assistant in BM, English and Chinese; GEAR slot booking with a mock payment and check-in QR; a self-check (tint and headlamp fail, then pass); the Health Passport. | Owner app |
+| **UC-01** Commercial vehicle: emissions and brake failure (DMO 9001, Scania prime mover) | Demo control → lane → examiner → report → fleet record | The examiner confirms the particle-number, hot-hub, fault-code and Tyre AI findings: **FAIL**. |
+| **UC-02** EV flood-risk inspection (DMO 9002, BYD Atto 3) | lane → examiner → report → vehicle history | Cabin corrosion, a weak HV isolation reading, battery health and a flood claim: **CONDITIONAL** EV Health Certificate. |
+| **UC-03** Odometer rollback and senior review (DMO 9003, Honda Civic) | lane → examiner → referral → senior sign-off → history | Identity checks disagree. The case is referred to the senior examiner, whose sign-off and reasons are in the report. |
+| **UC-04** Clean inspection (DMO 9006, Perodua Myvi) | lane → examiner → report → health passport | No anomalies, nothing to decide: **PASS**. |
+| **UC-05** Owner self-check, booking and inspection (DMO 9006) | self-check → booking (mock payment) → check-in → lane → report → passport | The booking is checked in by the plate camera, and the certificate appears in the owner's passport. |
+| **UC-06** Fleet predictive maintenance (DMO 9001) | attention list → vehicle history (tread wear speeding up) → booking → lane → report → fleet record | The truck is booked before it reaches the limit, and the fleet view shows its new result. |
+| **UC-07** HQ exception investigation | exceptions → evidence → recorded action → HQ updated | Examiner integrity, a failing brake tester and a capacity gap: each has a reason, its evidence and actions that are recorded and hash-chained (work orders and rosters are mock). |
+| **UC-08** Flood watch to inspection invitation (DMO 9002) | the December 2025 flood view → at-risk EV → invitation (mock) → lane → result in flood watch | The invitation is recorded; the inspection result closes the loop. |
+| **UC-09** Used-vehicle buyer trust (DMO 9003) | listings → full record and red flags → latest report → public verification (no login) | *Genuine, unaltered report*. A seeded, clearly labelled synthetic report keeps this runnable on a fresh system. |
 
-**Used-vehicle sales.** The owner app's *Sale* tab and *Oversight › Used-vehicle sales* (`/sales`) list 55 cars and motorcycles for sale, each with its whole record: every inspection (history and live lane reports; a health score comes with a lane report), the odometer readings with rollback detection, OBD fault codes, insurance claims and policy, photos and the latest verifiable report, summed up in plain words for the buyer. DMO 9003 (S3) is advertised with a rolled-back odometer and DMO 9002 (S2) with a flood claim. The listings, the 15 motorcycles and their inspections are synthetic (`vhi/seed/sales.py`); the API is `GET /api/sales` and `GET /api/sales/{listing_id}`.
+The lane replays behind them are scripted inspections at the **Central Inspection Hub** (lanes 3, 2, 1 and 4 for
+S1, S2, S3 and S7). Their simulated sensor streams play in real time: play, pause, change speed, jump to a step, change a
+value live or **Fast-forward** to the end (Demo control › *Presenter controls*). Everything downstream is computed live
+from those streams. S7 (`data/curated/scripts/gen_s7.py`) is the clean replay. When the car has a paid booking, the
+lane takes the booked inspection type.
 
-### Suggested 10-minute walkthrough
+**The presentation rules the apps follow** (`app/web/lib/present.ts`):
+- **Provenance.** One label set on every card, chart and result: LIVE FEED, PUBLIC DATA (a stored snapshot of real
+  public data), LIVE MODEL, LIVE LOGIC, SIMULATED, SYNTHETIC, SAMPLE, MOCK and FUTURE R&D. The label text says it (not
+  only the colour), a tooltip explains it, and *Data labels* in the header opens the legend.
+- **Severity.** Normal, Attention and Critical everywhere. A critical finding needs a decision before the report can be
+  issued.
+- **Model confidence** appears only for a trained model's own output, never for a limit check or a rule.
+- **The Vehicle Health / Risk Score** is labelled an application estimate. It shows the status and the main reason,
+  the systems that apply to the vehicle (EV battery only for an EV; click one to filter the findings), and model
+  factors kept apart from rule deductions.
 
-Demo control shows this walkthrough as a **guided demo** with live progress, and every page's header links to the next step. The navigation groups the apps by who uses them: *inspection lane* (lane, examiner, reports, AI vision), *fleets and owners* (fleet intelligence, vehicle history, owner app) and *oversight* (HQ, regulator, used-vehicle sales, flood watch). It becomes an icon rail on small laptops and a menu drawer on phones and tablets.
+**The examiner workspace.** A finding queue (critical first) and one finding in focus:
+- *Why was this flagged?*, the measured value against its limit and the difference, the evidence source, earlier
+  inspections, the health-score deduction and the evidence media.
+- *Confirm*, *Dismiss* or *Defer*, with a reason required to dismiss or defer. After a decision the next open finding
+  opens.
+- Decision progress, and the report blocked until the critical findings are decided. When identity checks disagree,
+  a banner says why and the primary action becomes *Refer to the senior examiner*.
+- **Ask about this inspection**: a context-aware assistant (`POST /api/inspections/{id}/ask`). It lists the facts it
+  retrieved from the record, numbered, apart from the explanation. The local LLM only rephrases them, and without it
+  a template does. It says plainly when something is not on record.
 
-1. Log in as the **Demo presenter**; on Demo control start **S1** at 4×.
-2. Open the **Lane** console and watch the sensors and alerts arrive.
-3. Go to the **Examiner** console:
-   - Confirm the alerts. Dismissing one needs a reason.
-   - Issue the report.
-   - Open "What the buyer sees" to show the verification page.
-4. **Fleet**: filter by *With photos*, then open VKR 3128 to show its brake-imbalance history, the anomaly and the forecast. Send the pattern report and book an inspection.
-5. **HQ**: click *Run tamper test*.
-6. **Owner app**: ask the assistant in BM, run the self-check twice, then book a slot.
+**Used-vehicle sales.** The owner app's *Sale* tab and *Oversight › Used-vehicle sales* (`/sales`) list 55 cars and
+motorcycles for sale, each with its whole record: every inspection, the odometer readings with rollback detection, OBD
+fault codes, insurance claims and policy, photos and the latest verifiable report, summed up for the buyer. The
+listings, the 15 motorcycles and their inspections are synthetic (`vhi/seed/sales.py`).
 
 ### Logins
 
-One demo account per role; `VHI_DEMO_PASSWORD` opens them all, `VHI_VIEWER_PASSWORD` the read-only viewer.
+One demo account per role. `VHI_DEMO_PASSWORD` opens them all; `VHI_VIEWER_PASSWORD` opens the read-only viewer.
 
 | Account | Sees |
 |---|---|
-| Demo presenter | every app, including Demo control |
-| Arjun Ismail (examiner) / Priya Hassan (senior examiner) | the lane console, examiner console, reports and AI vision of the Alam Megah branch; decisions and sign-off are recorded as themselves |
-| HQ operations | every branch's lanes (read only), HQ, fleets, regulator, used-vehicle sales, flood watch |
-| JPJ / DOE officer | the regulator view, used-vehicle sales and flood watch |
+| Demo presenter | every app, including Demo control; starts the use cases |
+| Arjun Ismail (Examiner) / Priya Hassan (Senior Examiner) | the lane console, examiner workspace, reports and AI vision of the Central Inspection Hub; decisions and sign-off are recorded as themselves |
+| Operations manager | every hub's lanes (read only), HQ with its exceptions, fleets, regulator, used-vehicle sales, flood watch |
+| Regulator officer | the regulator view, used-vehicle sales and flood watch |
 | Fleet manager | fleet intelligence and vehicle history |
-| Nurul Aina (owner of DMO 9006) | the owner app for her own vehicle |
-| Guest viewer | every app, read only (may still ask the assistant and try the photo models) |
+| Nurul Aina (Vehicle Owner, DMO 9006) | the owner app for her own vehicle |
+| Guest viewer | every app, read only (may still ask the assistants and try the photo models) |
 
-The API enforces the same rules (`vhi/auth.py`). Open without a login: the buyer's verification page and the lane check-in scan, both reached through a QR code.
+The API enforces the same rules (`vhi/auth.py`). Open without a login: the buyer's verification page and the lane
+check-in scan, both reached through a QR code.
 
-### What PUSPAKOM's review changed
+### Neutral branding
 
-- **AI vision** is organised as three AI inspection modules of the platform: **Undercarriage AI** (underbody and chassis corrosion from the pit cameras), **Above-carriage AI** (body damage, previous repairs and cabin corrosion) and **Tyre AI** (tyre cracks, wear and damage). Every image result, alert and health-score rule names the module that found it.
-- **E-nose** is a future R&D option: its stream and model run are shown as a research preview but raise no alerts and change no score or result (`VHI_ENOSE_IN_RESULTS=true` uses it as a live sensor).
-- **Owner app**: no AI model details; a full slot suggests the nearest branches with that time free; the passport lists every certificate.
+The apps carry no client branding. Inspection hubs are fictional: Central, North, East, South and West Inspection Hub
+in the Klang Valley, and "<city> Inspection Hub" elsewhere. Inspection types have plain names: Commercial Periodic,
+Ownership Transfer, Financing, Voluntary, EV Health Check and Special Inspection (`vhi/terms.py`). Next-day premium
+slots are *Express* slots, and the vehicle registry at check-in is a mock registry. An end-to-end test reads every
+page and fails on client-specific names or service codes. Genuine public data keeps its source:
+- data.gov.my for the national registrations
+- JPS Public InfoBanjir for river levels
+
+References that remain but are not shown in the apps:
+- The old service codes in the curated synthetic data file (`inspections.parquet`), mapped to the neutral codes when
+  the database is seeded (`vhi/terms.py`).
+- The internal name `gear` of the Express-slot field and column.
+- The stakeholder review document at the repository root.
 
 ### Flood watch
 
-**Flood watch** (`/flood`, under *oversight*) sets JPS river levels against the registered vehicles. It shows which vehicles need a flood-damage inspection or an underbody corrosion check, and why.
+**Flood watch** (`/flood`, under *oversight*) sets river levels (JPS Public InfoBanjir) against the registered vehicles. It shows which vehicles need a flood-damage inspection or an underbody corrosion check, and why.
 
-- **River levels and rainfall (real).** Every state's water-level and rainfall tables come from [JPS Public InfoBanjir](https://publicinfobanjir.water.gov.my/). They are fetched in parallel (about 8 s) and kept for 15 minutes. Opening the page starts a new fetch in the background once the data is older than that; *Refresh from JPS* fetches at most every two minutes.
+- **River levels and rainfall (real).** Every state's water-level and rainfall tables come from [JPS Public InfoBanjir](https://publicinfobanjir.water.gov.my/). They are fetched in parallel (about 8 s) and kept for 15 minutes. Opening the page starts a new fetch in the background once the data is older than that; *Refresh river levels* fetches at most every two minutes. The page says when the data was last updated, and says so plainly when the live feed is unavailable and it shows the stored snapshot.
 - **Station status.** Each station is read against its own JPS thresholds (normal, alert, warning, danger). A 0.00 m level under a positive normal level, or a reading more than a day old, counts as *no reading*.
 - **History.** Every fetch is recorded, so the page shows how the levels moved. A station's own 7-day series also comes from JPS when the site answers.
-- **Offline.** Without the site, the page uses the last stored fetch, or else the committed snapshot `app/backend/assets/web_snapshots/jps_water_levels.json`. The UI labels this "JPS snapshot, fetched …". Station positions come from the JPS station list on data.gov.my (`jps_stations.json`); stations without one are drawn near their district's main town. `python -m vhi.services.jps` (in `app/backend`) refreshes both files.
+- **Offline.** Without the site, the page uses the last stored fetch, or else the committed snapshot `app/backend/assets/web_snapshots/jps_water_levels.json`. The UI labels this "PUBLIC DATA · Stored JPS snapshot, fetched …" (a live fetch is "LIVE FEED"). Station positions come from the JPS station list on data.gov.my (`jps_stations.json`); stations without one are drawn near their district's main town. `python -m vhi.services.jps` (in `app/backend`) refreshes both files.
 - **Vehicles (synthetic).** Each vehicle gets a synthetic district of its state (`vehicle_locations`, seeded by `vhi.seed.floodwatch`).
 - **Past floods.** These are the flood dates in the synthetic insurance claims. Dec 2021 and Nov 2024 match real floods, which are labelled as public record.
 - **Risk.** Transparent scoring logic, with every factor given as a reason in plain words:
   - exposure of the district (a station at alert, warning or danger, very heavy rain, or a past flood)
   - raised or lowered by the vehicle (age, ground clearance, EV or hybrid battery, corrosion found before, earlier flood claims)
   - combined with the LightGBM flood model for vehicles with an inspection history
-- **Invitation (mock).** *Invite for flood inspection* only records the invitation; no message is sent.
+- **Invitation (mock).** *Invite the owner for a flood inspection* only records the invitation; no message is sent. The vehicle's detail then shows the result of the inspection that follows. The address holds the view and the vehicle (`/flood?scope=event:2025-12-10&vehicle=DMO 9002`).
 - **API.** `/api/floodwatch` (`/stations`, `/areas`, `/vehicles`, `/vehicles/{plate}`, `/refresh`, `/invitations`); see `/docs`.
 
 ## Architecture
@@ -208,20 +248,28 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 ## Tests
 
 ```bash
-make test                                                          # 34 backend tests (SQLite)
+make test                                                          # 70 backend tests (SQLite)
 VHI_DATABASE_URL=postgresql+psycopg://... make test                # the same suite on PostgreSQL (add VHI_MQTT_URL=... for MQTT)
-make e2e                                                           # 18 Playwright end-to-end tests (needs `make start`;
+make e2e                                                           # 38 Playwright end-to-end tests (needs `make start`;
                                                                    # first time: cd app/web && npx playwright install chromium)
 ```
 
-The end-to-end tests drive the real UI through all six sessions:
-- **S1:** examiner decisions → report → public verification.
-- **S2:** flood evidence. **S3:** routing to a senior examiner.
-- **S4:** HQ tamper test.
-- **S5:** fleet pattern report and booking, FLEET07 risk, the regulator view.
-- **S6:** assistant, self-check and paid booking.
-- The live vision model, the live WebSocket through the web port, and the photo explanation (when a vision-language model is configured).
-- The guided demo's next-step links, and the phone menu drawer (no sideways scrolling at 390 px).
+The backend tests cover the use-case engine: every journey's progress read from the live system, the restarts, the
+HQ exceptions with hash-chained actions, the inspection assistant, the synthetic report and the clean S7 replay. The
+end-to-end tests drive the real UI:
+- **Demo control:** the nine use-case cards, starting one with the keyboard, and the data-label legend.
+- **UC-01:**
+  - critical findings first, and a reason required to dismiss
+  - the arrow keys in the finding queue, and the report blocked until the critical findings are decided
+  - the FAIL report, the fleet record and public verification
+- **UC-02 to UC-09** each reach their outcome: the CONDITIONAL certificate, the senior sign-off, the clean PASS, the owner journey from self-check to passport, the fleet booking, the HQ action, the flood invitation and its result, and the buyer's verification without a login.
+- **Across the apps:**
+  - the inspection context on every inspection screen
+  - a branding audit that reads every page
+  - loading states and a zero-result filter
+  - no sideways scrolling at 390 and 360 px
+  - the logins and roles
+  - the live vision model and the WebSocket
 
 ## Troubleshooting
 

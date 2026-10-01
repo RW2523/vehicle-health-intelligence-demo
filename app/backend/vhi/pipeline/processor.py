@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import select, text
 
+from .. import terms
 from ..db import engine, session_scope
 from ..ml import ocr
 from ..ml.acoustic import LABELS as AC_LABELS
@@ -205,7 +206,9 @@ class StreamProcessor:
                      "euro_class": v.get("euro_class"), "dpf_fitted": v.get("dpf_fitted"), "odometer_km": v.get("odometer_km"),
                      "chassis_no": veh.chassis_no if veh else None, "state": veh.state if veh else "",
                      "owner_name": veh.owner_name if veh else "", "vehicle_id": vid, "axles": v.get("axles", 2)}
+            # the Central Inspection Hub's lanes are staffed by the demo examiner account (Arjun Ismail, VE011)
             s.add(LiveInspection(inspection_id=p["inspection_id"], session_id=p["session"], lane_id=p["lane_id"],
+                                 examiner_id="VE011" if (p.get("branch_id") or "BR00") == "BR00" else "VE012",
                                  branch_id=p.get("branch_id") or "BR00", vehicle_id=vid, plate=v.get("plate", "?"),
                                  inspection_type=p["inspection_type"], status="in_lane", results={}, measurements={},
                                  fusion={"report_kind": p["report_kind"], "title": p.get("title")}))
@@ -506,7 +509,7 @@ class StreamProcessor:
                                   "Visible light transmission below the legal minimum for front side windows.",
                                   "Lights & body", "medium", 0.99, "simulated", {"value": v}, fail_item=True)
         elif f == "adas_self_test":
-            c.results["adas"] = {"status": str(v), "note": "ADAS check is advisory only in this demo (mock UI, feature 32)"}
+            c.results["adas"] = {"status": str(v), "note": "The ADAS self-test is advisory only in this demo."}
             await self._push(c, "result", {"key": "adas", "value": c.results["adas"]})
             return
         res[f] = {"value": v, "limit": limit, "verdict": verdict, "overridden": bool(p.get("overridden")), "source": "simulated"}
@@ -549,6 +552,7 @@ class StreamProcessor:
         if c.vehicle_id:
             prev = pd.read_sql(text("select date, odometer_km, inspection_type from hist_inspections where vehicle_id = :v order by date"),
                                engine(), params={"v": c.vehicle_id})
+            prev["inspection_type"] = prev["inspection_type"].map(terms.label)
         res = {"reading_km": km, "overridden": bool(p.get("overridden")), "history": prev.to_dict("records")}
         if len(prev):
             mx = prev.loc[prev.odometer_km.idxmax()]
@@ -590,7 +594,7 @@ class StreamProcessor:
                     booking = {"booking_id": b.booking_id, "slot": f"{b.date} {b.slot}", "gear": b.gear}
         res = {"plate": r["plate"], "conf": r["conf"], "matches_session_vehicle": r["plate"] == expected,
                "image": self._media_url(str(img)), "booking": booking, "camera": p.get("camera"),
-               "mysikap": {"source": "mock mySIKAP", "found": c.vehicle_id is not None, "chassis_no": c.vehicle.get("chassis_no"),
+               "registry": {"source": "mock vehicle registry", "found": c.vehicle_id is not None, "chassis_no": c.vehicle.get("chassis_no"),
                            "owner": c.vehicle.get("owner_name")}}
         c.results["anpr"] = res
         evidence.append("anpr", {"plate": r["plate"], "conf": r["conf"], "image_sha256": evidence.file_sha256(img)}, c.inspection_id)

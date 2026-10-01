@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { dmy, fmtN, nextFailNote } from "@/lib/format";
 import { useUser } from "@/lib/auth";
 import { useFetch } from "@/lib/live";
+import { refreshUseCase } from "@/components/Demo";
 
 type Tab = "passport" | "book" | "check" | "chat" | "sale";
 const TABS: { id: Tab; label: string; d: string }[] = [
@@ -177,7 +178,7 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
         {d.insurance && <p className="mt-1.5 text-[11.5px] text-slate-500">Insured: {d.insurance.type}, {d.insurance.insurer}, no-claim discount {d.insurance.ncd_pct}%.</p>}
       </Section>
       {d.report && (
-        <Section title="Latest PUSPAKOM report">
+        <Section title="Latest inspection report">
           <div className="flex items-center justify-between gap-2 text-[12.5px]"><span>{d.report.kind} · {dmy(d.report.created_at)}</span><Badge tone={RESULT_TONE[d.report.verdict]}>{d.report.verdict}</Badge></div>
           <a className="mt-1.5 inline-block text-[12.5px] font-semibold text-sky-700 underline" href={`/verify/${d.report.verify_token}`}>Verify the report</a>
         </Section>
@@ -293,7 +294,7 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
   const types = useFetch<any>("/api/owner/inspection-types", { selling, buyer_loan: loan });
   const branches = useFetch<any[]>("/api/branches");
   const [itype, setItype] = useState("");
-  const [branch, setBranch] = useState("BR01");
+  const [branch, setBranch] = useState("BR00");
   const gear = useFetch<any>("/api/owner/gear", { branch_id: branch });
   const [date, setDate] = useState("");
   const slots = useFetch<any>(date ? "/api/owner/slots" : null, { branch_id: branch, date });
@@ -326,7 +327,8 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
       const b = await api.post("/api/owner/bookings", { plate, branch_id: branch, date, slot: slot.time, inspection_type: itype, gear: !!slot.gear });
       const paid = await api.post(`/api/owner/bookings/${b.booking_id}/pay`, { method: "FPX" });
       setBooking(paid);
-      toast(`Booked and paid (mock FPX ${paid.payment_ref})`, "ok");
+      toast(`Booked and paid (mock payment ${paid.payment_ref})`, "ok");
+      refreshUseCase();
       onBooked();
     } catch (e: any) {
       toast(e.message, "err");
@@ -337,10 +339,16 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
       <div className="flex flex-col items-center gap-3 p-5 text-center text-slate-900">
         <div className="text-[13px] font-semibold text-emerald-600">Booking confirmed</div>
         <div className="font-display text-[20px] font-bold">{booking.type_label}</div>
-        <div className="text-[13px] text-slate-600">{branches.data?.find((b) => b.branch_id === booking.branch_id)?.name} · {dmy(booking.date)} {booking.slot} {booking.gear ? "· GEAR" : ""}</div>
+        <dl className="grid w-full grid-cols-2 gap-x-3 gap-y-1.5 rounded-xl border border-slate-200 bg-white p-3 text-left text-[12.5px]">
+          <dt className="text-slate-500">Inspection hub</dt><dd className="font-semibold">{booking.branch_name}</dd>
+          <dt className="text-slate-500">Date and time</dt><dd className="font-semibold">{dmy(booking.date)} · {booking.slot}{booking.gear ? " (Express)" : ""}</dd>
+          <dt className="text-slate-500">Payment</dt><dd className="font-semibold">RM {booking.price_rm.toFixed(2)} · paid <span className="rounded bg-slate-100 px-1 text-[10.5px] font-bold text-slate-600">MOCK</span></dd>
+          <dt className="text-slate-500">Check-in code</dt><dd className="font-mono font-semibold">{booking.checkin_token.slice(0, 8).toUpperCase()}</dd>
+        </dl>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/api/owner/bookings/${booking.booking_id}/qr.svg`} alt="Check-in QR code" className="h-44 w-44" />
-        <div className="text-[12px] text-slate-500">Show this QR at the lane entry. RM {booking.price_rm.toFixed(2)} paid · {booking.payment_ref}</div>
+        <img src={`/api/owner/bookings/${booking.booking_id}/qr.svg`} alt="Check-in QR code" className="h-40 w-40" />
+        <div className="text-[12px] text-slate-500">Show this code at the lane entry: the plate camera and the code check you in. The payment ran through a mock gateway ({booking.payment_ref}); nothing was charged.</div>
+        <a className="text-[12.5px] font-semibold text-sky-700 underline" href={`/checkin/${booking.checkin_token}`}>Open the check-in page</a>
         <button className="rounded-xl border border-slate-300 px-4 py-2 text-[13px] font-semibold" onClick={() => { setBooking(null); setSlot(null); }}>Make another booking</button>
       </div>
     );
@@ -355,7 +363,7 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
         {(types.data?.types || []).map((t: any) => (
           <button key={t.code} onClick={() => setItype(t.code)}
             className={`rounded-xl border px-3 py-2 text-left text-[12.5px] ${itype === t.code ? "border-sky-600 bg-sky-50" : "border-slate-200"}`}>
-            <b>{t.code}</b> · RM {t.price}{types.data?.recommended.includes(t.code) && <span className="ml-1 text-emerald-600">recommended</span>}
+            <b>{t.label}</b> · RM {t.price}{types.data?.recommended.includes(t.code) && <span className="ml-1 text-emerald-600">recommended</span>}
           </button>
         ))}
       </div>
@@ -364,13 +372,13 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
         {(branches.data || []).map((b) => <option key={b.branch_id} value={b.branch_id}>{b.name}</option>)}
       </select>
       <input aria-label="Date" type="date" className="rounded-xl border border-slate-300 px-3 py-2 text-[13px]" value={date} onChange={(e) => { setDate(e.target.value); setSlot(null); setWanted(null); }} />
-      {gear.data && date === gear.data.date && <div className="rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-800">Tomorrow: GEAR premium slots available (+RM {gear.data.surcharge_rm}).</div>}
+      {gear.data && date === gear.data.date && <div className="rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-800">Tomorrow: Express next-day slots available (+RM {gear.data.surcharge_rm}).</div>}
       <div className="grid grid-cols-4 gap-1.5">
         {(slots.data?.slots || []).map((s: any) => (
           <button key={s.time} onClick={() => (s.available ? (setSlot(s), setWanted(null)) : (setSlot(null), setWanted(s.time)))}
             aria-label={s.available ? s.time : `${s.time} full`}
             className={`rounded-lg border px-1 py-1.5 text-[12px] ${slot?.time === s.time ? "border-sky-600 bg-sky-600 text-white" : !s.available ? (wanted === s.time ? "border-rose-400 bg-rose-50 text-rose-700" : "border-slate-200 text-slate-400") : s.gear ? "border-amber-400 bg-amber-50" : "border-slate-200"}`}>
-            {s.time}{s.gear && s.available && <span className="block text-[9.5px] font-bold">GEAR</span>}{!s.available && <span className="block text-[9.5px]">Full</span>}
+            {s.time}{s.gear && s.available && <span className="block text-[9.5px] font-bold">EXPRESS</span>}{!s.available && <span className="block text-[9.5px]">Full</span>}
           </button>
         ))}
       </div>
@@ -391,10 +399,16 @@ function Book({ plate, onBooked }: { plate: string; onBooked: () => void }) {
           </div>
         </div>
       )}
+      {slot && itype && (
+        <div className="rounded-xl border border-slate-200 bg-white p-3 text-[12.5px]">
+          <div className="font-semibold">{types.data?.types.find((x: any) => x.code === itype)?.label}</div>
+          <div className="text-slate-600">{branchName} · {dmy(date)} · {slot.time}{slot.gear ? " (Express)" : ""}</div>
+        </div>
+      )}
       <button disabled={!slot || !itype} onClick={confirm} className="mt-1 rounded-xl bg-sky-600 px-4 py-3 text-[14px] font-semibold text-white disabled:opacity-40">
-        {slot ? `Pay RM ${price.toFixed(2)} (FPX) and book ${slot.time}` : "Choose a slot"}
+        {slot ? `Pay RM ${price.toFixed(2)} and book ${slot.time}` : "Choose a slot"}
       </button>
-      <p className="text-[11px] text-slate-400">Payment runs through a mock gateway in this demo.</p>
+      <p className="text-[11px] text-slate-400">Payment runs through a mock gateway in this demo: nothing is charged.</p>
     </div>
   );
 }
@@ -411,6 +425,7 @@ function SelfCheck({ plate, onDone }: { plate: string; onDone: () => void }) {
       const r = await api.post("/api/owner/self-check", { plate, ...attempt });
       setRes(r);
       onDone();
+      refreshUseCase();
     } catch (e: any) {
       toast(e.message, "err");
     } finally {
@@ -439,19 +454,23 @@ function SelfCheck({ plate, onDone }: { plate: string; onDone: () => void }) {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button disabled={busy} className="rounded-xl bg-sky-600 px-3 py-2.5 text-[13px] font-semibold text-white disabled:opacity-40" onClick={() => run({ ...base, tint_vlt_pct: tint, headlamp_left: lampL })}>{busy ? "Checking…" : "Run self-check"}</button>
-            <button disabled={busy} className="rounded-xl border border-slate-300 px-3 py-2.5 text-[13px] font-semibold" onClick={() => { setTint(71); setLampL("ok"); run(script.data.second_attempt); }}>After fixing (S6 attempt 2)</button>
+            <button disabled={busy} className="rounded-xl border border-slate-300 px-3 py-2.5 text-[13px] font-semibold" onClick={() => { setTint(71); setLampL("ok"); run(script.data.second_attempt); }}>Run again after fixing</button>
           </div>
         </div>
       )}
       {res && (
-        <div className="flex flex-col gap-2">
-          <div className={`rounded-xl px-4 py-3 text-[15px] font-bold ${res.verdict === "Likely to pass" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{res.verdict}</div>
+        <div className="flex flex-col gap-2" role="status">
+          <div className={`rounded-xl px-4 py-3 ${VERDICT_TONE[res.verdict] || "bg-slate-100 text-slate-700"}`}>
+            <div className="text-[15px] font-bold">{res.verdict}</div>
+            <div className="text-[12.5px] font-normal">{VERDICT_TEXT[res.verdict]}</div>
+          </div>
           {res.items.map((it: any, i: number) => (
             <div key={i} className="flex items-start gap-2 rounded-xl border border-slate-200 p-2.5 text-[12.5px]">
               <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${it.ok ? "bg-emerald-500" : "bg-rose-500"}`}>{it.ok ? "✓" : "!"}</span>
-              <div><b>{it.item}</b> · {it.value}{it.p ? ` (${Math.round(it.p * 100)}%)` : ""}{it.advice && <div className="text-slate-500">{it.advice}</div>}</div>
+              <div><b>{it.item}</b> · {it.value}{it.advice && <div className="text-slate-500">{it.advice}</div>}</div>
             </div>
           ))}
+          {res.verdict === "Ready for inspection" && <p className="text-[12px] text-slate-500">Next: book an inspection in the Book tab.</p>}
         </div>
       )}
     </div>
@@ -492,7 +511,7 @@ function Chat() {
           <div key={i} className={`max-w-[85%] rounded-xl px-3 py-2 text-[13px] shadow-sm ${m.role === "user" ? "ml-auto bg-[#DCF8C6] text-slate-900" : "bg-white text-slate-900"}`}>
             <div className="whitespace-pre-wrap">{m.text.replace(/\*\*/g, "")}</div>
             {m.tool?.slots?.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">{m.tool.slots.map((s: string) => <span key={s} className="rounded-md border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[11px]">{s} GEAR</span>)}</div>
+              <div className="mt-2 flex flex-wrap gap-1">{m.tool.slots.map((s: string) => <span key={s} className="rounded-md border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[11px]">{s} Express</span>)}</div>
             )}
           </div>
         ))}
@@ -511,12 +530,20 @@ function Chat() {
 }
 
 const STEPS: { tab: Tab; title: string; sub: string }[] = [
+  { tab: "check", title: "Run the self-check", sub: "Tint and a headlamp fail first; fix them and run it again" },
+  { tab: "book", title: "Book and pay", sub: "Pick an inspection, a hub and a slot; pay (mock); get the check-in code" },
+  { tab: "passport", title: "See the passport", sub: "After the inspection, the certificate and the timeline update" },
   { tab: "chat", title: "Ask the assistant", sub: "In BM, English or Chinese: which inspection do I need? Any slots tomorrow?" },
-  { tab: "check", title: "Run the self-check", sub: "Tint and headlamp fail first; run it again after fixing" },
-  { tab: "book", title: "Book and pay", sub: "Pick a GEAR slot, pay (mock FPX), get the check-in QR" },
-  { tab: "passport", title: "See the passport", sub: "The timeline now shows the self-check and the booking" },
   { tab: "sale", title: "Shop for a used vehicle", sub: "Cars and bikes for sale, each with its whole inspection record" },
 ];
+const VERDICT_TONE: Record<string, string> = {
+  "Ready for inspection": "bg-emerald-50 text-emerald-700", "Fix these first": "bg-amber-50 text-amber-800", "Needs a professional check": "bg-rose-50 text-rose-700",
+};
+const VERDICT_TEXT: Record<string, string> = {
+  "Ready for inspection": "Nothing the phone can check stops this car passing. You can book now.",
+  "Fix these first": "These are quick fixes you can do yourself before booking.",
+  "Needs a professional check": "Have a workshop look at the items below before the inspection.",
+};
 
 function OwnerApp() {
   const sp = useSearchParams();
@@ -540,7 +567,7 @@ function OwnerApp() {
       <div className="flex flex-wrap items-start justify-center gap-8">
         <div className="w-full max-w-[380px] lg:pt-4">
           <h1 className="font-display text-[24px] font-semibold">Owner app</h1>
-          <p className="mt-1 text-[13.5px] text-fg-3">What a vehicle owner sees on their phone (session S6), for {plate}. Try these in order:</p>
+          <p className="mt-1 text-[13.5px] text-fg-3">What a vehicle owner sees on their phone, for {plate}. The self-check, the booking and the passport follow one journey:</p>
           <ol className="mt-4 flex flex-col gap-2">
             {STEPS.map((st, i) => (
               <li key={st.tab}>

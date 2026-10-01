@@ -1,7 +1,11 @@
 "use client";
 import { LineChart } from "./charts";
-import { Pill, Source, sourceLabel } from "./ui";
+import { Pill, SeverityBadge, Source } from "./ui";
 import { STEP_LABEL, SYSTEM_NAME, fmtN } from "@/lib/format";
+import { SEVERITY, Severity, alertSeverity, hasModelConfidence } from "@/lib/present";
+
+/** A measurement against its limit, in the three presentation states. */
+const VERDICT_SEV: Record<string, Severity> = { pass: "normal", advisory: "attention", fail: "critical" };
 
 const ENOSE_COLORS = ["#22D3EE", "#60A5FA", "#A78BFA", "#F472B6", "#FB923C", "#FBBF24", "#34D399", "#2DD4BF",
   "#38BDF8", "#818CF8", "#C084FC", "#F87171", "#FACC15", "#4ADE80", "#94A3B8", "#E879F9"];
@@ -54,7 +58,7 @@ export function Instruments({ instruments, results }: { instruments: Record<stri
     tiles.push({ k: "bi", label: "Brake imbalance", value: `${imb}%`, verdict: imb > 30 ? "fail" : imb > 20 ? "advisory" : "pass", limit: 30, overridden: false });
   }
   if (ev) tiles.push({ k: "soh", label: "Battery SOH", value: `${ev.pack_soh_pct}%`, verdict: ev.pack_soh_pct < 80 ? "advisory" : "pass", limit: "80%", overridden: false });
-  const col = (v: string) => (v === "fail" ? "#F87171" : v === "advisory" ? "#FBBF24" : "#34D399");
+  const col = (v: string) => SEVERITY[VERDICT_SEV[v] || "normal"].color;
   if (!tiles.length) return <p className="text-[13px] text-fg-3">Instrument readings appear as each lane step completes.</p>;
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
@@ -65,7 +69,7 @@ export function Instruments({ instruments, results }: { instruments: Record<stri
             {t.overridden && <span className="text-warn">edited</span>}
           </div>
           <div className="mt-0.5 font-display text-[18px] font-semibold">{t.value}</div>
-          <div className="text-[11px]" style={{ color: col(t.verdict) }}>{t.verdict} · limit {t.limit}</div>
+          <div className="text-[11px]" style={{ color: col(t.verdict) }}>{SEVERITY[VERDICT_SEV[t.verdict] || "normal"].label} · limit {t.limit}</div>
         </div>
       ))}
     </div>
@@ -121,12 +125,12 @@ export function OBDChart({ obd, height = 150 }: { obd: { t: number; rpm: number 
   );
 }
 
-export function Frames({ images, onOpen }: { images: any[]; onOpen?: (img: any) => void }) {
-  if (!images?.length) return <p className="text-[13px] text-fg-3">Results arrive from the undercarriage, above-carriage and tyre AI during those lane steps.</p>;
+export function Frames({ images, onOpen, done = false }: { images: any[]; onOpen?: (img: any) => void; done?: boolean }) {
+  if (!images?.length) return <p className="text-[13px] text-fg-3">{done ? "No camera frames were captured in this replay." : "Results arrive from the undercarriage, above-carriage and tyre AI during those lane steps."}</p>;
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
       {images.map((im, i) => (
-        <button key={i} className="overflow-hidden rounded-xl border border-ink-600 bg-ink-850 text-left" onClick={() => onOpen?.(im)}>
+        <button key={i} className="overflow-hidden rounded-xl border border-ink-600 bg-ink-850 text-left" onClick={() => onOpen?.(im)} aria-label={`Open ${SYSTEM_NAME[im.system] || im.kind} frame from ${im.camera}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={im.annotated} alt={`${im.kind} frame`} className="h-40 w-full object-cover" />
           <div className="flex flex-col gap-1 p-2.5">
@@ -145,15 +149,18 @@ export function Frames({ images, onOpen }: { images: any[]; onOpen?: (img: any) 
 }
 
 export function AlertMini({ a }: { a: any }) {
-  const c = a.severity === "high" ? "#F87171" : a.severity === "medium" ? "#FBBF24" : "#93C5FD";
+  const s = alertSeverity(a);
   return (
-    <div className="flex items-start gap-2.5 rounded-lg border border-ink-600 bg-ink-850 px-3 py-2">
-      <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: c }} />
+    <div className="fade-in flex items-start gap-2.5 rounded-lg border border-ink-600 bg-ink-850 px-3 py-2" style={{ borderLeft: `3px solid ${SEVERITY[s].color}` }}>
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-semibold">{a.title}</div>
-        <div className="text-[11.5px] text-fg-3">{a.system} · {Math.round(a.confidence * 100)}% · {sourceLabel(a.source)}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px] text-fg-3">
+          <SeverityBadge s={s} />
+          {a.fail_item && <Pill color="#F87171">Fail item</Pill>}
+          <span>{a.system}{hasModelConfidence(a) ? ` · model confidence ${Math.round(a.confidence * 100)}%` : ""}</span>
+        </div>
       </div>
-      {a.fail_item && <Pill color="#F87171">fail item</Pill>}
+      <Source kind={a.source} />
     </div>
   );
 }

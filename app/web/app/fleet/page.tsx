@@ -5,8 +5,9 @@ import { Suspense, useState } from "react";
 import { Donut, LineChart, Spark } from "@/components/charts";
 import { Icon } from "@/components/icons";
 import { ImageViewer, LibImage } from "@/components/ImageViewer";
+import { useActiveUseCase } from "@/components/Demo";
 import { Shell } from "@/components/Shell";
-import { PageHeader, Source, toast } from "@/components/ui";
+import { Empty, LoadingState, PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dmy, monthLabel, pct, riskColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
@@ -68,6 +69,9 @@ function FleetOverview() {
   const att = (o?.attention || []).filter((r: any) =>
     rf === "all" ? true : rf === "acc" ? ["Accelerating", "Spike, then faster rise"].includes(r.issue?.pattern) : rf === "photo" ? r.images?.length > 0 || r.evidence?.length > 0 : r.issue?.risk === rf);
   const fleetBranches = new Set((o?.fleets || []).map((f: any) => f.branch_id));
+  // the running use case's vehicle, pinned above the list so the presenter does not have to look for it
+  const { active: uc } = useActiveUseCase();
+  const pinned = uc && !uc.complete ? (o?.attention || []).find((r: any) => r.plate === uc.plate) : null;
   return (
     <Shell context={<span className="chip hidden border-ink-500 text-fg-2 xl:inline-flex">Fleet manager view</span>}>
       <PageHeader title="Fleet intelligence" sub="Each operator's vehicles: health, emerging problems and when each one will reach its fail limit, so it is fixed before the test."
@@ -75,10 +79,10 @@ function FleetOverview() {
       <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
         <Select label="Operator" value={fleet} onChange={(v) => q({ fleet: v })} options={[{ v: "", l: "All operators" }, ...(o?.fleets || []).map((f: any) => ({ v: f.fleet_id, l: f.name }))]} />
         <Select label="Vehicle type" value={vtype} onChange={(v) => q({ type: v })} options={[{ v: "", l: "All vehicle types" }, ...Object.keys(TYPE_COL).map((t) => ({ v: t, l: t }))]} />
-        <Select label="Branch" value={branch} onChange={(v) => q({ branch: v })} options={[{ v: "", l: "All branches" }, ...(branches.data || []).filter((b) => fleetBranches.has(b.branch_id)).map((b) => ({ v: b.branch_id, l: b.name }))]} />
+        <Select label="Hub" value={branch} onChange={(v) => q({ branch: v })} options={[{ v: "", l: "All hubs" }, ...(branches.data || []).filter((b) => fleetBranches.has(b.branch_id)).map((b) => ({ v: b.branch_id, l: b.name }))]} />
         <Select label="Date range" value={String(months)} onChange={(v) => q({ months: v })} options={[{ v: "12", l: "Last 12 months" }, { v: "6", l: "Last 6 months" }, { v: "3", l: "Last 3 months" }]} />
       </div>
-      {!o ? <p className="text-fg-3">Loading fleet analysis…</p> : (
+      {!o ? <div className="card card-pad"><LoadingState label="Analysing every vehicle's readings…" rows={5} /></div> : (
         <>
           <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
@@ -94,32 +98,11 @@ function FleetOverview() {
               </div>
             ))}
           </div>
-          <div className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-            <section className="card p-4">
-              <div className="mb-2 flex items-center justify-between"><h2 className="text-[17px] font-semibold">Fleet health trend</h2><Source kind="live_logic" text="Computed from monthly readings" /></div>
-              <LineChart height={190} yMin={60} yMax={100} yFmt={(v) => `${v}%`}
-                xLabels={o.trend.months.map((m: string, i: number) => ({ x: i, label: monthLabel(m) }))} xTickEvery={o.trend.months.length > 8 ? 2 : 1}
-                series={[{ color: "#10B981", area: true, dots: true, points: o.trend.health.map((v: number, i: number) => ({ x: i, y: v })) }]} />
-            </section>
-            <section className="card p-4">
-              <h2 className="mb-2 text-[17px] font-semibold">Fleet composition</h2>
-              <div className="flex items-center gap-5">
-                <Donut parts={o.composition.map((c: any) => ({ value: c.count, color: TYPE_COL[c.vtype] || "#64748B" }))} center={<><span className="font-display text-[26px] font-semibold">{o.total}</span><span className="text-[11.5px] text-[#A9BAD3]">Total vehicles</span></>} />
-                <div className="flex flex-1 flex-col gap-2">
-                  {o.composition.map((c: any) => (
-                    <div key={c.vtype} className="grid grid-cols-[14px_1fr_40px_44px] items-center gap-2 text-[13.5px]">
-                      <span className="h-3 w-3 rounded-full" style={{ background: TYPE_COL[c.vtype] || "#64748B" }} /><span>{c.vtype}</span><b className="text-right">{c.count}</b><span className="text-right text-[#A9BAD3]">{pct(c.share)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          </div>
           <section className="card mb-4 flex flex-col">
             <div className="flex flex-wrap items-center gap-3 px-4 py-3">
               <h2 className="text-[17px] font-semibold">Vehicles needing attention</h2>
               <span className="chip border-[#EF444488] bg-[#EF4444]/10 text-[#FCA5A5]"><span className="h-1.5 w-1.5 rounded-full bg-[#EF4444]" />{o.attention.length} vehicles</span>
-              <span className="text-[12.5px] text-fg-3">Sorted by time left before the fail limit</span>
+              <span className="text-[12.5px] text-fg-3">Ranked by risk and time left before the fail limit; each row says why</span>
               <Source kind="synthetic" />
               <div className="ml-auto flex items-center gap-1" role="group" aria-label="Filter attention list">
                 {[["all", "All"], ["High", "High risk"], ["Medium", "Medium"], ["acc", "Accelerating"], ["photo", "With photos"]].map(([k, l]) => (
@@ -128,6 +111,18 @@ function FleetOverview() {
               </div>
               {nSel > 0 && <button className="btn btn-primary btn-sm" onClick={book}>Book inspection for {nSel} selected</button>}
             </div>
+            {pinned && (
+              <div className="mx-4 mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-cyan/60 bg-cyan/10 px-3 py-2 text-[13px]">
+                <span className="label text-cyan">{uc!.id} vehicle</span>
+                <b>{pinned.plate}</b><span className="text-fg-2">{pinned.make} {pinned.model} · {pinned.issue.name}: {pinned.issue.pattern.toLowerCase()}, {pinned.issue.weeks_label} to the limit</span>
+                <Link className="btn btn-sm btn-primary ml-auto" href={`/fleet/vehicle/${encodeURIComponent(pinned.plate)}`}>Open its history<Icon name="arrow" size={13} /></Link>
+              </div>
+            )}
+            {!att.length ? (
+              <div className="px-4 pb-4"><Empty title="No vehicles match the selected filters" actions={<button className="btn" onClick={() => { setRf("all"); q({ fleet: "", type: "", branch: "" }); }}>Clear filters</button>}>
+                {o.attention.length ? `${o.attention.length} vehicles need attention without these filters.` : "No vehicle in this selection needs attention: every reading follows its normal wear."}
+              </Empty></div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1100px] text-left text-[13px]">
                 <thead className="border-y border-ink-600 bg-ink-850 text-[12.5px] text-[#A9BAD3]">
@@ -153,7 +148,8 @@ function FleetOverview() {
                         <td>
                           <div className="flex items-center gap-2.5">
                             <Icon name={r.issue.icon} size={24} color={c} />
-                            <span className="flex flex-col"><b className="text-[13.5px]">{r.issue.name}</b><span className="text-[11.5px] text-fg-3">{r.issue.value} {r.issue.unit} · limit {r.issue.limit} {r.issue.unit}</span></span>
+                            <span className="flex max-w-[260px] flex-col"><b className="text-[13.5px]">{r.issue.name}</b><span className="text-[11.5px] text-fg-3">{r.issue.value} {r.issue.unit} · limit {r.issue.limit} {r.issue.unit}</span>
+                              <span className="text-[11.5px] text-fg-2">Why ranked: {r.issue.pattern.toLowerCase()}{r.issue.anomalies ? `, ${r.issue.anomalies} anomal${r.issue.anomalies === 1 ? "y" : "ies"}` : ""}{r.issue.weeks_label ? `, ${r.issue.weeks_label} to the limit` : ""}</span></span>
                           </div>
                         </td>
                         <td><div className="flex items-center gap-2"><Spark values={r.issue.spark} color={c} width={56} /><span className="text-[11.5px]" style={{ color: c }}>{r.issue.pattern}</span></div></td>
@@ -187,6 +183,7 @@ function FleetOverview() {
                 </tbody>
               </table>
             </div>
+            )}
             <div className="flex items-center justify-between px-4 py-3 text-[12.5px] text-fg-3">
               <span>Showing {Math.min(shown, att.length)} of {att.length}{rf !== "all" ? ` (filtered from ${o.attention.length})` : ""}</span>
               {shown < att.length && (
@@ -197,14 +194,35 @@ function FleetOverview() {
               )}
             </div>
           </section>
-          {o.next_berkala && (
+          <div className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+            <section className="card p-4">
+              <div className="mb-2 flex items-center justify-between"><h2 className="text-[17px] font-semibold">Fleet health trend</h2><Source kind="live_logic" text="Computed from monthly readings" /></div>
+              <LineChart height={190} yMin={60} yMax={100} yFmt={(v) => `${v}%`}
+                xLabels={o.trend.months.map((m: string, i: number) => ({ x: i, label: monthLabel(m) }))} xTickEvery={o.trend.months.length > 8 ? 2 : 1}
+                series={[{ color: "#10B981", area: true, dots: true, points: o.trend.health.map((v: number, i: number) => ({ x: i, y: v })) }]} />
+            </section>
+            <section className="card p-4">
+              <h2 className="mb-2 text-[17px] font-semibold">Fleet composition</h2>
+              <div className="flex flex-wrap items-center gap-5">
+                <Donut parts={o.composition.map((c: any) => ({ value: c.count, color: TYPE_COL[c.vtype] || "#64748B" }))} center={<><span className="font-display text-[26px] font-semibold">{o.total}</span><span className="text-[11.5px] text-[#A9BAD3]">Total vehicles</span></>} />
+                <div className="flex min-w-[200px] flex-1 flex-col gap-2">
+                  {o.composition.map((c: any) => (
+                    <div key={c.vtype} className="grid grid-cols-[14px_1fr_40px_44px] items-center gap-2 text-[13.5px]">
+                      <span className="h-3 w-3 rounded-full" style={{ background: TYPE_COL[c.vtype] || "#64748B" }} /><span>{c.vtype}</span><b className="text-right">{c.count}</b><span className="text-right text-[#A9BAD3]">{pct(c.share)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
+          {o.next_periodic && (
             <section className="card mb-4 p-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-[17px] font-semibold">FLEET07 · next Berkala fail risk <span className="text-[13px] font-normal text-fg-3">({o.next_berkala.at_risk} of {o.next_berkala.vehicles.length} trucks likely to fail)</span></h2>
+                <h2 className="text-[17px] font-semibold">FLEET07 · next periodic inspection: fail risk <span className="text-[13px] font-normal text-fg-3">({o.next_periodic.at_risk} of {o.next_periodic.vehicles.length} trucks likely to fail)</span></h2>
                 <Source kind="live_model" text="Next-fail model + survival" />
               </div>
               <div className="flex flex-wrap gap-2">
-                {o.next_berkala.vehicles.slice(0, 18).map((v: any) => (
+                {o.next_periodic.vehicles.slice(0, 18).map((v: any) => (
                   <span key={v.plate} className="chip" style={{ borderColor: v.p_fail_next >= 0.5 ? "#EF4444" : "#2A3957", color: v.p_fail_next >= 0.5 ? "#FCA5A5" : "#C9D3E3" }}>
                     {v.plate} · {pct(v.p_fail_next)} · due {dmy(v.next_due)}
                   </span>

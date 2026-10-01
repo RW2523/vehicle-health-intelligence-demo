@@ -4,19 +4,19 @@ import datetime as dt
 from vhi.config import get_settings
 
 
-def test_owner_booking_gear_and_payment(client):
+def test_owner_booking_express_and_payment(client):
     t = client.get("/api/owner/inspection-types", params={"selling": True, "buyer_loan": True}).json()
-    assert t["recommended"] == ["B5+B7"]
+    assert t["recommended"] == ["TRANSFER+FINANCING"]
     g = client.get("/api/owner/gear", params={"branch_id": "BR01"}).json()
-    assert g["slots"], "GEAR next-day slots should be available"
+    assert g["slots"], "Express next-day slots should be available"
     b = client.post("/api/owner/bookings", json={"plate": "DMO 9006", "branch_id": "BR01", "date": g["date"],
-                                                  "slot": g["slots"][0], "inspection_type": "B5", "gear": True}).json()
+                                                  "slot": g["slots"][0], "inspection_type": "TRANSFER", "gear": True}).json()
     assert b["status"] == "pending_payment" and b["price_rm"] == 70.0
     p = client.post(f"/api/owner/bookings/{b['booking_id']}/pay", json={"method": "FPX"}).json()
     assert p["status"] == "confirmed" and p["payment_ref"].startswith("FPX-")
-    # the same GEAR slot cannot be sold twice
+    # the same Express slot cannot be sold twice
     again = client.post("/api/owner/bookings", json={"plate": "DMO 9006", "branch_id": "BR01", "date": g["date"],
-                                                      "slot": g["slots"][0], "inspection_type": "B5", "gear": True})
+                                                      "slot": g["slots"][0], "inspection_type": "TRANSFER", "gear": True})
     assert again.status_code == 409
     assert client.get(f"/api/owner/checkin/{p['checkin_token']}").json()["booking_id"] == b["booking_id"]
     # the check-in QR points to the address the visitor used; a malformed forwarded host is ignored
@@ -32,14 +32,16 @@ def test_assistant_three_languages(client):
     import uuid
     t1, t2, t3 = (f"t{i}-{uuid.uuid4().hex[:8]}" for i in range(3))
     bm = client.post("/api/owner/assistant", json={"conversation": t1, "text": "Saya nak jual kereta, pemeriksaan apa yang saya perlu?"}).json()
-    assert bm["lang"] == "ms" and "B5" in bm["answer"]
-    slot = client.post("/api/owner/assistant", json={"conversation": t1, "text": "Ada slot esok di Glenmarie?"}).json()
-    assert slot["tool"]["name"] == "gear_slots" and slot["tool"]["branch"] == "Glenmarie"
+    assert bm["lang"] == "ms" and "Pindah Milik" in bm["answer"]
+    slot = client.post("/api/owner/assistant", json={"conversation": t1, "text": "Ada slot esok di West Inspection Hub?"}).json()
+    assert slot["tool"]["name"] == "express_slots" and slot["tool"]["branch"] == "West Inspection Hub"
+    short = client.post("/api/owner/assistant", json={"conversation": t1, "text": "Any slot tomorrow at the Ipoh hub?"}).json()
+    assert short["tool"]["branch"] == "Ipoh Inspection Hub"
     zh = client.post("/api/owner/assistant", json={"conversation": t2, "text": "电动车怎么检验？"}).json()
     assert zh["lang"] == "zh" and "电" in zh["answer"]
     en = client.post("/api/owner/assistant", json={"conversation": t3, "text": "What is the window tint limit?"}).json()
     assert en["lang"] == "en" and "70%" in en["answer"]
-    assert len(client.get(f"/api/owner/assistant/{t1}").json()) == 4
+    assert len(client.get(f"/api/owner/assistant/{t1}").json()) == 6
 
 
 def test_self_check_then_passport(client):
@@ -50,7 +52,7 @@ def test_self_check_then_passport(client):
     assert "Window tint" in failed and "Headlamp (left)" in failed
     assert any(i["source"].startswith("live model") for i in a1["items"])
     a2 = client.post("/api/owner/self-check", json={"plate": script["plate"], **script["second_attempt"]}).json()
-    assert a2["verdict"] == "Likely to pass"
+    assert a2["verdict"] == "Ready for inspection"
     pp = client.get(f"/api/owner/passport/{script['plate']}").json()
     kinds = [e["kind"] for e in pp["events"]]
     assert kinds.count("self_check") >= 2 and "inspection" in kinds
@@ -64,7 +66,7 @@ def test_fleet_overview_and_vehicle(client):
         assert p in plates, p
     assert plates["VKR 3128"]["issue"]["risk"] == "High"
     assert plates["BPR 7730"]["issue"]["pattern"] == "New damage, growing"
-    assert o["next_berkala"]["fleet_id"] == "FLEET07" and o["next_berkala"]["at_risk"] > 0
+    assert o["next_periodic"]["fleet_id"] == "FLEET07" and o["next_periodic"]["at_risk"] > 0
     f = client.get("/api/fleet/overview", params={"fleet_id": "OP-LPC"}).json()
     assert f["total"] == 38 and all(r["operator"] == "Lembah Parcel Co." for r in f["attention"])
     d = client.get("/api/fleet/vehicles/WXD 2291").json()
@@ -170,7 +172,7 @@ def test_passport_lists_every_health_certificate(client):
     p = client.get("/api/owner/passport/DMO%209006").json()
     certs = p["certificates"]
     assert len(certs) >= 2 and [c["date"] for c in certs] == sorted((c["date"] for c in certs), reverse=True)
-    assert p["latest"] == certs[0] and certs[0]["kind"] == "Voluntary inspection" and certs[0]["result"] == "PASS"
+    assert p["latest"] == certs[0] and certs[0]["kind"] == "Voluntary Inspection" and certs[0]["result"] == "PASS"
     # a health score comes with a lane report; past inspections carry their result and odometer
     assert all(c["score"] is None and c["odometer_km"] for c in certs if c["source"] == "history")
 

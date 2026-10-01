@@ -12,6 +12,7 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy import func, select, text
 
+from .. import terms
 from ..config import get_settings
 from ..db import engine, session_scope
 from ..fleet_metrics import METRICS, SYSTEMS
@@ -19,6 +20,7 @@ from ..ml.degradation import Point, analyse
 from ..tables import Booking, Fleet, FleetReading, PatternReport, Vehicle
 from . import booking as booking_svc
 from . import library
+from . import reports as report_svc
 
 _cache: dict[str, dict] = {}
 _lock = threading.Lock()
@@ -102,7 +104,7 @@ def fleets() -> list[dict]:
 
 def _booked() -> dict[str, dict]:
     with session_scope() as s:
-        rows = s.execute(select(Booking).where(Booking.source.in_(("fleet", "api")), Booking.status != "cancelled")).scalars().all()
+        rows = s.execute(select(Booking).where(Booking.source.in_(("fleet", "api")), Booking.status == "confirmed")).scalars().all()
         return {b.plate: {"date": b.date, "slot": b.slot, "booking_id": b.booking_id} for b in rows}
 
 
@@ -163,12 +165,12 @@ def overview(fleet_id: str | None = None, vtype: str | None = None, branch_id: s
         "attention": attention,
         "insights": {"avoided": avoided, "savings_rm": avoided * 560, "reports_sent": reports_sent,
                      "method": "Avoided = synthetic baseline for the operator + inspections booked from this portal before the forecast fail date; RM 560 per avoided failed test (demo assumption)."},
-        "next_berkala": next_berkala_risk(ids),
+        "next_periodic": next_periodic_risk(ids),
         "source": {"readings": "synthetic monthly fleet checks / telematics / lane visits", "analysis": "live logic (vhi.ml.degradation)"},
     }
 
 
-def next_berkala_risk(fleet_ids: list[str]) -> dict | None:
+def next_periodic_risk(fleet_ids: list[str]) -> dict | None:
     """Next-inspection fail risk from the survival/next-fail model on each vehicle's latest synthetic inspection."""
     if "FLEET07" not in fleet_ids:
         return None
@@ -264,6 +266,15 @@ def vehicle_detail(plate: str) -> dict:
         f = s.get(Fleet, v.fleet_id)
     hist = pd.read_sql(text("select date, inspection_type, result, fail_reasons, odometer_km from hist_inspections where vehicle_id = :v "
                        "order by date desc"), engine(), params={"v": v.vehicle_id})
+    hist["inspection_type"] = hist["inspection_type"].map(terms.label)
+    reports = report_svc.for_plate(v.plate)
+    with session_scope() as s:
+        # upcoming visits, and a checked-in one whose inspection has no report yet (a finished one is history)
+        since = reports[0]["created_at"] if reports else ""
+        open_bookings = [booking_svc.booking_dict(b) for b in s.execute(
+            select(Booking).where(Booking.plate == v.plate, Booking.status.in_(("confirmed", "checked_in")))
+            .order_by(Booking.created_at.desc())).scalars()
+            if b.status == "confirmed" or b.created_at.isoformat() > since]
     p = a["primary"]
     checks = []
     if p:
@@ -284,6 +295,7 @@ def vehicle_detail(plate: str) -> dict:
         "health": a["health"], "subsystems": a["subsystems"], "primary": p,
         "metrics": sorted(a["metrics"].values(), key=lambda m: (-m["attention"], -m["risk_i"])),
         "checks": checks[:6], "photos": photos, "inspections": hist.to_dict("records"), "images": library.for_vehicle(v.plate),
+        "lane_reports": reports, "bookings": open_bookings,
         "report": {"text": report_text(v, a), "recipients": recipients(v, a, sent), "rule": REPORT_RULE,
                    "sent_at": sent.created_at.isoformat() if sent else None},
     }
@@ -318,7 +330,7 @@ def book(plates: list[str], fleet_id: str | None = None) -> list[dict]:
             if d.weekday() != 6:
                 free = [x for x in booking_svc.slots(f.branch_id, d.isoformat()) if x["available"] and not x["gear"]]
                 if free:
-                    itype = "BERKALA" if v.heavy or v.usage in ("lorry", "van", "ehailing") else "VOLUNTARY"
+                    itype = "PERIODIC" if v.heavy or v.usage in ("lorry", "van", "ehailing") else "VOLUNTARY"
                     b = booking_svc.create(v.plate, f.branch_id, d.isoformat(), free[0]["time"], itype, source="fleet",
                                            fleet_id=v.fleet_id)
                     break

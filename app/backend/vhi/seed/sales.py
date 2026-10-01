@@ -1,7 +1,7 @@
 """The used-vehicle sales listings (owner app "Sale" tab, Oversight > Used-vehicle sales) and the records behind them.
 
 * 15 fictional motorcycles (the synthetic world has none), plates DMO 95xx: Malaysian commuter and sport models with
-  1-4 inspections each (B5 ownership transfers and voluntary checks) measuring what a motorcycle lane measures: brake
+  1-4 inspections each (ownership transfers and voluntary checks) measuring what a motorcycle lane measures: brake
   efficiency, headlamp aim, tyre tread, CO/HC of the 4-stroke petrol engine, the odometer, and an OBD read-out on
   fuel-injected models. Five carry a designed red flag (rollback, flood claim, failed last inspection, open fault
   code, accident claim).
@@ -66,7 +66,7 @@ TYPE_RM = {"Sedan": 70000, "Hatchback": 45000, "MPV": 95000, "SUV": 120000, "Pic
 CAR_TEXT = {
     "private": ["One owner, serviced on time. Selling because I am upgrading.",
                 "Daily car, never missed a service. Viewing in {state}.",
-                "Owner-driven and well kept. Happy to do a B5 inspection at PUSPAKOM before the sale."],
+                "Owner-driven and well kept. Happy to do an ownership transfer inspection before the sale."],
     "dealer": ["Dealer unit. Bank loan up to 90%, one-year warranty.", "Trade-in welcome. Full loan for eligible buyers.",
                "Checked in our workshop and ready to drive away."],
     "ehailing": "Ex e-hailing unit, fully serviced before sale.",
@@ -74,7 +74,7 @@ CAR_TEXT = {
     "rollback": "Genuine mileage, owner-driven.",
 }
 BIKE_TEXT = ["Original parts, never modified. Road tax until {mvl}.", "Daily commuter, serviced every 3,000 km.",
-             "Kept indoors, new chain and sprocket.", "All papers ready for the B5 transfer.",
+             "Kept indoors, new chain and sprocket.", "All papers ready for the ownership transfer.",
              "Weekend rides only, well looked after."]
 BIKE_STORY_TEXT = {"rollback": "Genuine low mileage, rarely used.", "flood": "Runs well, just serviced."}
 
@@ -162,7 +162,7 @@ def seed_motorcycles(rng: random.Random) -> list[str]:
             branch = branch_of.get(state, "BR01")
             rows = []
             for k, d in enumerate(dates):
-                itype = "B5_MV15" if (k == len(dates) - 1 or rng.random() < 0.5) else "voluntary"
+                itype = "ownership_transfer" if (k == len(dates) - 1 or rng.random() < 0.5) else "voluntary"
                 rows.append({"inspection_id": f"ISM{i + 1:02d}{k}", "vehicle_id": vid, "date": d.isoformat(),
                              "branch_id": branch, "examiner_id": rng.choice(staff.get(branch) or ["VE012"]),
                              "inspection_type": itype, "odometer_km": int(per_day * (d - born).days), **_bike_measure(rng, fi)})
@@ -236,7 +236,7 @@ def seed_ex_fleet_history(rng: random.Random) -> None:
                                             ("corrosion_structural", m["corrosion_score_0_10"] > 7.5)) if bad]
                 rows.append({"inspection_id": f"ISF{k}{j}", "vehicle_id": v.vehicle_id, "date": date, "branch_id": f.branch_id,
                              "examiner_id": rng.choice(staff.get(f.branch_id) or ["VE012"]),
-                             "inspection_type": "berkala_ehailing" if v.usage == "ehailing" else "voluntary",
+                             "inspection_type": "periodic_ride_hailing" if v.usage == "ehailing" else "voluntary",
                              "odometer_km": int(v.odometer_km - v.km_per_month * months_ago), **m,
                              "fail_reasons": ";".join(reasons), "result": "FAIL" if reasons else "PASS"})
     if rows:

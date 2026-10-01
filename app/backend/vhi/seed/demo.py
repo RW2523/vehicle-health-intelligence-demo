@@ -12,7 +12,7 @@ from ..tables import Setting, Vehicle
 from .core import with_lambda
 
 SESSION_VEHICLES = {
-    "S1": dict(vehicle_id="SV9001", vtype="Prime mover", owner_type="company", owner_name="Alam Megah Haulage",
+    "S1": dict(vehicle_id="SV9001", vtype="Prime mover", owner_type="company", owner_name="Meridian Haulage",
                chassis_no="YS2P6X20005391140", engine_no="DC13-148-0077215", state="Selangor",
                heavy=True, fleet_id="FLEET07", km_per_month=11800, mvl_expiry="2026-11-02"),
     "S2": dict(vehicle_id="SV9002", vtype="SUV", owner_type="individual", owner_name="Daniel Wong",
@@ -63,7 +63,7 @@ def seed_session_vehicles() -> None:
     s1 = load_session("S1")
     for k, (d, odo) in enumerate([("2024-11-04", 188400), ("2025-11-03", 301900)]):
         hist_rows.append({**base, "inspection_id": f"I9001{k}", "vehicle_id": "SV9001", "date": d, "branch_id": "BR00",
-                          "inspection_type": "berkala_B2", "odometer_km": odo, "smoke_opacity_pct": 21.0,
+                          "inspection_type": "periodic_commercial", "odometer_km": odo, "smoke_opacity_pct": 21.0,
                           "pn_per_cm3": 38000.0, "brake_efficiency_pct": 58.0, "co_pct": None, "hc_ppm": None})
     _ = s1
     s2 = load_session("S2")

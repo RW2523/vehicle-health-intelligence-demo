@@ -1,7 +1,7 @@
 {
  "session": "S6",
- "title": "Owner app: assistant, booking, self-check, passport",
- "branch_id": "BR01",
+ "title": "Owner app: assistant, self-check, booking, passport",
+ "branch_id": "BR00",
  "vehicle": {
   "plate": "DMO 9006",
   "make": "Perodua",
@@ -15,12 +15,12 @@
   {
    "user_bm": "Saya nak jual kereta, pemeriksaan apa yang saya perlu?",
    "intent": "which_inspection",
-   "answer_type": "B5/MV15 (+B7 if buyer takes loan)"
+   "answer_type": "Ownership Transfer Inspection (+ Financing Inspection if the buyer takes a loan)"
   },
   {
-   "user_bm": "Ada slot esok di Glenmarie?",
-   "intent": "gear_slot",
-   "answer_type": "GEAR next-day slot list"
+   "user_bm": "Ada slot esok di Central Inspection Hub?",
+   "intent": "express_slot",
+   "answer_type": "Express next-day slot list"
   }
  ],
  "self_check": {

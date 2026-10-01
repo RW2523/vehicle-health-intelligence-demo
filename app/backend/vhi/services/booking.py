@@ -1,4 +1,4 @@
-"""Booking (feature 1), GEAR next-day premium slots (feature 2) and the mock payment gateway."""
+"""Booking (feature 1), Express next-day slots (feature 2) and the mock payment gateway."""
 from __future__ import annotations
 
 import datetime as dt
@@ -14,16 +14,17 @@ from ..db import session_scope
 from ..tables import Booking, Branch
 
 TYPES = {
-    "B5": {"label": "B5 ownership transfer (MV15)", "price": 40.0, "minutes": 30},
-    "B7": {"label": "B7 hire-purchase", "price": 40.0, "minutes": 30},
-    "B5+B7": {"label": "B5 + B7 (sale with bank loan)", "price": 70.0, "minutes": 45},
-    "VOLUNTARY": {"label": "Voluntary inspection", "price": 60.0, "minutes": 40},
-    "EV": {"label": "EV Health Certificate", "price": 120.0, "minutes": 45},
-    "BERKALA": {"label": "Berkala (commercial periodic)", "price": 90.0, "minutes": 45},
+    "TRANSFER": {"label": "Ownership Transfer Inspection", "price": 40.0, "minutes": 30},
+    "FINANCING": {"label": "Financing Inspection", "price": 40.0, "minutes": 30},
+    "TRANSFER+FINANCING": {"label": "Ownership Transfer + Financing (sale with a bank loan)", "price": 70.0, "minutes": 45},
+    "VOLUNTARY": {"label": "Voluntary Inspection", "price": 60.0, "minutes": 40},
+    "EV": {"label": "EV Health Check", "price": 120.0, "minutes": 45},
+    "PERIODIC": {"label": "Commercial Periodic Inspection", "price": 90.0, "minutes": 45},
 }
+# the internal name of the Express next-day slots is "gear" (the booking column and field)
 GEAR_SURCHARGE = 30.0
 SLOT_TIMES = [f"{h:02d}:{m:02d}" for h in range(8, 17) for m in (0, 20, 40)]
-GEAR_TIMES = {"08:00", "10:40", "13:20", "15:40"}  # premium slots held back each day for next-day GEAR bookings
+GEAR_TIMES = {"08:00", "10:40", "13:20", "15:40"}  # slots held back each day for Express next-day bookings
 
 
 def today() -> dt.date:
@@ -55,7 +56,7 @@ def slots(branch_id: str, day: str) -> list[dict]:
         gear = t in GEAR_TIMES
         taken = _synthetic_taken(branch_id, day, t, lanes) + booked.count(t)
         if gear:
-            # GEAR slots are only sold the day before; otherwise they are released to normal booking
+            # Express slots are only sold the day before; otherwise they are released to normal booking
             taken = booked.count(t) + (0 if is_next_day else _synthetic_taken(branch_id, day, t, lanes))
         free = max(0, lanes - taken) if not gear else max(0, 1 - booked.count(t))
         out.append({"time": t, "free": free, "gear": gear and is_next_day, "available": free > 0 and d.weekday() != 6})
@@ -109,7 +110,7 @@ def create(plate: str, branch_id: str, day: str, slot: str, itype: str, gear: bo
     if slot not in av or not av[slot]["available"]:
         raise HTTPException(409, "slot no longer available")
     if gear and not av[slot]["gear"]:
-        raise HTTPException(409, "GEAR premium slots are only sold for the next day")
+        raise HTTPException(409, "Express slots are only sold for the next day")
     price = TYPES[itype]["price"] + (GEAR_SURCHARGE if gear else 0)
     with session_scope() as s:
         b = Booking(plate=plate, branch_id=branch_id, date=day, slot=slot, inspection_type=itype, gear=gear,
@@ -132,8 +133,15 @@ def pay(booking_id: str, method: str = "FPX") -> dict:
         return {**booking_dict(b), "gateway": "mock payment gateway (demo)", "method": method}
 
 
+def branch_name(branch_id: str) -> str:
+    with session_scope() as s:
+        br = s.get(Branch, branch_id)
+        return br.name if br else branch_id
+
+
 def booking_dict(b: Booking) -> dict:
-    return {"booking_id": b.booking_id, "plate": b.plate, "branch_id": b.branch_id, "date": b.date, "slot": b.slot,
+    return {"booking_id": b.booking_id, "plate": b.plate, "branch_id": b.branch_id, "branch_name": branch_name(b.branch_id),
+            "date": b.date, "slot": b.slot,
             "inspection_type": b.inspection_type, "type_label": TYPES.get(b.inspection_type, {}).get("label", b.inspection_type),
             "gear": b.gear, "price_rm": b.price_rm, "status": b.status, "payment_ref": b.payment_ref,
             "checkin_token": b.checkin_token, "checkin_url": f"{public_base_url()}/checkin/{b.checkin_token}",
@@ -142,10 +150,10 @@ def booking_dict(b: Booking) -> dict:
 
 def recommend_types(selling: bool = False, buyer_loan: bool = False, fuel: str = "", commercial: bool = False) -> list[str]:
     if commercial:
-        return ["BERKALA"]
+        return ["PERIODIC"]
     out = []
     if selling:
-        out.append("B5+B7" if buyer_loan else "B5")
+        out.append("TRANSFER+FINANCING" if buyer_loan else "TRANSFER")
     if fuel == "ev":
         out.append("EV")
     return out or ["VOLUNTARY"]

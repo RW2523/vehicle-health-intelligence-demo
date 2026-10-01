@@ -1,4 +1,4 @@
-# PUSPAKOM Vehicle Health Intelligence — Demo Dataset v1
+# VehicleSense AI — Demo Dataset v1
 
 This folder holds the collected and curated data for the DGX Spark demo, captured on 24 Sep 2026. It has four layers:
 

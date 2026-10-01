@@ -165,4 +165,4 @@ Used for the acoustic fault classifier and fingerprint (features 13, 14) and the
 - **Several DB1 fault sound classes have only 1-2 clips.** Enough to demo, not to claim accuracy.
 - **E-nose vehicle data does not exist publicly.** Streams are synthetic, shaped by real gas-sensor signatures (proxy, documented).
 - **PN, thermal, HV isolation, lane instruments** are synthetic.
-- **Branch list is illustrative;** the official list loads by JavaScript on puspakom.com.my.
+- **Inspection hubs are fictional** (generic names; coordinates only place them on the map).

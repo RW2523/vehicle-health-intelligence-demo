@@ -1,4 +1,4 @@
-"""Session player: replays the scripted lane sessions (S1-S3) as real-time sensor streams on the message bus.
+"""Session player: replays the scripted lane sessions (S1-S3, S7) as real-time sensor streams on the message bus.
 
 Every downstream step (models, alerts, fusion, reports) computes live from what is published here. A presenter
 can pause, resume, change speed, jump to a lane step, or override any value (``sensor.field`` = value, or
@@ -24,10 +24,14 @@ from ..config import get_settings
 log = logging.getLogger("vhi.player")
 
 LANE_SESSIONS = {
-    "S1": dict(lane_id="BR00-L3", inspection_type="Berkala (commercial, B2)", report_kind="Berkala inspection report"),
-    "S2": dict(lane_id="BR00-L2", inspection_type="B5 ownership + B7 hire-purchase, EV",
-               report_kind="EV Health Certificate + B5/B7 report"),
-    "S3": dict(lane_id="BR00-L1", inspection_type="B5 ownership transfer (MV15)", report_kind="B5 inspection report"),
+    "S1": dict(lane_id="BR00-L3", inspection_type="Commercial Periodic Inspection", report_kind="Commercial periodic inspection report"),
+    # "EV" in the type makes an EV finding a CONDITIONAL certificate (vhi.services.reports._verdict)
+    "S2": dict(lane_id="BR00-L2", inspection_type="EV Health Check + Transfer & Financing",
+               report_kind="EV Health Certificate + transfer report"),
+    "S3": dict(lane_id="BR00-L1", inspection_type="Ownership Transfer Inspection", report_kind="Ownership transfer inspection report"),
+    # the owner app's car: its inspection type comes from the owner's booking when there is one
+    "S7": dict(lane_id="BR00-L4", inspection_type="Voluntary Inspection", report_kind="Voluntary inspection report",
+               from_booking=True),
 }
 # Extra scripted frames used by the sessions (sample captures shipped in app assets)
 EXTRA_MEDIA = {
@@ -243,10 +247,13 @@ class SessionPlayer:
         st.started_wall = time.time()
         self._i = 0
         self._resume.set()
+        itype, kind = self.cfg["inspection_type"], self.cfg["report_kind"]
+        if self.cfg.get("from_booking"):
+            itype, kind = booked_type(self.meta.get("vehicle", {}).get("plate"), itype, kind)
         await self.rt.bus.publish(f"{self.topic}/control", {
             "action": "start", "session": self.sid, "inspection_id": st.inspection_id, "lane_id": st.lane_id,
             "branch_id": self.meta.get("branch_id"), "vehicle": self.meta.get("vehicle"),
-            "inspection_type": self.cfg["inspection_type"], "report_kind": self.cfg["report_kind"],
+            "inspection_type": itype, "report_kind": kind,
             "title": self.meta.get("title"), "timeline": self.meta["lane_timeline"], "overrides": st.overrides,
             "sim_t": 0.0})
         self._task = asyncio.create_task(self._run())
@@ -373,10 +380,29 @@ class SessionManager:
         return st.inspection_id
 
 
+def booked_type(plate: str | None, itype: str, kind: str) -> tuple[str, str]:
+    """The inspection the owner booked (paid, not yet inspected), else the session's own type."""
+    from sqlalchemy import select
+
+    from ..db import session_scope
+    from ..services.booking import TYPES
+    from ..tables import Booking
+
+    with session_scope() as s:
+        b = s.execute(select(Booking).where(Booking.plate == plate, Booking.status == "confirmed")
+                      .order_by(Booking.created_at.desc())).scalars().first()
+        if b is None or b.inspection_type not in TYPES:
+            return itype, kind
+        label = TYPES[b.inspection_type]["label"]
+    # "EV" stays in the type of an EV Health Check (the verdict rules read it); the column holds 40 characters
+    label = label.split(" (")[0][:40]
+    return label, f"{label[:33]} report"
+
+
 def session_catalogue() -> list[dict]:
     s = get_settings()
     out = []
-    for sid in ["S1", "S2", "S3", "S4", "S5", "S6"]:
+    for sid in ["S1", "S2", "S3", "S7", "S4", "S5", "S6"]:
         meta = json.loads((s.sessions_dir / f"{sid}.json").read_text())
         out.append({"session_id": sid, "title": meta.get("title"), "kind": "lane" if sid in LANE_SESSIONS else "app",
                     "vehicle": meta.get("vehicle"), "expected": meta.get("expected"),

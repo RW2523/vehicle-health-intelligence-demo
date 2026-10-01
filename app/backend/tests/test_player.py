@@ -37,7 +37,8 @@ def test_override_changes_result(client):
 
 def test_catalogue(client):
     cat = client.get("/api/sessions").json()
-    assert [c["session_id"] for c in cat] == ["S1", "S2", "S3", "S4", "S5", "S6"]
+    assert [c["session_id"] for c in cat] == ["S1", "S2", "S3", "S7", "S4", "S5", "S6"]
+    assert [c["lane_id"] for c in cat if c["kind"] == "lane"] == ["BR00-L3", "BR00-L2", "BR00-L1", "BR00-L4"]
     assert client.post("/api/sessions/S6/start", json={}).status_code == 404  # S6 is an app journey, not a lane
 
 

@@ -1,0 +1,98 @@
+{
+ "session": "S7",
+ "title": "Perodua Myvi · Voluntary Inspection",
+ "branch_id": "BR00",
+ "vehicle": {
+  "plate": "DMO 9006",
+  "make": "Perodua",
+  "model": "Myvi",
+  "year": 2019,
+  "usage": "private",
+  "fuel": "petrol",
+  "odometer_km": 74100,
+  "axles": 2
+ },
+ "injected_faults": [],
+ "expected": {
+  "alerts": 0,
+  "verdict": "PASS",
+  "health": "normal (70 or more)"
+ },
+ "media": {
+  "tyre_images": [
+   "images/tyre/perfect/tyre_helath_qualit_00355.jpg",
+   "images/tyre/perfect/tyre_helath_qualit_00324.jpg"
+  ],
+  "body_images": [
+   "images/vehicle_damage/r_normal/car_damage_evaluat_00000.jpg",
+   "images/vehicle_damage/r_normal/car_damage_evaluat_00007.jpg"
+  ],
+  "audio": [
+   "audio/engine_normal_idle/car_engine_sou_00010.wav"
+  ]
+ },
+ "streams": [
+  "brake_roller.parquet",
+  "enose.parquet",
+  "instruments.json",
+  "obd.parquet",
+  "thermal.json"
+ ],
+ "lane_timeline": [
+  {
+   "step": "check_in_anpr",
+   "start_s": 0,
+   "end_s": 20
+  },
+  {
+   "step": "identity_ocr",
+   "start_s": 20,
+   "end_s": 40
+  },
+  {
+   "step": "emission_idle_rev",
+   "start_s": 40,
+   "end_s": 130
+  },
+  {
+   "step": "brake_roller",
+   "start_s": 130,
+   "end_s": 190
+  },
+  {
+   "step": "suspension",
+   "start_s": 190,
+   "end_s": 230
+  },
+  {
+   "step": "side_slip",
+   "start_s": 230,
+   "end_s": 245
+  },
+  {
+   "step": "headlamp_tint",
+   "start_s": 245,
+   "end_s": 280
+  },
+  {
+   "step": "undercarriage_ai",
+   "start_s": 280,
+   "end_s": 340
+  },
+  {
+   "step": "above_carriage_ai",
+   "start_s": 340,
+   "end_s": 380
+  },
+  {
+   "step": "examiner_review",
+   "start_s": 380,
+   "end_s": 460
+  },
+  {
+   "step": "report",
+   "start_s": 460,
+   "end_s": 480
+  }
+ ]
+}

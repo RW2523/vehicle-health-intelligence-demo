@@ -12,10 +12,12 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import func, select, text
 
+from .. import terms
 from ..config import get_settings
 from ..db import engine, session_scope
 from ..ml import analytics
 from ..tables import Alert, Branch, LiveInspection, Setting
+from . import booking as booking_svc
 from . import evidence
 
 _cache: dict[str, tuple[float, object]] = {}
@@ -219,7 +221,9 @@ def self_check(plate: str, attempt: dict, models) -> dict:
                       "source": "live model (acoustic classifier)", "clip": f"/media/data/{attempt['engine_audio']}",
                       "advice": None if ok else "An unusual engine sound was detected. Ask a workshop to check it."})
     fails = [i for i in items if not i["ok"]]
-    verdict = "Fix these first" if fails else "Likely to pass"
+    # what the owner can put right (tint, bulbs) vs what a workshop has to look at (tyre damage, engine sound)
+    pro = [i for i in fails if i["item"].startswith(("Tyre", "Engine"))]
+    verdict = "Needs a professional check" if pro else ("Fix these first" if fails else "Ready for inspection")
     from ..tables import SelfCheck
     with session_scope() as sess:
         sc = SelfCheck(plate=plate, results={"items": items}, verdict=verdict)
@@ -252,11 +256,13 @@ def passport(plate: str) -> dict:
             events.append({"date": c.created_at.date().isoformat(), "kind": "self_check", "title": f"Self-check: {c.verdict}",
                            "items": c.results.get("items", []), "source": "live"})
         for b in books:
-            events.append({"date": b.date, "kind": "booking", "title": f"Booked {b.inspection_type} {b.slot}"
-                           + (" (GEAR)" if b.gear else ""), "status": b.status, "source": "live"})
+            label = booking_svc.TYPES.get(b.inspection_type, {}).get("label", b.inspection_type)
+            events.append({"date": b.date, "kind": "booking", "title": f"Booked: {label}, {b.slot}"
+                           + (" (Express)" if b.gear else ""), "status": b.status, "booking_id": b.booking_id,
+                           "checkin_token": b.checkin_token, "source": "live"})
     hist = pd.read_sql(text("select * from hist_inspections where vehicle_id = :v"), engine(), params={"v": vp["vehicle_id"]})
     for r in hist.itertuples():
-        events.append({"date": str(r.date)[:10], "kind": "inspection", "title": f"{r.inspection_type}: {r.result}",
+        events.append({"date": str(r.date)[:10], "kind": "inspection", "title": f"{terms.label(r.inspection_type)}: {r.result}",
                        "odometer_km": int(r.odometer_km), "fail_reasons": r.fail_reasons, "source": "history (synthetic)"})
     claims = pd.read_sql(text("select claim_date, claim_type, amount_rm, ber_total_loss from hist_claims where vehicle_id = :v"),
                          engine(), params={"v": vp["vehicle_id"]})
@@ -270,18 +276,13 @@ def passport(plate: str) -> dict:
             "latest": certs[0] if certs else None}
 
 
-CERT_KIND = {"voluntary": "Voluntary inspection", "berkala_B2": "Berkala periodic inspection",
-             "berkala_ehailing": "Berkala periodic inspection (e-hailing)", "B5_MV15": "B5 ownership transfer (MV15)",
-             "B7_hire_purchase": "B7 hire-purchase", "khas_B2_85_ber": "Special inspection after a total-loss claim"}
-
-
 def certificates(reports: list[dict], hist: pd.DataFrame) -> list[dict]:
     """Every certificate of a vehicle, newest first: the reports issued in the lane (with the health score the lane
     computed and a verify link) and each past inspection with its result and odometer."""
     out = [{"date": r["date"], "kind": r["kind"], "result": r["verdict"], "score": r["health"],
             "verify_token": r["verify_token"], "odometer_km": None, "source": "report"} for r in reports]
     for r in hist.to_dict("records"):
-        out.append({"date": str(r["date"])[:10], "kind": CERT_KIND.get(r["inspection_type"], str(r["inspection_type"]).replace("_", " ")),
+        out.append({"date": str(r["date"])[:10], "kind": terms.label(r["inspection_type"]),
                     "result": r["result"], "score": None, "verify_token": None, "odometer_km": int(r["odometer_km"]),
                     "source": "history"})
     return sorted(out, key=lambda c: c["date"], reverse=True)

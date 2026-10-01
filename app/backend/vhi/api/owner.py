@@ -1,4 +1,4 @@
-"""Owner app: booking, GEAR, mock payment, self-check, assistant and the Vehicle Health Passport."""
+"""Owner app: booking, Express next-day slots, mock payment, self-check, assistant and the Vehicle Health Passport."""
 from __future__ import annotations
 
 import asyncio
@@ -65,7 +65,7 @@ def nearby_slots(date: str, lat: float, lon: float, time: str | None = None, exc
 
 
 @router.get("/gear")
-def gear(branch_id: str = "BR01"):
+def gear(branch_id: str = "BR00"):
     return booking.gear_slots(branch_id)
 
 

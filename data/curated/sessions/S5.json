@@ -4,8 +4,8 @@
  "fleet_id": "FLEET07",
  "expected": {
   "fleet_size": 43,
-  "trucks_at_risk_next_berkala": 17,
-  "forecast_branch": "BR00 Alam Megah"
+  "forecast_branch": "BR00 Central Inspection Hub",
+  "trucks_at_risk_next_periodic": 17
  },
  "streams": [
   "bookings_BR00.parquet",

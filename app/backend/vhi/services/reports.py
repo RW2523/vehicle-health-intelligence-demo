@@ -128,7 +128,7 @@ def issue(inspection_id: str, examiner_id: str, llm: LLM, senior_signed: bool = 
         br = s.get(Branch, li.branch_id)
         res, fus = li.results or {}, li.fusion or {}
         data = {
-            "vehicle": {**(res.get("anpr") or {}).get("mysikap", {}), "plate": li.plate},
+            "vehicle": {**(res.get("anpr") or {}).get("registry", {}), "plate": li.plate},
             "verdict": verdict, "verdict_reasons": reasons,
             "branch": br.name if br else li.branch_id, "lane": li.lane_id, "inspection_type": li.inspection_type,
             "examiner": {"id": examiner_id, "name": ex.name if ex else examiner_id, "senior": bool(ex and ex.senior)},
@@ -173,6 +173,18 @@ def report_dict(r: Report) -> dict:
             "created_at": r.created_at.isoformat() if r.created_at else None}
 
 
+def for_plate(plate: str, limit: int = 5) -> list[dict]:
+    """A vehicle's issued reports, newest first (the downstream views show the latest lane result)."""
+    with session_scope() as s:
+        rows = s.execute(select(Report).where(Report.plate == plate).order_by(Report.created_at.desc()).limit(limit)).scalars().all()
+        return [{"report_id": r.report_id, "inspection_id": r.inspection_id, "kind": r.kind, "verdict": r.verdict,
+                 "health": (r.data.get("health") or {}).get("score"), "issued_at": r.data.get("issued_at"),
+                 "created_at": r.created_at.isoformat() if r.created_at else None, "verify_token": r.verify_token,
+                 "summary": r.summary, "synthetic": bool(r.data.get("synthetic")),
+                 "findings": [f["title"] for f in r.data.get("findings", []) if f.get("status") == "confirmed"][:5]}
+                for r in rows]
+
+
 def verify_public(token: str) -> dict:
     """What a buyer sees after scanning the QR code: the result, and proof the record was not altered."""
     with session_scope() as s:
@@ -183,8 +195,12 @@ def verify_public(token: str) -> dict:
     chain = evidence.verify()
     anchored = any(e["hash"] == d["chain_hash"] for e in evidence.entries(d["inspection_id"], limit=500))
     data = d["data"]
+    odo = data.get("odometer_km") or ((data.get("identity") or {}).get("odometer") or {}).get("reading_km")
     return {"valid": chain["intact"] and anchored, "report_id": d["report_id"], "plate": d["plate"], "kind": d["kind"],
             "verdict": d["verdict"], "issued_at": data.get("issued_at"), "branch": data.get("branch"),
+            "vehicle": {k: (data.get("vehicle") or {}).get(k) for k in ("make", "model", "year")},
+            "odometer_km": odo, "synthetic": bool(data.get("synthetic")),
+            "examiner": {"name": (data.get("examiner") or {}).get("name"), "senior": bool((data.get("examiner") or {}).get("senior"))},
             "summary": d["summary"], "health_score": (data.get("health") or {}).get("score"),
             "ev": {k: data["ev"][k] for k in ("pack_soh_pct", "km_to_70")} if data.get("ev") else None,
             "flood_probability": (data.get("flood") or {}).get("p"),

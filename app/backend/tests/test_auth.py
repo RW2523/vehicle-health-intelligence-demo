@@ -59,7 +59,7 @@ def test_examiner_reaches_the_lanes_of_their_branch_only(s1):
     assert ex.post("/api/evidence/tamper-test").status_code == 403
     with session_scope() as s:  # an inspection at another branch
         s.add(LiveInspection(inspection_id="LIotherbr", session_id="X", lane_id="BR05-L1", branch_id="BR05", plate="DMO 1",
-                             inspection_type="B5", status="review", results={}, measurements={}, fusion={}))
+                             inspection_type="Ownership Transfer Inspection", status="review", results={}, measurements={}, fusion={}))
     assert ex.get("/api/inspections/LIotherbr").status_code == 403
     assert "LIotherbr" not in {i["inspection_id"] for i in ex.get("/api/inspections").json()}
     # a decision is recorded under the logged-in examiner, whatever the request says

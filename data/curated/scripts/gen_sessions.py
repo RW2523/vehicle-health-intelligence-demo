@@ -89,13 +89,13 @@ def save(sid, meta, streams):
     json.dump(meta, open(f"{SES}/{sid}.json", "w"), indent=1, default=str)
 
 # ---- S1 tampered diesel prime mover ----
-save("S1", dict(session="S1", title="Scania prime mover · periodic inspection (Berkala)", branch_id="BR00",
+save("S1", dict(session="S1", title="Scania prime mover · Commercial Periodic Inspection", branch_id="BR00",
     vehicle=dict(plate="DMO 9001", make="Scania", model="P-Series Prime Mover", year=2022, usage="lorry", fuel="diesel", euro_class="Euro 5",
                  dpf_fitted=True, scr_fitted=True, odometer_km=412300, fleet_id="FLEET07", axles=3),
     injected_faults=["dpf_removed", "scr_fault_adblue_bypass", "dragging_brake_axle2_R", "wheel_bearing_axle1_L"],
     expected=dict(smoke_opacity_pct=18.5, opacity_verdict="PASS (misleading)", pn_per_cm3=2.4e6, pn_verdict="FAIL advisory (>250k)",
                   obd_dtcs=["P2002", "P20EE", "P2BAD"], enose="nh3_slip_scr high", thermal="A2R hub 146C", acoustic="fault_bad_wheal_bearing",
-                  health_score=41, next_berkala_fail_risk=0.83, examiner_action="confirm"),
+                  health_score=41, next_periodic_fail_risk=0.83, examiner_action="confirm"),
     media=dict(undercarriage_images=pick("images/corrosion/*/*.jpg", 2), tyre_images=pick("images/tyre/defective/*.jpg", 1),
                audio=pick("audio/fault_bad_wheal_bearing/*.wav", 1) + pick("audio/engine_normal_idle/*.wav", 1))),
     dict(enose=enose_stream(480, [("nh3_slip_scr", 45, 80, 1.0), ("burning_oil_or_hot_brake", 150, 60, .6)]),
@@ -104,7 +104,7 @@ save("S1", dict(session="S1", title="Scania prime mover · periodic inspection (
          instruments=dict(smoke_opacity_pct=18.5, suspension_eff_pct=[71, 69, 66], side_slip_m_per_km=3.1, headlamp_dev_pct=1.2, tint_vlt_pct=72)))
 
 # ---- S2 used EV with flood history ----
-save("S2", dict(session="S2", title="BYD Atto 3 (EV) · ownership transfer + hire-purchase (B5 + B7)", branch_id="BR00",
+save("S2", dict(session="S2", title="BYD Atto 3 (EV) · EV Health Check + Ownership Transfer & Financing", branch_id="BR00",
     vehicle=dict(plate="DMO 9002", make="BYD", model="Atto 3", year=2022, usage="private", fuel="ev", odometer_km=58200, axles=2),
     prior_claims=[dict(date="2025-12-10", type="flood_natural_disaster", amount_rm=38400, ber=False)],
     injected_faults=["flood_immersion_dec_2025", "hv_isolation_marginal", "cell_module_hotspot", "undercarriage_corrosion"],
@@ -120,9 +120,9 @@ save("S2", dict(session="S2", title="BYD Atto 3 (EV) · ownership transfer + hir
          instruments=dict(hv_isolation_mohm=1.8, suspension_eff_pct=[74, 72], side_slip_m_per_km=1.4, headlamp_dev_pct=0.8, tint_vlt_pct=70, adas_self_test="advisory only")))
 
 # ---- S3 suspicious private car ----
-save("S3", dict(session="S3", title="Honda Civic · ownership transfer (B5)", branch_id="BR00",
+save("S3", dict(session="S3", title="Honda Civic · Ownership Transfer Inspection", branch_id="BR00",
     vehicle=dict(plate="DMO 9003", make="Honda", model="Civic", year=2016, usage="private", fuel="petrol", odometer_km=96400, axles=2),
-    prior_inspections=[dict(date="2024-03-14", type="B5_MV15", odometer_km=171300, engine_fingerprint="FP-A"),
+    prior_inspections=[dict(date="2024-03-14", type="ownership_transfer", odometer_km=171300, engine_fingerprint="FP-A"),
                        dict(date="2025-06-02", type="voluntary", odometer_km=182900, engine_fingerprint="FP-A")],
     injected_faults=["odometer_rollback_86500km", "engine_swap_undeclared", "repaired_rear_panel"],
     expected=dict(odometer_flag="rollback: 182,900 -> 96,400 km", acoustic_similarity_to_history=0.31, engine_changed=True,
@@ -140,7 +140,7 @@ ex = hv.groupby("examiner_id").agg(n=("result", "size"), pass_rate=("result", la
 ex["z_pass"] = ((ex.pass_rate - ex.pass_rate.mean()) / ex.pass_rate.std()).round(2)
 ex["evidence_conflict_rate"] = (ex.evidence_fail_rate - (1 - ex.pass_rate)).clip(lower=0).round(3)
 eq = pd.read_parquet(f"{SYN}/lane_equipment_telemetry.parquet")
-save("S4", dict(session="S4", title="HQ: examiner integrity and lane maintenance",
+save("S4", dict(session="S4", title="HQ operations: examiner integrity and lane maintenance",
     expected=dict(outlier_examiners=ex.sort_values("z_pass", ascending=False).head(2).index.tolist(),
                   hash_chain_audit="all records intact", failing_device="BR00 lane 3 roller_brake_tester")),
     dict(examiner_stats=ex.reset_index(), equipment=eq[(eq.branch_id == "BR00")]))
@@ -150,16 +150,16 @@ fleet = veh[veh.fleet_id == "FLEET07"]
 fi = ins[ins.vehicle_id.isin(fleet.vehicle_id)].sort_values("date").groupby("vehicle_id").tail(1)
 bk = pd.read_parquet(f"{SYN}/bookings_daily.parquet")
 save("S5", dict(session="S5", title="Fleet operator (FLEET07) and regulator view", fleet_id="FLEET07",
-    expected=dict(fleet_size=len(fleet), trucks_at_risk_next_berkala=int((fi.fail_reasons != "").sum()),
-                  forecast_branch="BR00 Alam Megah")),
+    expected=dict(fleet_size=len(fleet), trucks_at_risk_next_periodic=int((fi.fail_reasons != "").sum()),
+                  forecast_branch="BR00 Central Inspection Hub")),
     dict(fleet_vehicles=fleet, fleet_last_inspection=fi, bookings_BR00=bk[bk.branch_id == "BR00"],
          remote_sensing=pd.read_parquet(f"{SYN}/remote_sensing_roadside.parquet")))
 
 # ---- S6 customer journey ----
-save("S6", dict(session="S6", title="Owner app: assistant, booking, self-check, passport", branch_id="BR01",
+save("S6", dict(session="S6", title="Owner app: assistant, self-check, booking, passport", branch_id="BR00",
     vehicle=dict(plate="DMO 9006", make="Perodua", model="Myvi", year=2019, usage="private", fuel="petrol", odometer_km=74100),
-    assistant_script=[dict(user_bm="Saya nak jual kereta, pemeriksaan apa yang saya perlu?", intent="which_inspection", answer_type="B5/MV15 (+B7 if buyer takes loan)"),
-                      dict(user_bm="Ada slot esok di Glenmarie?", intent="gear_slot", answer_type="GEAR next-day slot list")],
+    assistant_script=[dict(user_bm="Saya nak jual kereta, pemeriksaan apa yang saya perlu?", intent="which_inspection", answer_type="Ownership Transfer Inspection (+ Financing Inspection if the buyer takes a loan)"),
+                      dict(user_bm="Ada slot esok di Central Inspection Hub?", intent="express_slot", answer_type="Express next-day slot list")],
     self_check=dict(photos=["tint", "headlamp_left", "headlamp_right", "tyres x4"], engine_audio_s=20,
                     first_attempt=dict(tint_vlt_pct=38, headlamp_left="not working", verdict="fix these first"),
                     second_attempt=dict(tint_vlt_pct=71, headlamp_left="ok", verdict="likely to pass")),

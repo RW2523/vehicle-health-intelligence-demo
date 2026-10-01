@@ -46,3 +46,9 @@ def s2(client):
 def s3(client):
     assert client.post("/api/sessions/S3/start", json={"fast": True}).status_code == 200
     return client.get("/api/inspections/latest", params={"session_id": "S3"}).json()
+
+
+@pytest.fixture(scope="session")
+def s7(client):
+    assert client.post("/api/sessions/S7/start", json={"fast": True}).status_code == 200
+    return client.get("/api/inspections/latest", params={"session_id": "S7"}).json()

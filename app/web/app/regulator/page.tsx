@@ -49,12 +49,12 @@ export default function Regulator() {
   const fuel = r?.web?.fuelprice?.records?.[0] || r?.web?.fuelprice?.records?.data?.[0];
   return (
     <Shell>
-      <PageHeader title="Regulator view · JPJ / DOE" sub="Registrations, defect trends, roadside emissions and EV incidents across Malaysia (session S5)."
+      <PageHeader title="Regulator view" sub="Registrations, defect trends, roadside emissions and EV incidents across Malaysia."
         actions={<button className="btn" disabled={busy} onClick={refresh}>{busy ? "Refreshing…" : "Refresh live data.gov.my feeds"}</button>} />
       {!r ? <p className="text-fg-3">Loading…</p> : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <Kpi label="New registrations 2025" value={fmtN(reg.total)} sub="JPJ via data.gov.my" right={<Source kind="real" text="Real" />} />
+            <Kpi label="New registrations 2025" value={fmtN(reg.total)} sub="National registrations · data.gov.my" right={<Source kind="real" text="Real" />} />
             <Kpi label="Cars · motorcycles 2025" value={`${fmtN(reg.by_category.car / 1000)}k · ${fmtN(reg.by_category.motorcycle / 1000)}k`} sub="by category" right={<Source kind="real" text="Real" />} />
             <Kpi label="Fail rate (last month)" value={pct(r.defects.monthly.at(-1)?.fail_rate, 1)} sub={`${fmtN(r.defects.monthly.at(-1)?.inspections)} inspections`} right={<Source kind="synthetic" text="Synthetic" />} />
             <Kpi label="Roadside high emitters" value={fmtN(r.remote_sensing.high_emitters)} sub={`of ${fmtN(r.remote_sensing.total)} plume readings`} right={<Source kind="simulated" text="Simulated" />} />
@@ -111,7 +111,7 @@ export default function Regulator() {
                 {JSON.stringify(r.web.weather_warnings).length > 30 ? <div className="max-h-24 overflow-auto text-[12px] text-fg-2">{(r.web.weather_warnings.records || r.web.weather_warnings.data || []).slice?.(0, 3).map((w: any, i: number) => <div key={i}>{w.warning_issue?.title_en || w.title_en || JSON.stringify(w).slice(0, 90)}</div>)}</div> : "No active warnings in the snapshot"}
               </div>
               <div className="rounded-lg border border-ink-600 bg-ink-850 p-3">
-                <div className="label mb-1">JPS flood stations</div>
+                <div className="label mb-1">River-level stations (public data)</div>
                 <div className="text-[12px] text-fg-2">{(r.web.flood_stations.records || r.web.flood_stations.data || []).length || 0} stations in the snapshot (used for flood-risk context).</div>
                 <Link href="/flood" className="mt-1 inline-block text-[12px] font-semibold text-cyan hover:underline">Flood watch: every state's river levels and the vehicles to inspect ›</Link>
               </div>

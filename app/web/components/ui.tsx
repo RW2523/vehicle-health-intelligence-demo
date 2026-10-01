@@ -1,31 +1,71 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { PROVENANCE, PROVENANCE_ORDER, SEVERITY, Severity, provenance } from "@/lib/present";
 
-const SOURCE: Record<string, { label: string; c: string }> = {
-  live_model: { label: "Live model", c: "#22D3EE" },
-  live_logic: { label: "Live logic", c: "#A78BFA" },
-  simulated: { label: "Simulated", c: "#FBBF24" },
-  real: { label: "Real public data", c: "#34D399" },
-  synthetic: { label: "Synthetic data", c: "#FB923C" },
-  sample: { label: "Sample images", c: "#F472B6" },
-  mock: { label: "Mock UI", c: "#9AA8BF" },
-  llm: { label: "Local LLM", c: "#22D3EE" },
-  template: { label: "Template engine", c: "#9AA8BF" },
-  rnd: { label: "Future R&D", c: "#C084FC" },
-};
+/** The plain label of a data source ("live_model" -> "LIVE MODEL"). */
+export const sourceLabel = (kind: string) => PROVENANCE[provenance(kind).kind].label;
 
-/** The plain label of a data source ("live_model" -> "Live model"). */
-export const sourceLabel = (kind: string) => SOURCE[kind]?.label || kind.replaceAll("_", " ");
-
-/** Honest data label shown on every panel (live model / live logic / simulated / real / synthetic ...). */
-export function Source({ kind, text }: { kind: string; text?: string }) {
-  const s = SOURCE[kind] || { label: kind, c: "#9AA8BF" };
+/** Provenance badge: one of the eight labels (with its meaning on hover and for screen readers), plus what exactly
+ *  produced the value. Placed next to the card, chart or result it describes. */
+export function Source({ kind, text, className = "" }: { kind: string; text?: string; className?: string }) {
+  const { kind: k, detail } = provenance(kind, text);
+  const s = PROVENANCE[k];
+  const help = `${s.label}: ${s.help}${detail ? ` (${detail})` : ""}`;
   return (
-    <span className="chip" style={{ borderColor: s.c + "66", color: s.c, background: s.c + "12" }} title="How this panel's data is produced">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.c }} />
-      {text || s.label}
+    <span className={`chip max-w-full overflow-hidden ${className}`} style={{ borderColor: s.color + "66", color: s.color, background: s.color + "12" }} title={help} aria-label={help}>
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: s.color }} aria-hidden />
+      <span className="shrink-0 tracking-wide">{s.label}</span>
+      {detail && <span className="min-w-0 truncate font-medium text-fg-3" aria-hidden>· {detail}</span>}
     </span>
+  );
+}
+export const ProvenanceBadge = Source;
+
+/** What each provenance label means: for first-time viewers (header help and the demo control). */
+export function ProvenanceLegend({ compact = false }: { compact?: boolean }) {
+  return (
+    <ul className={`grid gap-2 ${compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
+      {PROVENANCE_ORDER.map((k) => (
+        <li key={k} className="flex items-start gap-2 text-[12.5px] leading-snug">
+          <span className="mt-0.5 shrink-0"><Source kind={k} /></span>
+          <span className="text-fg-3">{PROVENANCE[k].help}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Normal / Attention / Critical, with text (never colour alone). */
+export function SeverityBadge({ s, className = "" }: { s: Severity; className?: string }) {
+  const v = SEVERITY[s];
+  return (
+    <span className={`chip ${className}`} style={{ borderColor: v.color + "80", color: v.color, background: v.color + "14" }}>
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: v.color }} aria-hidden />{v.label}
+    </span>
+  );
+}
+
+/** A panel still loading: keeps its place with a skeleton and says what is coming. */
+export function LoadingState({ label = "Loading…", rows = 3, className = "" }: { label?: string; rows?: number; className?: string }) {
+  return (
+    <div role="status" aria-live="polite" className={`flex flex-col gap-2 ${className}`}>
+      <span className="text-[12.5px] text-fg-3">{label}</span>
+      {Array.from({ length: rows }).map((_, i) => (
+        <span key={i} className="skeleton h-3.5 rounded" style={{ width: `${92 - i * 14}%` }} />
+      ))}
+    </div>
+  );
+}
+
+/** Something could not load: say so in plain words and offer a retry, keeping the page usable. */
+export function ErrorState({ title = "This panel could not load", children, onRetry }: { title?: string; children?: ReactNode; onRetry?: () => void }) {
+  return (
+    <div role="alert" className="flex flex-col items-start gap-2 rounded-xl border border-bad/40 bg-bad/5 px-4 py-3 text-[13px]">
+      <b className="text-bad">{title}</b>
+      {children && <span className="text-fg-3">{children}</span>}
+      {onRetry && <button className="btn btn-sm" onClick={onRetry}>Try again</button>}
+    </div>
   );
 }
 
@@ -33,9 +73,9 @@ export function Card({ title, right, children, className = "", pad = true }: { t
   return (
     <section className={`card ${pad ? "card-pad" : ""} ${className}`}>
       {(title || right) && (
-        <div className="mb-3 flex items-center justify-between gap-3">
-          {typeof title === "string" ? <h2 className="h-title">{title}</h2> : title}
-          <div className="flex flex-wrap items-center justify-end gap-2">{right}</div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          {typeof title === "string" ? <h2 className="h-title min-w-0">{title}</h2> : title}
+          <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">{right}</div>
         </div>
       )}
       {children}
@@ -65,6 +105,7 @@ export function Pill({ children, color = "#9AA8BF", solid = false }: { children:
 }
 
 /** Nothing to show yet: say why, and offer the next action instead of a dead end. */
+export const EmptyState = (p: { children?: ReactNode; title?: ReactNode; actions?: ReactNode }) => Empty(p);
 export function Empty({ children, title, actions }: { children?: ReactNode; title?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-ink-500 bg-ink-850/40 px-6 py-10 text-center">
@@ -84,7 +125,7 @@ export function PageHeader({ title, sub, actions, children }: { title: ReactNode
         {sub && <p className="mt-1 max-w-[760px] text-[13.5px] text-fg-3">{sub}</p>}
         {children}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

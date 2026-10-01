@@ -9,10 +9,12 @@ export const myt = (d: Date | null, opts: Intl.DateTimeFormatOptions = { hour: "
 export const mydate = (d: Date | null) =>
   d ? d.toLocaleDateString("en-GB", { timeZone: "Asia/Kuala_Lumpur", weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "";
 
+/** A calendar date ("2026-10-01") as it is, or a timestamp as its date in Malaysia time. */
 export const dmy = (iso?: string | null) => {
   if (!iso) return "–";
-  const d = new Date(iso.length <= 10 ? iso + "T00:00:00" : iso);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const dateOnly = iso.length <= 10;
+  const d = new Date(dateOnly ? iso + "T00:00:00" : /[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + "Z");
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", ...(dateOnly ? {} : { timeZone: "Asia/Kuala_Lumpur" }) });
 };
 
 export const monthLabel = (ym: string) => {
@@ -21,8 +23,8 @@ export const monthLabel = (ym: string) => {
 };
 
 export const STEP_LABEL: Record<string, string> = {
-  check_in_anpr: "Check-in & ANPR",
-  identity_ocr: "Identity OCR",
+  check_in_anpr: "Check-in (plate camera)",
+  identity_ocr: "Identity (chassis, odometer)",
   emission_idle_rev: "Emissions & OBD",
   brake_roller: "Brake roller",
   suspension: "Suspension",
@@ -62,12 +64,15 @@ export const SYSTEM_NAME: Record<string, string> = {
   undercarriage: "Undercarriage AI", above: "Above-carriage AI", tyre: "Tyre AI", examiner: "Examiner close-up",
 };
 
-/** The lane replays: the vehicle each one drives through which lane of the Alam Megah branch (BR00). */
+/** The lane replays: the vehicle each one drives through which lane of the Central Inspection Hub (BR00). */
 export const LANE_SESSIONS = [
   { session: "S1", lane: "BR00-L3", label: "Lane 3", plate: "DMO 9001", car: "Scania P-Series prime mover" },
   { session: "S2", lane: "BR00-L2", label: "Lane 2", plate: "DMO 9002", car: "BYD Atto 3 (EV)" },
   { session: "S3", lane: "BR00-L1", label: "Lane 1", plate: "DMO 9003", car: "Honda Civic" },
+  { session: "S7", lane: "BR00-L4", label: "Lane 4", plate: "DMO 9006", car: "Perodua Myvi" },
 ];
+/** "BR00-L3" -> "Lane 3". */
+export const laneLabel = (lane?: string | null) => (lane ? lane.replace(/^.*-L/, "Lane ") : "–");
 export const laneOf = (session?: string | null) => LANE_SESSIONS.find((s) => s.session === session)?.lane;
 export const laneSession = (lane?: string | null) => LANE_SESSIONS.find((s) => s.lane === lane);
 
@@ -77,3 +82,11 @@ export const STATUS_LABEL: Record<string, string> = {
   decided: "Decisions made",
   reported: "Report issued",
 };
+
+/** Inspection types (vhi/terms.py), for the few places that receive the code rather than the label. */
+const INSPECTION_TYPES: Record<string, string> = {
+  periodic_commercial: "Commercial Periodic Inspection", periodic_ride_hailing: "Commercial Periodic Inspection (ride-hailing)",
+  ownership_transfer: "Ownership Transfer Inspection", financing: "Financing Inspection", voluntary: "Voluntary Inspection",
+  special_total_loss: "Special Inspection (after a total-loss claim)", ev_health: "EV Health Check",
+};
+export const typeLabel = (code?: string | null) => (code ? INSPECTION_TYPES[code] || code.replaceAll("_", " ") : "–");

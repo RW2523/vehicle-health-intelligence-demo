@@ -1,6 +1,6 @@
 {
  "session": "S3",
- "title": "Honda Civic · ownership transfer (B5)",
+ "title": "Honda Civic · Ownership Transfer Inspection",
  "branch_id": "BR00",
  "vehicle": {
   "plate": "DMO 9003",
@@ -15,7 +15,7 @@
  "prior_inspections": [
   {
    "date": "2024-03-14",
-   "type": "B5_MV15",
+   "type": "ownership_transfer",
    "odometer_km": 171300,
    "engine_fingerprint": "FP-A"
   },

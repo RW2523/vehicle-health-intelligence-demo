@@ -1,4 +1,4 @@
-"""Synthetic data generator for the PUSPAKOM Vehicle Health Intelligence demo.
+"""Synthetic data generator for the VehicleSense AI demo.
 
 Everything here is FICTIONAL (plates, owners, examiners, vehicles) but calibrated to real public data:
   * state + vehicle-category mix  <- JPJ 2025 registrations (data.gov.my via tasadapullo-svg repo, 1.63M rows)
@@ -29,18 +29,21 @@ mot_def = pd.read_csv(f"{BASE}/raw/inspection_history/ivitskiy__uk-mot-risk-inde
 defect_mix = (mot_def.groupby("defect_group")["national_failure_items_per_100_tests"].first().sort_values(ascending=False))
 defect_mix = (defect_mix / defect_mix.sum()).round(4)
 
-# Branches: ILLUSTRATIVE list (official list loads via JS on puspakom.com.my/branches; replace before demo)
+# Inspection hubs: FICTIONAL demo hubs (names are generic; the coordinates only place them on the map)
 BRANCHES = [
-    ("Alam Megah", "Selangor", True, 8), ("Glenmarie", "Selangor", False, 6), ("Batu Caves", "Selangor", False, 5),
-    ("Cheras", "W.P. Kuala Lumpur", False, 4), ("Kajang", "Selangor", False, 4), ("Klang", "Selangor", True, 5),
-    ("Seremban", "Negeri Sembilan", True, 4), ("Melaka", "Melaka", False, 3), ("Johor Bahru", "Johor", True, 6),
-    ("Kluang", "Johor", False, 3), ("Ipoh", "Perak", True, 4), ("Prai", "Pulau Pinang", True, 5),
-    ("Alor Setar", "Kedah", False, 3), ("Kuantan", "Pahang", True, 4), ("Kota Bharu", "Kelantan", False, 3),
-    ("Kuala Terengganu", "Terengganu", False, 3), ("Kuching", "Sarawak", True, 4), ("Miri", "Sarawak", True, 3),
-    ("Kota Kinabalu", "Sabah", True, 4), ("Mobile inspection unit", "Nationwide", True, 2)]
+    ("Central Inspection Hub", "Selangor", True, 8), ("West Inspection Hub", "Selangor", False, 6),
+    ("North Inspection Hub", "Selangor", False, 5), ("East Inspection Hub", "W.P. Kuala Lumpur", False, 4),
+    ("South Inspection Hub", "Selangor", False, 4), ("Klang Inspection Hub", "Selangor", True, 5),
+    ("Seremban Inspection Hub", "Negeri Sembilan", True, 4), ("Melaka Inspection Hub", "Melaka", False, 3),
+    ("Johor Bahru Inspection Hub", "Johor", True, 6), ("Kluang Inspection Hub", "Johor", False, 3),
+    ("Ipoh Inspection Hub", "Perak", True, 4), ("Penang Inspection Hub", "Pulau Pinang", True, 5),
+    ("Alor Setar Inspection Hub", "Kedah", False, 3), ("Kuantan Inspection Hub", "Pahang", True, 4),
+    ("Kota Bharu Inspection Hub", "Kelantan", False, 3), ("Kuala Terengganu Inspection Hub", "Terengganu", False, 3),
+    ("Kuching Inspection Hub", "Sarawak", True, 4), ("Miri Inspection Hub", "Sarawak", True, 3),
+    ("Kota Kinabalu Inspection Hub", "Sabah", True, 4), ("Mobile Inspection Unit", "Nationwide", True, 2)]
 bdf = pd.DataFrame(BRANCHES, columns=["branch", "state", "heavy_vehicle_capable", "lanes"])
 bdf["branch_id"] = [f"BR{i:02d}" for i in range(len(bdf))]
-bdf["note"] = "illustrative branch list - replace with official PUSPAKOM list"
+bdf["note"] = "fictional demo inspection hub"
 bdf.to_csv(f"{OUT}/branches.csv", index=False)
 
 # Flood exposure by state (qualitative, from recurring monsoon flood history: 2021 Klang Valley, 2022/2024 east coast)

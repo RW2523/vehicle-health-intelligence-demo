@@ -1,4 +1,4 @@
-"""JPJ / DOE regulator view."""
+"""Regulator view: registrations, defect trends, roadside emissions and EV incidents."""
 from __future__ import annotations
 
 import asyncio

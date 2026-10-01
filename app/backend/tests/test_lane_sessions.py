@@ -147,3 +147,17 @@ def test_petrol_exhaust_gas_test_shows_lambda_with_co_and_hc(client, s3):
     # past petrol inspections carry lambda too (derived from their CO and HC)
     hist = client.get("/api/vehicles/DMO 9006/history").json()
     assert any(h.get("lambda") for h in (hist.get("inspections") if isinstance(hist, dict) else hist))
+
+
+def test_s7_clean_inspection_passes(client, s7):
+    """UC-04: a healthy car goes through every lane step with nothing to decide, and passes."""
+    assert s7["status"] == "review" and s7["plate"] == "DMO 9006"
+    assert s7["alerts"] == [], [a["title"] for a in s7["alerts"]]
+    assert s7["health_score"] >= 70 and s7["route"] == "normal"
+    assert s7["results"]["brakes"]["verdict"] == "pass"
+    assert all(i["verdict"] == "pass" for i in s7["results"]["instruments"].values())
+    assert {im["system"] for im in s7["results"]["images"]} == {"tyre", "above"}
+    rep = client.post(f"/api/inspections/{s7['inspection_id']}/report", json={"examiner_id": "VE011"}).json()
+    assert rep["verdict"] == "PASS" and rep["data"]["findings"] == []
+    passport = client.get("/api/owner/passport/DMO%209006").json()
+    assert passport["latest"]["result"] == "PASS" and passport["latest"]["verify_token"] == rep["verify_token"]

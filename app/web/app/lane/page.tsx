@@ -2,82 +2,181 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useActiveUseCase } from "@/components/Demo";
+import { VehicleHealthSummary } from "@/components/Health";
+import { InspectionContextBar } from "@/components/InspectionContextBar";
 import { Icon } from "@/components/icons";
+import { AlertMini, BrakeChart, ENoseChart, Frames, Instruments, OBDChart, PNChart, Timeline } from "@/components/lanebits";
 import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
-import { AlertMini, BrakeChart, ENoseChart, Frames, Instruments, OBDChart, PNChart, Timeline } from "@/components/lanebits";
-import { Card, Empty, Modal, PageHeader, Pill, Source, Tabs } from "@/components/ui";
-import { LANE_SESSIONS, STATUS_LABEL, SYSTEM_NAME, fmtN } from "@/lib/format";
+import { Card, Empty, LoadingState, Modal, PageHeader, Pill, Source, Tabs } from "@/components/ui";
+import { useUser } from "@/lib/auth";
+import { LANE_SESSIONS, STEP_LABEL, SYSTEM_NAME, fmtN } from "@/lib/format";
 import { useInspection } from "@/lib/inspection";
 
 const LANES = LANE_SESSIONS.map((l) => ({ id: l.lane, label: l.label, session: l.session, plate: l.plate, car: l.car }));
 const STORY: Record<string, string> = {
-  S1: "a periodic inspection (Berkala): particle number, brakes, tyres and the undercarriage",
-  S2: "an ownership transfer and hire-purchase inspection (B5 + B7): battery health, flood evidence and EV fault codes",
-  S3: "an ownership transfer inspection (B5): plate, chassis number, odometer and engine sound are checked against its history",
+  S1: "a Commercial Periodic Inspection: particle number, brakes, tyres and the undercarriage",
+  S2: "an EV Health Check with an ownership transfer and financing inspection: battery health, flood evidence and EV fault codes",
+  S3: "an Ownership Transfer Inspection: plate, chassis number, odometer and engine sound are checked against its history",
+  S7: "a Voluntary Inspection: every lane step, for a car in good condition",
 };
 
 function LaneConsole() {
   const sp = useSearchParams();
   const router = useRouter();
+  const user = useUser();
   const laneInfo = LANES.find((l) => l.id === sp.get("lane")) || LANES[0];
   const lane = laneInfo.id;
   const L = useInspection({ lane });
   const { sessions, setPlayer } = useSessions();
+  const { active: uc } = useActiveUseCase();
   const sess = sessions.find((x) => x.session_id === laneInfo.session);
   const [zoom, setZoom] = useState<any>(null);
   const insp = L.insp;
   const r = L.results;
-  const controls = sess ? <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} /> : null;
+  const presenter = user?.role === "presenter" || user?.role === "examiner";
+  const controls = sess && presenter ? <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} quiet={!!L.insp} /> : null;
+  const loading = !insp && !L.notFound;
+  const running = insp?.status === "in_lane";
+  const timeline = insp?.timeline || L.player?.timeline || [];
+  const stepIdx = timeline.findIndex((x: any) => x.step === L.step);
+  const lastStep = L.step === "done" || (!running && !!insp);
+  const high = L.alerts.filter((a) => a.severity === "high").length;
+
+  let cta = null;
+  if (insp?.report) cta = <Link className="btn btn-primary" href={`/report?id=${insp.report.report_id}`}>View the report ({insp.report.verdict})<Icon name="arrow" size={15} /></Link>;
+  else if (insp && !running) cta = <Link className="btn btn-primary" href={`/examiner?session=${laneInfo.session}`}>Review AI findings<Icon name="arrow" size={15} /></Link>;
+
+  const nMeasured = Object.keys(r.instruments || {}).length + (r.brakes ? 1 : 0) + (r.pn ? 1 : 0);
+  const nAi = (r.images || []).length + (r.acoustic || []).length + (r.anpr ? 1 : 0) + (r.chassis ? 1 : 0);
+
   return (
     <Shell context={<Pill color={L.connected ? "#34D399" : "#9AA8BF"}>{L.connected ? "Live" : "Connecting…"}</Pill>}>
-      <PageHeader title="Lane console" sub="What the lane sees as it happens: sensor streams, AI results and alerts. The examiner decides them next."
-        actions={insp ? <>{controls}<Link className="btn" href={`/examiner?session=${laneInfo.session}`}>Examiner console<Icon name="arrow" size={15} /></Link></> : null}>
-        <div className="mt-3"><Tabs value={lane} onChange={(v) => router.replace(`/lane?lane=${v}`)} items={LANES.map((l) => ({ id: l.id, label: `${l.plate} · ${l.car}` }))} /></div>
+      <PageHeader title="Lane console" sub="What the lane sees as it happens: what it has found first, then the evidence, then the raw readings."
+        actions={insp ? controls : null}>
+        <div className="mt-3 max-w-full overflow-x-auto"><Tabs value={lane} onChange={(v) => router.replace(`/lane?lane=${v}`)} items={LANES.map((l) => ({ id: l.id, label: `${l.label} · ${l.plate}` }))} /></div>
       </PageHeader>
-      {insp && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-ink-600 bg-ink-850 px-4 py-2.5 text-[13px]">
-          <b>{insp.plate}</b>
-          <span className="text-fg-3">{insp.vehicle?.make} {insp.vehicle?.model}</span>
-          <span className="chip border-ink-500 text-fg-3">{laneInfo.label}</span>
-          <span className="text-fg-3">·</span>
-          <span>{STATUS_LABEL[insp.status] || insp.status}</span>
-          {insp.status === "in_lane" && L.player?.status === "playing" && <span className="flex items-center gap-1.5 text-ok"><span className="h-2 w-2 rounded-full bg-ok pulse-dot" />streaming</span>}
-          {insp.status !== "in_lane" && !insp.report && <Link href={`/examiner?session=${laneInfo.session}`} className="text-cyan hover:underline">The lane is done: decide the alerts in the examiner console →</Link>}
-          {insp.report && <Link href={`/report?id=${insp.report.report_id}`} className="text-cyan hover:underline">View the report ({insp.report.verdict}) →</Link>}
-        </div>
-      )}
-      {!insp ? (
+      {loading ? (
+        <div className="card card-pad"><LoadingState label="Loading the latest inspection on this lane…" rows={4} /></div>
+      ) : !insp ? (
         <Empty title={`${laneInfo.plate} has not entered ${laneInfo.label.toLowerCase()} yet`} actions={controls}>
-          Lane replay {laneInfo.session}: {laneInfo.plate} ({laneInfo.car}) comes in for {STORY[laneInfo.session]}. Start it to watch the sensors and AI live, or fast-forward to the finished result.
+          {laneInfo.plate} ({laneInfo.car}) comes in for {STORY[laneInfo.session]}. {presenter ? "Start the replay to watch the sensors and AI live, or fast-forward to the finished result." : "The presenter starts the replay."}
         </Empty>
       ) : (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <Card title="Check-in · ANPR" right={<Source kind="live_model" text="Live model · PaddleOCR" />}>
-                {r.anpr ? (
-                  <div className="flex gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={r.anpr.image} alt="Plate camera frame" className="h-24 w-40 rounded-lg object-cover" />
-                    <div className="flex flex-col gap-1 text-[13px]">
-                      <span className="font-display text-[22px] font-bold">{r.anpr.plate || "not read"}</span>
-                      <span className="text-fg-3">OCR confidence {Math.round((r.anpr.conf || 0) * 100)}% · {r.anpr.camera}</span>
-                      <span>{r.anpr.mysikap?.found ? "mySIKAP record found" : "No registry record"} <span className="text-fg-4">(mock mySIKAP)</span></span>
-                      {r.anpr.booking ? <span className="text-ok">Booking {r.anpr.booking.booking_id} checked in {r.anpr.booking.gear ? "(GEAR)" : ""}</span> : <span className="text-fg-3">Walk-in (no booking QR)</span>}
+        <>
+          <InspectionContextBar insp={insp} alerts={L.alerts} uc={uc} here="/lane" cta={cta} />
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-ink-600 bg-ink-850 px-4 py-2.5 text-[13px]" aria-live="polite">
+            {running ? (
+              <>
+                <span className="flex items-center gap-2 font-semibold">
+                  {L.player?.status === "playing" && <span className="h-2 w-2 rounded-full bg-ok pulse-dot" aria-hidden />}
+                  {stepIdx >= 0 ? `Lane step ${stepIdx + 1} of ${timeline.length}: ${STEP_LABEL[L.step] || L.step}` : "Waiting for the vehicle"}
+                </span>
+                <div className="h-1.5 min-w-[120px] flex-1 rounded bg-ink-600"><div className="h-1.5 rounded bg-cyan transition-all" style={{ width: `${stepIdx >= 0 ? (100 * (stepIdx + 1)) / timeline.length : 3}%` }} /></div>
+                {L.player && <span className="text-fg-3">{L.player.status} · {L.player.speed}×</span>}
+              </>
+            ) : insp.report ? (
+              <span><b>Inspection complete.</b> <span className="text-fg-3">The report is issued: {insp.report.verdict}.</span></span>
+            ) : (
+              <span><b>The lane has finished.</b> <span className="text-fg-3">{L.alerts.length ? `${L.alerts.length} finding${L.alerts.length === 1 ? "" : "s"} wait for the examiner${high ? `, ${high} critical` : ""}.` : "Nothing needs a decision: the examiner can issue the report."}</span></span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="flex min-w-0 flex-col gap-4">
+              <Card title="What the lane has found" right={<Source kind="live_model" text="Models + rules, live" />}>
+                {L.fusion && <div className="mb-4"><VehicleHealthSummary fusion={L.fusion} fuel={insp.vehicle?.fuel} compact /></div>}
+                {L.alerts.length ? (
+                  <div className="flex flex-col gap-2">
+                    {L.alerts.slice(0, 6).map((a) => <AlertMini key={a.alert_id} a={a} />)}
+                    {L.alerts.length > 6 && <Link className="text-[12.5px] text-cyan hover:underline" href={`/examiner?session=${laneInfo.session}`}>and {L.alerts.length - 6} more in the examiner workspace →</Link>}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-ok/40 bg-ok/5 px-4 py-3 text-[13.5px]">
+                    <b className="text-ok">{running ? "No anomalies detected so far." : "No anomalies detected in this inspection."}</b>{" "}
+                    <span className="text-fg-3">{nMeasured} measurement{nMeasured === 1 ? "" : "s"} checked against their limits and {nAi} AI check{nAi === 1 ? "" : "s"} run{running ? " so far" : ""}.</span>
+                  </div>
+                )}
+              </Card>
+              <Card title="Measurements against their limits" right={<Source kind="simulated" text="Lane instruments" />}>
+                <Instruments instruments={L.instruments} results={r} />
+              </Card>
+              <Card title="AI vision · undercarriage, above-carriage and tyre" right={<Source kind="live_model" />}>
+                <Frames images={r.images || []} onOpen={setZoom} done={lastStep} />
+              </Card>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <Card title="Brake roller · force per wheel (kN)" right={<Source kind="simulated" />}>
+                  <BrakeChart brake={L.brake} />
+                </Card>
+                {(L.pn.length > 0 || insp.vehicle?.fuel === "diesel") ? (
+                  <Card title="Particle number (PN) at idle" right={<Source kind="simulated" />}>
+                    <PNChart pn={L.pn} />
+                  </Card>
+                ) : (
+                  <Card title="Exhaust gas" right={<Source kind="simulated" />}>
+                    <p className="text-[13px] text-fg-3">{insp.vehicle?.fuel === "ev" ? "An EV has no exhaust: the battery and high-voltage checks replace the emission test." : "Petrol engine: CO, HC and lambda are measured (see the measurements above); the particle counter is for diesel engines."}</p>
+                  </Card>
+                )}
+              </div>
+              <details className="card card-pad group">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+                  <span className="h-title">Technical details · OBD, e-nose preview, lane sensors</span>
+                  <span className="text-[12px] text-fg-3 group-open:hidden">Expand</span>
+                </summary>
+                <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-2"><b className="text-[13px]">OBD-II · engine rpm</b><Source kind="simulated" /></div>
+                    <OBDChart obd={L.obd} />
+                    {r.obd?.dtcs?.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-2">{r.obd.dtcs.map((d: any) => <Pill key={d.code} color="#F87171">{d.code} · {d.description}</Pill>)}</div>
+                    ) : r.obd && <p className="mt-2 text-[12.5px] text-ok">No fault codes stored.</p>}
+                  </div>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-2"><b className="text-[13px]">E-nose · research preview</b><Source kind={r.enose?.rnd === false ? "simulated" : "rnd"} text={r.enose?.rnd === false ? "Simulated sensor" : "Not in the result"} /></div>
+                    <ENoseChart enose={L.enose} events={r.enose?.events || []} height={170} />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(r.enose?.events || []).map((e: any, i: number) => (
+                        <Pill key={i} color={r.enose?.rnd ? "#C084FC" : "#F87171"}>{e.condition.replaceAll("_", " ")} · {e.level} · {Math.round(e.p * 100)}%{e.fused_with ? " · fused" : ""}</Pill>
+                      ))}
+                    </div>
+                    {r.enose?.rnd !== false && <p className="mt-2 text-[12px] text-fg-3">A gas-sensor array is a future R&D option, not current lane equipment. Its simulated signals raise no alerts and do not change the score or the result.</p>}
+                  </div>
+                  <div className="lg:col-span-2">
+                    <b className="text-[13px]">Lane sensors</b>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {["Plate camera", "Chassis OCR", "OBD-II dongle", "PN counter", "Opacimeter", "Gas analyser (CO, HC, λ)", "Roller brake tester", "Suspension tester", "Side-slip plate", "Headlamp tester", "Tint meter", "Pit cameras", "Thermal camera", "Microphones"].map((x) => (
+                        <span key={x} className="chip border-ink-500 text-fg-2"><span className="h-1.5 w-1.5 rounded-full bg-ok" aria-hidden />{x}</span>
+                      ))}
+                      <span className="chip border-ink-500 text-fg-3" title="Future R&D option, not current lane equipment"><span className="h-1.5 w-1.5 rounded-full bg-[#C084FC]" aria-hidden />E-nose (R&D)</span>
                     </div>
                   </div>
-                ) : <p className="text-[13px] text-fg-3">Waiting for the entry camera…</p>}
+                </div>
+              </details>
+            </div>
+            <div className="flex min-w-0 flex-col gap-4">
+              <Card title="Lane steps" right={L.player ? <span className="text-[12px] text-fg-3">{L.player.status} · {L.player.speed}×</span> : null}>
+                <Timeline timeline={timeline} step={L.step} />
               </Card>
-              <Card title="Identity · chassis OCR and odometer" right={<Source kind="live_model" />}>
-                <div className="flex flex-col gap-2 text-[13px]">
+              <Card title="Check-in and identity" right={<Source kind="live_model" text="OCR" />}>
+                <div className="flex flex-col gap-3 text-[13px]">
+                  {r.anpr ? (
+                    <div className="flex gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={r.anpr.image} alt="Plate camera frame" className="h-16 w-28 shrink-0 rounded-lg object-cover" />
+                      <div className="min-w-0">
+                        <div className="font-display text-[18px] font-bold">{r.anpr.plate || "not read"}</div>
+                        <div className="text-[12px] text-fg-3">Plate read {Math.round((r.anpr.conf || 0) * 100)}% · {r.anpr.registry?.found ? "registry record found" : "no registry record"} <span className="text-fg-4">(mock registry)</span></div>
+                        <div className={`text-[12px] ${r.anpr.booking ? "text-ok" : "text-fg-3"}`}>{r.anpr.booking ? `Booking ${r.anpr.booking.booking_id} checked in${r.anpr.booking.gear ? " (Express slot)" : ""}` : "Walk-in: no booking code"}</div>
+                      </div>
+                    </div>
+                  ) : <span className="text-fg-3">Waiting for the plate camera…</span>}
                   {r.chassis ? (
                     <div className="flex items-center gap-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={r.chassis.image} alt="Chassis plate" className="h-12 w-44 rounded object-cover" />
-                      <div>
-                        <div className="font-mono text-[13px]">{r.chassis.read || "not read"}</div>
-                        <div className={r.chassis.match ? "text-ok" : "text-bad"}>{r.chassis.match ? "Matches registry" : "Does not match registry"}</div>
+                      <img src={r.chassis.image} alt="Chassis number plate" className="h-10 w-32 shrink-0 rounded object-cover" />
+                      <div className="min-w-0">
+                        <div className="truncate font-mono text-[12.5px]">{r.chassis.read || "not read"}</div>
+                        <div className={r.chassis.match ? "text-ok" : "text-bad"}>{r.chassis.match ? "Matches the registry" : "Does not match the registry"}</div>
                       </div>
                     </div>
                   ) : <span className="text-fg-3">Waiting for the chassis OCR…</span>}
@@ -94,57 +193,8 @@ function LaneConsole() {
                 </div>
               </Card>
             </div>
-            <Card title={`${insp.plate} · ${insp.vehicle?.make || ""} ${insp.vehicle?.model || ""}`} right={<><Pill color="#22D3EE">{insp.inspection_type}</Pill><Source kind="simulated" text="Lane instruments: simulated" /></>}>
-              <Instruments instruments={L.instruments} results={r} />
-            </Card>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <Card title="E-nose · research preview" right={<Source kind={r.enose?.rnd === false ? "simulated" : "rnd"} text={r.enose?.rnd === false ? "Simulated sensor" : "Future R&D · not in the result"} />}>
-                <ENoseChart enose={L.enose} events={r.enose?.events || []} />
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(r.enose?.events || []).map((e: any, i: number) => (
-                    <Pill key={i} color={r.enose?.rnd ? "#C084FC" : "#F87171"}>{e.condition.replaceAll("_", " ")} · {e.level} · {Math.round(e.p * 100)}%{e.fused_with ? " · fused" : ""}</Pill>
-                  ))}
-                </div>
-                {r.enose?.rnd !== false && (
-                  <p className="mt-2 text-[12px] text-fg-3">A 16-channel gas-sensor array is a future R&D option, not current lane equipment. Its simulated signals are shown for research only: they raise no alerts and do not change the health score or the result.</p>
-                )}
-              </Card>
-              <Card title="Brake roller · force per wheel (kN)" right={<Source kind="simulated" />}>
-                <BrakeChart brake={L.brake} />
-              </Card>
-              <Card title="Particle number (PN) at idle" right={<Source kind="simulated" />}>
-                <PNChart pn={L.pn} />
-              </Card>
-              <Card title="OBD-II · engine rpm" right={<Source kind="simulated" />}>
-                <OBDChart obd={L.obd} />
-                {r.obd?.dtcs?.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">{r.obd.dtcs.map((d: any) => <Pill key={d.code} color="#F87171">{d.code} · {d.description}</Pill>)}</div>
-                )}
-              </Card>
-            </div>
-            <Card title="AI vision · undercarriage, above-carriage and tyre" right={<Source kind="live_model" />}>
-              <Frames images={r.images || []} onOpen={setZoom} />
-            </Card>
           </div>
-          <div className="flex flex-col gap-4">
-            <Card title="Lane steps" right={L.player ? <Pill color="#22D3EE">{L.player.status} · {L.player.speed}×</Pill> : null}>
-              <Timeline timeline={insp.timeline || L.player?.timeline || []} step={L.step} t={L.player?.t} />
-            </Card>
-            <Card title="Lane sensors">
-              <div className="flex flex-wrap gap-1.5">
-                {["ANPR camera", "Chassis OCR", "OBD-II dongle", "PN counter", "Opacimeter", "Gas analyser (CO, HC, λ)", "Roller brake tester", "Suspension tester", "Side-slip plate", "Headlamp tester", "Tint meter", "Pit cameras", "Thermal camera", "Microphones"].map((x) => (
-                  <span key={x} className="chip border-ink-500 text-fg-2"><span className="h-1.5 w-1.5 rounded-full bg-ok" />{x}</span>
-                ))}
-                <span className="chip border-ink-500 text-fg-3" title="Future R&D option, not current lane equipment"><span className="h-1.5 w-1.5 rounded-full bg-[#C084FC]" />E-nose (R&D)</span>
-              </div>
-            </Card>
-            <Card title={`Live alerts (${L.alerts.length})`}>
-              <div className="flex max-h-[520px] flex-col gap-2 overflow-auto">
-                {L.alerts.length ? L.alerts.map((a) => <AlertMini key={a.alert_id} a={a} />) : <p className="text-[13px] text-fg-3">No alerts yet.</p>}
-              </div>
-            </Card>
-          </div>
-        </div>
+        </>
       )}
       <Modal open={!!zoom} onClose={() => setZoom(null)} title={zoom ? `${SYSTEM_NAME[zoom.system] || zoom.kind} · ${zoom.camera}` : ""}>
         {/* eslint-disable-next-line @next/next/no-img-element */}

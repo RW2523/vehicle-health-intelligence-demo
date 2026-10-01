@@ -11,7 +11,7 @@ from ..db import engine, session_scope
 from ..pipeline.processor import alert_dict
 from ..runtime import rt
 from ..services import reports as report_svc
-from ..tables import Alert, LiveInspection, Report
+from ..tables import Alert, Branch, Examiner, LiveInspection, Report
 from .deps import clean
 
 router = APIRouter(prefix="/api/inspections", tags=["inspections"])
@@ -32,6 +32,11 @@ class RouteReq(BaseModel):
 class IssueReq(BaseModel):
     examiner_id: str = "VE012"
     senior_signed: bool = False
+
+
+class AskReq(BaseModel):
+    question: str
+    alert_id: str | None = None
 
 
 def _li_dict(li: LiveInspection) -> dict:
@@ -84,6 +89,9 @@ def get_inspection(iid: str):
         d = _li_dict(li)
         alerts = s.execute(select(Alert).where(Alert.inspection_id == iid).order_by(Alert.rank, Alert.created_at)).scalars().all()
         d["alerts"] = [alert_dict(a) for a in alerts]
+        br, ex = s.get(Branch, li.branch_id), s.get(Examiner, li.examiner_id)
+        d["branch_name"] = br.name if br else li.branch_id
+        d["examiner"] = {"id": li.examiner_id, "name": ex.name if ex else li.examiner_id, "senior": bool(ex and ex.senior)}
         rep = s.execute(select(Report).where(Report.inspection_id == iid)).scalar_one_or_none()
         d["report"] = report_svc.report_dict(rep) if rep else None
     ctx = rt().processor.ctx.get(iid) if rt().processor else None
@@ -161,3 +169,14 @@ async def issue_report(iid: str, req: IssueReq):
     await rt().hub.broadcast(f"inspection:{iid}", "report", out, remember=False)
     await rt().hub.broadcast("inspections", "reported", {"inspection_id": iid, "verdict": out["verdict"]}, remember=False)
     return out
+
+
+@router.post("/{iid}/ask")
+async def ask(iid: str, req: AskReq):
+    """Context-aware assistant: answers about this inspection from the facts on record (asking changes nothing)."""
+    import asyncio
+
+    from ..services import inspection_assistant
+
+    _in_my_branch(iid)
+    return await asyncio.to_thread(inspection_assistant.ask, iid, req.question[:300], req.alert_id, rt().llm)

@@ -1,4 +1,4 @@
-"""Used-vehicle sales: every car and motorcycle advertised for sale, with its whole PUSPAKOM record "end to end" -
+"""Used-vehicle sales: every car and motorcycle advertised for sale, with its whole inspection record "end to end" -
 inspections (history and live lane reports), odometer timeline with rollback detection, OBD read-outs, insurance
 claims and policy, photos, the latest verifiable report and a plain-words trust summary for the buyer.
 
@@ -15,6 +15,7 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy import bindparam, select, text
 
+from .. import terms
 from ..api.deps import vehicle_public
 from ..config import get_settings
 from ..db import engine, session_scope
@@ -24,8 +25,7 @@ from . import dtc, library
 from .reports import report_dict
 
 ODO_TOLERANCE_KM = 1000  # the same tolerance as the lane's odometer check
-TYPE_LABEL = {"berkala_B2": "Periodic B2", "berkala_ehailing": "Periodic, e-hailing", "B5_MV15": "Ownership transfer B5",
-              "voluntary": "Voluntary", "khas_B2_85_ber": "Special, after a write-off", "B7_hire_purchase": "Hire purchase B7"}
+TYPE_LABEL = terms.INSPECTION_TYPES
 REASON_LABEL = {"tyre": "Tyres", "brake_drag": "Brake drag", "brake_efficiency": "Brake efficiency", "structural": "Structure",
                 "headlamp": "Headlamp aim", "tint_vlt": "Window tint", "brake_imbalance": "Brake imbalance",
                 "side_slip": "Wheel alignment (side slip)", "smoke_opacity": "Smoke opacity",
@@ -118,7 +118,7 @@ def _records(listings: list[Listing]) -> list[dict]:
         ins, raw = [], {r["inspection_id"]: r for r in h}
         for r in h:
             ins.append({"id": r["inspection_id"], "date": str(r["date"])[:10], "source": "history",
-                        "type": r["inspection_type"], "type_label": TYPE_LABEL.get(r["inspection_type"], r["inspection_type"]),
+                        "type": r["inspection_type"], "type_label": terms.label(r["inspection_type"]),
                         "branch": branches.get(r["branch_id"], r["branch_id"]), "examiner_id": r["examiner_id"],
                         "result": r["result"],
                         "reasons": [REASON_LABEL.get(k, k) for k in (r.get("fail_reasons") or "").split(";") if k],
@@ -129,7 +129,21 @@ def _records(listings: list[Listing]) -> list[dict]:
             if rep["plate"] != v.plate:
                 continue
             d, li = rep["data"], live.get(rep["inspection_id"])
-            m = raw[rep["inspection_id"]] = d.get("measurements") or {}
+            m = d.get("measurements") or {}
+            odo = d.get("odometer_km") or m.get("odometer_km") or ((d.get("identity") or {}).get("odometer") or {}).get("reading_km")
+            compact = {**{k: rep[k] for k in ("report_id", "verdict", "kind", "summary", "summary_source", "verify_url",
+                                              "verify_token", "created_at")},
+                       "issued_at": d.get("issued_at"), "branch": d.get("branch"), "synthetic": bool(d.get("synthetic")),
+                       "examiner": {"name": (d.get("examiner") or {}).get("name"), "senior": bool((d.get("examiner") or {}).get("senior"))},
+                       "odometer_km": int(odo) if _num(odo) is not None else None,
+                       "findings": [f["title"] for f in d.get("findings", []) if f.get("status") == "confirmed"]}
+            if d.get("synthetic"):
+                # a seeded report mirrors an inspection already in the history: attach it there instead of listing it twice
+                same = next((i for i in ins if i["source"] == "history" and i["date"] == created.date().isoformat()), None)
+                if same is not None:
+                    same["report"] = compact
+                    continue
+            raw[rep["inspection_id"]] = m
             ins.append({"id": rep["inspection_id"], "date": created.date().isoformat(), "source": "lane",
                         "type": rep["kind"], "type_label": rep["kind"], "branch": d.get("branch"),
                         "examiner_id": (d.get("examiner") or {}).get("id"), "result": rep["verdict"],
@@ -137,9 +151,7 @@ def _records(listings: list[Listing]) -> list[dict]:
                         "odometer_km": int(m["odometer_km"]) if _num(m.get("odometer_km")) is not None else None,
                         "health": (d.get("health") or {}).get("score"), "obd": _obd(m.get("obd_dtcs", ""), m.get("obd_mil_on")),
                         "measures": _measures(m),
-                        "report": {k: rep[k] for k in ("report_id", "verdict", "kind", "summary", "summary_source", "verify_url",
-                                                       "verify_token", "created_at")},
-                        "images": _lane_images(li)})
+                        "report": compact, "images": _lane_images(li)})
         ins.sort(key=lambda r: (r["date"], r["source"] == "lane"))
         pending = [li for li in lis if li.plate == v.plate and li.inspection_id not in reported and li.status in ("review", "decided")]
         out.append({"listing": x, "vehicle": v, "inspections": ins,
@@ -164,7 +176,7 @@ def _risk(last: dict, m: dict, v: Vehicle) -> dict | None:
 
 def _odometer(ins: list[dict], v: Vehicle) -> dict:
     """Readings in time order; a reading more than 1,000 km below an earlier one is a rollback."""
-    pts = [{"date": r["date"], "km": r["odometer_km"], "source": "Lane report" if r["source"] == "lane" else "PUSPAKOM inspection"}
+    pts = [{"date": r["date"], "km": r["odometer_km"], "source": "Lane report" if r["source"] == "lane" else "Inspection record"}
            for r in ins if r["odometer_km"] is not None]
     pts.append({"date": get_settings().demo_today, "km": v.odometer_km, "source": "Seller's advert"})
     pts.sort(key=lambda p: p["date"])  # stable: on the same day the inspection comes before the advert
@@ -231,7 +243,7 @@ def _trust(v: Vehicle, ins: list[dict], odo: dict, claims: list[dict], obd: dict
                                                 f"{e['max_km']:,} km recorded on {_day(e['max_date'])}."})
     if odo["consistent"] and len(odo["points"]) > 1:
         pts.append({"level": "ok", "text": f"The odometer readings rise steadily, up to {odo['advertised_km']:,} km in the advert."})
-    rebuilt = [r for r in ins if r["type"] == "khas_B2_85_ber"]
+    rebuilt = [r for r in ins if r["type"] == "special_total_loss"]
     if rebuilt:
         flags.add("rebuilt")
         pts.append({"level": "bad", "text": f"Rebuilt after being written off: special inspection on {_day(rebuilt[0]['date'])}."})

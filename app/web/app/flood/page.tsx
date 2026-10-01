@@ -1,14 +1,18 @@
 "use client";
 /* Flood watch: JPS river levels and rainfall (real) x the vehicles registered in each district (synthetic) -> which
    vehicles need a flood-damage inspection or an underbody corrosion check, and why. */
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { LineChart } from "@/components/charts";
 import { BORNEO_BOX, MALAYSIA, MalaysiaMap, PENINSULA } from "@/components/MalaysiaMap";
 import { Shell } from "@/components/Shell";
-import { Card, Empty, Kpi, Modal, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
+import { refreshUseCase } from "@/components/Demo";
+import { Card, Empty, Kpi, LoadingState, Modal, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dmy, fmtN, pct } from "@/lib/format";
 import { useFetch } from "@/lib/live";
+import { VERDICT } from "@/lib/present";
 
 const STATUS: Record<string, { label: string; c: string; r: number }> = {
   danger: { label: "Danger", c: "#EF4444", r: 8 },
@@ -30,7 +34,9 @@ const REGIONS = [{ id: "my", label: "Malaysia", box: MALAYSIA }, { id: "pen", la
 const RISK_FILTERS = [{ v: 70, l: "High risk (70+)" }, { v: 45, l: "All to inspect (45+)" }, { v: 0, l: "All exposed" }];
 
 const bandColor = (b: string) => (b === "High" ? "#EF4444" : b === "Medium" ? "#F59E0B" : "#60A5FA");
-const when = (iso?: string | null) => (iso ? `${dmy(iso.slice(0, 10))}, ${iso.slice(11, 16)}` : "–");
+const when = (iso?: string | null) => (iso ? `${dmy(iso.slice(0, 10))}, ${iso.slice(11, 16)}` : "–");  // JPS times are Malaysia time
+/** A time this server recorded (UTC), shown in Malaysia time. */
+const whenUtc = (iso?: string | null) => (iso ? new Date(/Z|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + "Z").toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–");
 const monthYear = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 const ago = (min: number) => (min < 90 ? `${min} min` : min < 60 * 48 ? `${Math.round(min / 60)} h` : `${Math.round(min / 1440)} days`);
 
@@ -39,9 +45,9 @@ function JpsSource({ s, short = false }: { s: any; short?: boolean }) {
   if (!s) return null;
   const stale = s.mode === "live" && s.age_min > 2 * s.ttl_min ? ` (${ago(s.age_min)} ago)` : "";
   const text = s.mode === "live"
-    ? short ? `Real · JPS ${s.fetched_at.slice(11, 16)}${stale}` : `Real · JPS Public InfoBanjir · fetched ${when(s.fetched_at)}${stale}`
-    : short ? "Real · JPS snapshot" : `Real · JPS snapshot, fetched ${when(s.fetched_at)}`;
-  return <Source kind="real" text={text} />;
+    ? short ? `JPS ${s.fetched_at.slice(11, 16)}${stale}` : `JPS Public InfoBanjir · fetched ${when(s.fetched_at)}${stale}`
+    : short ? "JPS snapshot" : `Stored JPS snapshot, fetched ${when(s.fetched_at)}`;
+  return <Source kind={s.mode === "live" ? "live_feed" : "real"} text={text} />;
 }
 
 function Why({ r }: { r: any }) {
@@ -167,22 +173,58 @@ function VehicleDetail({ d, onInvite, busy }: { d: any; onInvite: () => void; bu
           )}
         </section>
       </div>
+      <section aria-label="Inspection result">
+        <div className="mb-1 flex flex-wrap items-center gap-2"><h3 className="h-title">Inspection result</h3><Source kind="live_logic" text="Issued lane reports" /></div>
+        {(() => {
+          // after an invitation, the result is an inspection issued since; anything older is earlier history
+          const t0 = d.invited_at ? Date.parse(d.invited_at + (/Z|[+-]\d\d:\d\d$/.test(d.invited_at) ? "" : "Z")) : 0;
+          const at = (r: any) => Date.parse(r.created_at + (/Z|[+-]\d\d:\d\d$/.test(r.created_at || "") ? "" : "Z"));
+          const after = (d.lane_reports || []).filter((r: any) => !t0 || at(r) >= t0);
+          const before = (d.lane_reports || []).filter((r: any) => t0 && at(r) < t0);
+          return (<>
+        {after.length ? (
+          <ul className="flex flex-col gap-1.5">
+            {after.map((r: any) => (
+              <li key={r.report_id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 bg-ink-850 px-3 py-2">
+                <b style={{ color: VERDICT[r.verdict]?.color }}>{r.verdict}</b>
+                <span>{r.kind} · {dmy(r.issued_at || r.created_at)}{r.health != null ? ` · health ${r.health}` : ""}{r.synthetic ? " · synthetic record" : ""}</span>
+                {r.findings?.length > 0 && <span className="text-fg-3">· {r.findings.slice(0, 2).join("; ")}</span>}
+                <span className="ml-auto flex gap-2"><Link className="btn btn-sm" href={`/report?id=${r.report_id}`}>Report</Link><Link className="btn btn-sm" href={`/verify/${r.verify_token}`}>Verify</Link></span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="text-fg-3">{d.invited_at ? "Invited: the result appears here once the vehicle has been inspected." : "No inspection since the flood risk was raised."}</p>}
+        {before.length > 0 && <p className="mt-1.5 text-[12px] text-fg-4">Earlier: {before.map((r: any) => `${r.verdict} on ${dmy(r.issued_at || r.created_at)}`).join(", ")}.</p>}
+          </>);
+        })()}
+      </section>
       <div className="flex flex-wrap items-center gap-3 border-t border-ink-600 pt-3">
-        {d.invited_at ? <span className="text-ok">Invited {when(d.invited_at)}</span> : (
-          <button className="btn btn-primary" disabled={busy} onClick={onInvite}>Invite for flood inspection</button>
+        {d.invited_at ? <span className="text-ok">Invitation recorded {whenUtc(d.invited_at)}</span> : (
+          <button className="btn btn-primary" disabled={busy} onClick={onInvite}>Invite the owner for a flood inspection</button>
         )}
-        <Source kind="mock" text="Mock: recorded, no message is sent" />
+        <Source kind="mock" text="Recorded only: no SMS, e-mail or letter is sent" />
       </div>
     </div>
   );
 }
 
-export default function FloodWatch() {
+function FloodWatch() {
+  const router = useRouter();
+  const sp = useSearchParams();
   const ov = useFetch<any>("/api/floodwatch");
   const src = ov.data?.source;
   const fetchedAt = src?.fetched_at;
   const st = useFetch<any>("/api/floodwatch/stations", undefined, [fetchedAt]);
-  const [scope, setScope] = useState("live");
+  // the view (live river levels, or a past flood) and the open vehicle live in the address, so a use case or a
+  // colleague can link straight to them: /flood?scope=event:2025-12-10&vehicle=DMO 9002
+  const scope = sp.get("scope") || "live";
+  const go = useCallback((s: string, plate: string | null) => {
+    const u = new URLSearchParams();
+    if (s !== "live") u.set("scope", s);
+    if (plate) u.set("vehicle", plate);
+    router.replace(u.toString() ? `/flood?${u}` : "/flood", { scroll: false });
+  }, [router]);
+  const setScope = (s: string) => go(s, null);
   const [minRisk, setMinRisk] = useState(45);
   const [area, setArea] = useState<{ state: string; district: string } | null>(null);
   const [page, setPage] = useState(1);
@@ -191,13 +233,15 @@ export default function FloodWatch() {
   const inv = useFetch<any[]>("/api/floodwatch/invitations");
   const [station, setStation] = useState<string | null>(null);
   const hist = useFetch<any>(station ? `/api/floodwatch/stations/${encodeURIComponent(station)}/history` : null, undefined, [fetchedAt]);
-  const [open, setOpen] = useState<string | null>(null);
+  // the open vehicle lives in the address (?vehicle=DMO 9002), so a use case or a colleague can link straight to it
+  const open = sp.get("vehicle");
+  const setOpen = useCallback((plate: string | null) => go(scope, plate), [go, scope]);
   const detail = useFetch<any>(open ? `/api/floodwatch/vehicles/${encodeURIComponent(open)}` : null, { scope });
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [region, setRegion] = useState("my");
   const [allAreas, setAllAreas] = useState(false);
   const [busy, setBusy] = useState(false);
-  const close = useCallback(() => setOpen(null), []);
+  const close = useCallback(() => setOpen(null), [setOpen]);
 
   // a fetch from JPS runs in the background when the data is older than 15 minutes: follow it, then everything reloads
   useEffect(() => {
@@ -234,6 +278,7 @@ export default function FloodWatch() {
       setSel({});
       veh.reload();
       inv.reload();
+      refreshUseCase();
       if (open) detail.reload();
     } catch (e: any) {
       toast(e.message, "err");
@@ -256,9 +301,26 @@ export default function FloodWatch() {
         sub="River levels and rainfall from JPS for every state, set against the vehicles registered in each district: which cars need a flood-damage inspection or an underbody corrosion check, and why."
         actions={<>
           <JpsSource s={src} />
-          <button className="btn" disabled={busy || src?.refreshing} onClick={refresh}>{src?.refreshing ? "Fetching from JPS…" : "Refresh from JPS"}</button>
-        </>} />
-      {!o ? <p className="text-fg-3">{ov.error ? `Could not load flood watch: ${ov.error}` : "Loading JPS river levels…"}</p> : (
+          <button className="btn" disabled={busy || src?.refreshing} onClick={refresh}>{src?.refreshing ? "Fetching river levels…" : "Refresh river levels"}</button>
+        </>}>
+        {src && (
+          <p className="mt-2 text-[12.5px] text-fg-3" role="status">
+            {src.mode === "live"
+              ? <>Last updated <b className="text-fg-2">{when(src.fetched_at)}</b> from a live fetch{src.refreshing ? " · fetching newer data in the background" : ""}{src.last_error ? " · the latest fetch failed, so these are the last fetched levels" : ""}.</>
+              : <><b className="text-warn">Live feed unavailable:</b> showing the stored snapshot from {when(src.fetched_at)}{src.refreshing ? " · trying a live fetch now" : ""}.</>}
+          </p>
+        )}
+      </PageHeader>
+      {!o ? (
+        ov.error ? <Empty title="Flood watch could not load" actions={<button className="btn" onClick={ov.reload}>Try again</button>}>{ov.error}</Empty> : (
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            {["Stations at danger", "Stations at warning", "Stations at alert", "Stations normal", "Vehicles to inspect now"].map((k) => (
+              <div key={k} className="card card-pad"><div className="text-[12.5px] text-fg-3">{k}</div><LoadingState label="" rows={1} className="mt-2" /></div>
+            ))}
+            <div className="col-span-2 lg:col-span-5"><div className="card card-pad"><LoadingState label="Loading the latest river levels and ranking the registered vehicles…" rows={4} /></div></div>
+          </div>
+        )
+      ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
             {AT_RISK.map((k) => (
@@ -439,7 +501,7 @@ export default function FloodWatch() {
                     <thead className="text-fg-3"><tr><th>Plate</th><th>District</th><th>Risk</th><th>For</th><th>When</th></tr></thead>
                     <tbody>
                       {inv.data.map((i) => (
-                        <tr key={i.invite_id} className="border-t border-ink-600"><td className="py-1.5 pr-2"><b>{i.plate}</b></td><td className="pr-2">{i.district}</td><td className="pr-2">{i.risk}</td><td className="pr-2">{i.recommendation}</td><td className="whitespace-nowrap">{when(i.created_at)}</td></tr>
+                        <tr key={i.invite_id} className="border-t border-ink-600"><td className="py-1.5 pr-2"><b>{i.plate}</b></td><td className="pr-2">{i.district}</td><td className="pr-2">{i.risk}</td><td className="pr-2">{i.recommendation}</td><td className="whitespace-nowrap">{whenUtc(i.created_at)}</td></tr>
                       ))}
                     </tbody>
                   </table>
@@ -463,4 +525,8 @@ export default function FloodWatch() {
       </Modal>
     </Shell>
   );
+}
+
+export default function Page() {
+  return <Suspense><FloodWatch /></Suspense>;
 }

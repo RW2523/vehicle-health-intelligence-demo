@@ -41,12 +41,12 @@ class Account:
 
 ACCOUNTS = {a.username: a for a in [
     Account("presenter", "Demo presenter", "presenter", "Runs the demo · every app"),
-    Account("examiner", "Arjun Ismail", "examiner", "Vehicle examiner · Alam Megah", "BR00", "VE011"),
-    Account("senior", "Priya Hassan", "examiner", "Senior examiner · Alam Megah", "BR00", "VE001", senior=True),
-    Account("hq", "HQ operations", "hq", "PUSPAKOM HQ · all branches"),
-    Account("regulator", "JPJ / DOE officer", "regulator", "Regulator"),
-    Account("fleet", "Fleet manager", "fleet", "Fleet portal"),
-    Account("owner", "Nurul Aina", "owner", "Owner of DMO 9006", plate="DMO 9006"),
+    Account("examiner", "Arjun Ismail", "examiner", "Examiner · Central Inspection Hub", "BR00", "VE011"),
+    Account("senior", "Priya Hassan", "examiner", "Senior Examiner · Central Inspection Hub", "BR00", "VE001", senior=True),
+    Account("hq", "Operations manager", "hq", "Operations Manager · all hubs"),
+    Account("regulator", "Regulator officer", "regulator", "Regulator · road transport and emissions"),
+    Account("fleet", "Fleet manager", "fleet", "Fleet Manager · fleet portal"),
+    Account("owner", "Nurul Aina", "owner", "Vehicle Owner · DMO 9006", plate="DMO 9006"),
     Account("viewer", "Guest viewer", "viewer", "Read only · every app, no changes"),
 ]}
 
@@ -64,11 +64,12 @@ ROUTES = [
     ("/api/regulator", {"regulator", "hq"}, {"regulator", "hq"}),
     ("/api/sales", {"owner", "hq", "regulator"}, {"owner", "hq"}),
     ("/api/floodwatch", {"hq", "regulator"}, {"hq", "regulator"}),
+    ("/api/usecases", {"*"}, set()),
     ("/api/system", {"*"}, set()),
     ("/api/branches", {"*"}, set()),
     ("/api/examiners", {"*"}, set()),
     ("/api/vehicles", {"*"}, set()),
-    ("/api/mysikap", {"*"}, set()),
+    ("/api/registry", {"*"}, set()),
     ("/media", {"*"}, set()),
     ("/ws", {"*"}, set()),
 ]
@@ -114,6 +115,9 @@ def allowed(a: Account, method: str, path: str) -> bool:
     if a.role == "presenter":
         return True
     write = method not in SAFE_METHODS
+    # asking the inspection assistant changes nothing: whoever may read the inspection may ask
+    if write and path.startswith("/api/inspections/") and path.endswith("/ask"):
+        write = False
     if a.role == "viewer":
         return not write or path in VIEWER_QUESTIONS
     for prefix, read_roles, write_roles in ROUTES:
