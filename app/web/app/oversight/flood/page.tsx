@@ -11,13 +11,13 @@ import { refreshUseCase } from "@/components/Demo";
 import { Panel, StatusPill } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { LiveBadge, LiveMap, MapPoint, keyOf } from "@/components/LiveMap";
-import { OversightShell } from "@/components/OversightShell";
+import { OversightShell, useEdgeFade } from "@/components/OversightShell";
 import { Empty, LoadingState, Modal, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dmy, fmtN, pct } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 import { VERDICT } from "@/lib/present";
-import { FilterPill, OvStat, THEAD, TableBox } from "../parts";
+import { FilterPill, OvStat, THEAD, TableBox, useNarrow } from "../parts";
 
 const BASE = "/oversight/flood";
 const POLL_MS = 45_000;
@@ -29,6 +29,8 @@ const STATUS: Record<string, { label: string; c: string; r: number }> = {
   no_reading: { label: "No reading", c: "#94A3B8", r: 2.8 },
   no_thresholds: { label: "No thresholds", c: "#64748B", r: 2.8 },
 };
+/** the KPI numbers in their status colour, a shade darker so they read as text */
+const STATUS_TEXT: Record<string, string> = { danger: "#DC2626", warning: "#C2410C", alert: "#A16207" };
 const DRAW_ORDER = ["no_thresholds", "no_reading", "normal", "alert", "warning", "danger"];
 const AT_RISK = ["danger", "warning", "alert"];
 const REC_COL: Record<string, string> = { "Flood-damage inspection": "#DC2626", "Underbody corrosion check": "#D97706", "No inspection needed yet": "#64748B" };
@@ -85,9 +87,10 @@ function StationTrend({ h, height = 200 }: { h: any; height?: number }) {
   const hx = (t: string) => (new Date(t).getTime() - t0) / 3.6e6;
   const days: { x: number; label: string }[] = [];
   series.forEach((p: any) => { if (p.t.slice(11, 13) === "00" || days.length === 0) days.push({ x: hx(p.t), label: p.t.slice(8, 10) + "/" + p.t.slice(5, 7) }); });
-  // the three thresholds are often a few cm apart: only danger is labelled on the chart, the others in the legend
+  // the three thresholds are often a few cm apart and the level crosses them: the legend under the chart names them,
+  // a label on the chart would sit on the line
   const th = (["alert", "warning", "danger"] as const).filter((k) => s[k] != null && s[k] > 0);
-  const hl = th.map((k) => ({ y: s[k], color: STATUS[k].c, label: k === "danger" ? "Danger" : undefined, dashed: true }));
+  const hl = th.map((k) => ({ y: s[k], color: STATUS[k].c, dashed: true }));
   return (
     <>
       <div className="mb-2 flex flex-wrap items-center gap-2 text-[13px]">
@@ -184,7 +187,7 @@ function VehicleDetail({ d, onInvite, busy }: { d: any; onInvite: () => void; bu
         {d.invited_at ? <span className="text-ok">Invitation recorded {whenUtc(d.invited_at)}</span> : (
           <button className="btn btn-primary" disabled={busy} onClick={onInvite}>Invite the owner for a flood inspection</button>
         )}
-        <Source kind="mock" text="Recorded only: no SMS, e-mail or letter is sent" />
+        <Source kind="mock" text="Recorded only: no SMS, e-mail or letter is sent" className="max-sm:whitespace-normal max-sm:rounded-xl max-sm:[&>span]:whitespace-normal" />
       </div>
     </div>
   );
@@ -206,7 +209,7 @@ function Selected({ pick, stations, areas, vehicles, pinned, hist, ev, onArea, o
         <div className="eyebrow mb-1 text-[10.5px]">River station</div>
         <h3 className="text-[17px] font-bold leading-snug tracking-tight">{s.name}</h3>
         <p className="mb-3 text-[12.5px] text-fg-3">{s.river} · {s.district}, {s.state}</p>
-        {hist?.station?.id === s.id ? <StationTrend h={hist} height={150} /> : (
+        {hist?.station?.id === s.id ? <StationTrend h={hist} height={110} /> : (
           <>
             <div className="flex flex-wrap items-center gap-2 text-[13px]"><Pill color={STATUS[s.status].c}>{STATUS[s.status].label}</Pill><b>{s.level != null ? `${s.level.toFixed(2)} m` : "no reading"}</b><span className="text-fg-3">{trendText(s)}</span></div>
             <LoadingState label="Loading the station's levels…" rows={2} className="mt-3" />
@@ -273,8 +276,10 @@ function FloodWatch() {
   const [minRisk, setMinRisk] = useState(45);
   const [area, setArea] = useState<{ state: string; district: string } | null>(null);
   const [page, setPage] = useState(1);
+  const narrow = useNarrow();
   const areas = useFetch<any>("/api/floodwatch/areas", { scope }, [fetchedAt]);
-  const veh = useFetch<any>("/api/floodwatch/vehicles", { scope, min_risk: minRisk, page, page_size: 20, state: area?.state, district: area?.district }, [fetchedAt]);
+  // a phone shows the list as cards: ten to a page keeps the page a sensible length
+  const veh = useFetch<any>("/api/floodwatch/vehicles", { scope, min_risk: minRisk, page, page_size: narrow ? 10 : 20, state: area?.state, district: area?.district }, [fetchedAt]);
   // the map's vehicle layer: the hundred most at risk in this view
   const vmap = useFetch<any>("/api/floodwatch/vehicles", { scope, min_risk: minRisk, page: 1, page_size: 100 }, [fetchedAt]);
   const inv = useFetch<any[]>("/api/floodwatch/invitations");
@@ -290,6 +295,9 @@ function FloodWatch() {
   const [focus, setFocus] = useState<{ key: string; lat: number; lon: number; zoom?: number } | null>(null);
   const [side, setSide] = useState<"districts" | "vehicles">("districts");
   const [allAreas, setAllAreas] = useState(false);
+  const [allVeh, setAllVeh] = useState(false);
+  const tabsRow = useRef<HTMLDivElement>(null);
+  useEdgeFade(tabsRow, "[role=tablist]");
   const [busy, setBusy] = useState(false);
   const [polledAt, setPolledAt] = useState<Date | null>(null);
   const table = useRef<HTMLElement>(null);
@@ -319,7 +327,7 @@ function FloodWatch() {
       setPick((p) => p ?? keyOf({ layer: "stations", id: worst.id }));
     }
   }, [st.data, station]);
-  useEffect(() => { setPage(1); setSel({}); }, [scope, minRisk, area]);
+  useEffect(() => { setPage(1); setSel({}); }, [scope, minRisk, area, narrow]);
   // a vehicle opened from the address: pin it on the map, fly there and keep it selected after the dialog closes
   useEffect(() => {
     const d = detail.data;
@@ -387,7 +395,8 @@ function FloodWatch() {
   const trend = (o?.trend || []).map((t: any, i: number) => ({ x: i, y: AT_RISK.reduce((n, k) => n + (t.counts[k] || 0), 0), t: t.fetched_at }));
   const live = src?.mode === "live";
 
-  const mapAreas = useMemo(() => A.filter((a) => a.lat != null && (scope === "live" ? a.level_exposure > 0 || a.to_inspect > 0 : a.to_inspect > 0)), [A, scope]);
+  // every district in the list is on the map (a district picked in the list is always there to see)
+  const mapAreas = useMemo(() => A.filter((a) => a.lat != null), [A]);
   const points = useMemo<MapPoint[]>(() => {
     const out: MapPoint[] = [];
     for (const k of DRAW_ORDER) {
@@ -428,14 +437,17 @@ function FloodWatch() {
     return out;
   }, [S, mapAreas, MV, pinned, scope]);
 
-  const MAP_H = "h-[440px] md:h-[540px] xl:h-[calc(100vh-170px)] xl:min-h-[620px] xl:max-h-[920px]";
+  // the one height of the map row: the details beside the map take the map card's height from xl
+  const MAP_H = "h-[400px] sm:h-[440px] md:h-[540px] xl:h-[calc(100vh-170px)] xl:min-h-[620px] xl:max-h-[920px]";
+  const topVeh = (vmap.data?.total || 0) > MV.length;
   const kpiLabels = ["Stations at danger", "Stations at warning", "Stations at alert", "Stations normal", "Vehicles to inspect now"];
   return (
     <OversightShell wide>
       <PageHeader eyebrow="Oversight · Flood watch" title="Flood watch"
         sub="River levels and rainfall from JPS for every state, set against the vehicles registered in each district: which cars need a flood-damage inspection or an underbody corrosion check, and why."
         actions={<>
-          <JpsSource s={src} />
+          <span className="contents sm:hidden"><JpsSource s={src} short /></span>
+          <span className="hidden sm:contents"><JpsSource s={src} /></span>
           <button className="btn" disabled={busy || src?.refreshing} onClick={refresh}><Icon name="refresh" size={15} />{src?.refreshing ? "Fetching river levels…" : "Refresh river levels"}</button>
         </>}>
         {src && (
@@ -458,18 +470,19 @@ function FloodWatch() {
       ) : (
         <>
           <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
-            <OvStat icon="warn" tone="red" alert={!!o.counts.danger} label="Stations at danger" value={o.counts.danger} sub="at or over the danger level" />
-            <OvStat icon="flood" tone="amber" alert={!!o.counts.warning} label="Stations at warning" value={o.counts.warning} sub="between warning and danger" />
-            <OvStat icon="bell" tone="amber" label="Stations at alert" value={o.counts.alert} sub="between alert and warning" />
+            <OvStat icon="warn" tone="red" color={o.counts.danger ? STATUS_TEXT.danger : undefined} label="Stations at danger" value={o.counts.danger} sub="at or over the danger level" />
+            <OvStat icon="flood" tone="amber" color={o.counts.warning ? STATUS_TEXT.warning : undefined} label="Stations at warning" value={o.counts.warning} sub="between warning and danger" />
+            <OvStat icon="bell" tone="amber" color={o.counts.alert ? STATUS_TEXT.alert : undefined} label="Stations at alert" value={o.counts.alert} sub="between alert and warning" />
             <OvStat icon="checkc" tone="green" label="Stations normal" value={o.counts.normal} sub={`of ${o.total} · ${o.counts.no_reading} no reading · ${o.counts.no_thresholds} no thresholds`} />
             <OvStat icon="car" tone="blue" alert label="Vehicles to inspect now" value={fmtN(o.live.to_inspect)}
               sub={`${fmtN(o.live.flood_inspection)} flood-damage inspections · ${fmtN(o.live.corrosion_check)} underbody corrosion checks`} source={<Source kind="synthetic" text="Synthetic" />} />
           </div>
 
-          <div className="mb-3 flex min-w-0 flex-wrap items-center gap-3">
-            <span className="text-[12.5px] font-semibold text-fg-3">View</span>
-            <div className="min-w-0 max-w-full overflow-x-auto pb-1">
-              <Tabs value={scope} onChange={(v: string) => setScope(v)}
+          {/* the views: one row that scrolls sideways on a narrow screen, its edge fading while more are hidden */}
+          <div className="mb-3 flex min-w-0 items-center gap-3">
+            <span className="shrink-0 text-[12.5px] font-semibold text-fg-2">View</span>
+            <div ref={tabsRow} className="min-w-0">
+              <Tabs nowrap value={scope} onChange={(v: string) => setScope(v)}
                 items={[{ id: "live", label: "Now · live JPS" }, ...events.map((e) => ({ id: e.id, label: `${monthYear(e.date)}${e.real ? ` · ${e.title.split(",")[0]}` : " · claims"}` }))]} />
             </div>
           </div>
@@ -484,7 +497,7 @@ function FloodWatch() {
             </div>
           )}
 
-          <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
             <section className="card min-w-0 p-2 sm:p-3" aria-label="Live map">
               <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1.5 pt-1">
                 <h2 className="text-[17px] font-bold tracking-tight">Water-level stations{ev ? " · districts hit" : " · districts at risk"}</h2>
@@ -495,14 +508,15 @@ function FloodWatch() {
                 layers={[
                   { id: "stations", label: "Stations", color: "#059669", count: S.length },
                   { id: "districts", label: ev ? "Districts hit" : "Districts at risk", color: "#2563EB", count: mapAreas.length },
-                  { id: "vehicles", label: "Vehicles", color: "#DC2626", count: MV.length },
+                  // the map draws the hundred most at risk; the lists count them all
+                  { id: "vehicles", label: topVeh ? `Top ${MV.length} vehicles` : "Vehicles", color: "#DC2626", count: topVeh ? undefined : MV.length },
                 ]}
                 legend={[
                   { label: `Danger ${o.counts.danger}`, color: STATUS.danger.c, shape: "pulse" }, { label: `Warning ${o.counts.warning}`, color: STATUS.warning.c, shape: "pulse" },
                   { label: `Alert ${o.counts.alert}`, color: STATUS.alert.c }, { label: "Normal", color: STATUS.normal.c }, { label: "No reading", color: STATUS.no_reading.c },
                   { label: "No thresholds", color: STATUS.no_thresholds.c, shape: "ring" },
                   { label: ev ? "District hit (size = vehicles to inspect)" : "District at risk (size = vehicles to inspect)", color: ev ? "#2563EB" : "#EA580C", shape: "area" },
-                  { label: "High-risk vehicle", color: "#DC2626" }, { label: "Medium", color: "#D97706" },
+                  { label: "High-risk vehicle", color: "#DC2626" }, { label: "Medium-risk vehicle", color: "#D97706" },
                   ...(pinned ? [{ label: pinned.plate, color: bandColor(pinned.band), shape: "pin" as const }] : []),
                 ]}
                 overlay={<LiveBadge at={polledAt} live={live} busy={st.loading || ov.loading} onRefresh={() => setPoll((n) => n + 1)}
@@ -512,17 +526,19 @@ function FloodWatch() {
               </p>
             </section>
 
-            <aside className="flex min-w-0 flex-col gap-4 xl:h-[calc(100vh-110px)] xl:max-h-[980px] xl:min-h-[680px]" aria-label="Details and lists">
-              <section className="card max-h-[60vh] shrink-0 overflow-auto p-4 xl:max-h-[52%]" aria-label="Selected on the map">
+            {/* from xl the details fill the map card's height exactly: the map alone sets the row's height */}
+            <div className="relative min-w-0">
+            <aside className="flex min-w-0 flex-col gap-4 xl:absolute xl:inset-0" aria-label="Details and lists">
+              <section className="card max-h-[60vh] shrink-0 overflow-auto p-4 xl:max-h-[44%]" aria-label="Selected on the map">
                 <Selected pick={pick} stations={S} areas={A} vehicles={MV} pinned={pinned} hist={hist.data} ev={ev} area={area}
                   onArea={(a) => { pickArea(a); setTimeout(() => table.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
                   onOpen={(plate) => setOpen(plate)} />
               </section>
-              <section className="card flex min-h-[320px] flex-1 flex-col overflow-hidden" aria-label={side === "districts" ? "Districts" : "Vehicles"}>
+              <section className="card flex min-h-[220px] flex-1 flex-col overflow-hidden xl:min-h-0" aria-label={side === "districts" ? "Districts" : "Vehicles"}>
                 <div className="flex flex-wrap items-center gap-1.5 border-b border-ink-600/70 px-3 py-2.5">
                   <FilterPill on={side === "districts"} onClick={() => setSide("districts")} count={A.length}>{ev ? "Districts hit" : "Districts at risk"}</FilterPill>
                   <FilterPill on={side === "vehicles"} onClick={() => setSide("vehicles")} count={vmap.data?.total}>Vehicles at risk</FilterPill>
-                  <span className="ml-auto">{ev ? <Source kind={ev.real ? "real" : "synthetic"} text={ev.real ? "Public record" : "Synthetic claims"} /> : <Source kind="live_logic" text="Exposure logic" />}</span>
+                  <span className="ml-auto">{ev ? <Source kind={ev.real ? "real" : "synthetic"} /> : <Source kind="live_logic" />}</span>
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto p-2.5">
                   {side === "districts" ? (
@@ -530,34 +546,41 @@ function FloodWatch() {
                       <Empty title="No district is exposed right now">No JPS station is above its alert level and no district had 60 mm of rain in a day this week. Pick a past flood above to see the ranking at work.</Empty>
                     ) : (
                       <div className="flex flex-col gap-1.5">
-                        {(allAreas ? A : A.slice(0, 12)).map((a) => {
+                        {/* the first four below xl (the page is long already), twelve beside the map; "Show all" for the rest */}
+                        {(allAreas ? A : A.slice(0, 12)).map((a, i) => {
                           const on = area?.state === a.state && area?.district === a.district;
                           const picked = pick === keyOf({ layer: "districts", id: `${a.state}|${a.district}` });
                           const sc = Object.entries(a.stations || {}).filter(([, n]) => n).map(([k, n]) => `${n} ${STATUS[k]?.label.toLowerCase() || k}`).join(" · ");
                           return (
                             <button key={a.state + a.district} onClick={() => pickArea(a)} aria-pressed={on}
-                              className={`rounded-xl px-3 py-2.5 text-left text-[12.5px] transition ${on || picked ? "bg-white shadow-glass ring-1 ring-blue-200" : "bg-white/45 ring-1 ring-ink-600/70 hover:bg-white"}`}>
+                              className={`${!allAreas && i >= 4 ? "hidden xl:block" : ""} rounded-xl px-3 py-2.5 text-left text-[12.5px] transition ${on || picked ? "bg-white shadow-glass ring-1 ring-blue-200" : "bg-white/45 ring-1 ring-ink-600/70 hover:bg-white"}`}>
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                                 <b className="text-[13.5px]">{a.district}</b><span className="text-fg-3">{a.state}</span>
                                 <span className="ml-auto text-fg-2"><b className="text-cyan">{a.to_inspect}</b> to inspect of {fmtN(a.vehicles)}</span>
                               </div>
                               <div className="my-1.5 h-1.5 overflow-hidden rounded-full bg-[#E8EEF7]"><div className="h-1.5 rounded-full" style={{ width: `${Math.max(3, a.exposure * 100)}%`, background: exposureColor(a.exposure) }} /></div>
-                              <div className="text-fg-2">{a.reasons[0]?.text}</div>
-                              {(a.reasons.length > 1 || sc) && <div className="mt-0.5 text-[11.5px] text-fg-3">{a.reasons.slice(1).map((r: any) => r.text).join(" · ")}{a.reasons.length > 1 && sc ? " · " : ""}{sc && `stations: ${sc}`}</div>}
+                              <div className="text-fg-2 xl:line-clamp-2" title={a.reasons[0]?.text}>{a.reasons[0]?.text}</div>
+                              {(a.reasons.length > 1 || sc) && (() => {
+                                const more = `${a.reasons.slice(1).map((r: any) => r.text).join(" · ")}${a.reasons.length > 1 && sc ? " · " : ""}${sc ? `stations: ${sc}` : ""}`;
+                                // beside the map one line each (the card picked shows it all above); in full below xl
+                                return <div className="mt-0.5 text-[11.5px] text-fg-3 xl:truncate" title={more}>{more}</div>;
+                              })()}
                             </button>
                           );
                         })}
-                        {A.length > 12 && <button className="btn btn-sm self-start" onClick={() => setAllAreas((x) => !x)}>{allAreas ? "Show fewer" : `Show all ${A.length} districts`}</button>}
+                        {A.length > 4 && (
+                          <button className={`btn btn-sm self-start ${A.length <= 12 ? "xl:hidden" : ""}`} onClick={() => setAllAreas((x) => !x)}>{allAreas ? "Show fewer" : `Show all ${A.length} districts`}</button>
+                        )}
                       </div>
                     )
                   ) : !vmap.data ? <LoadingState label="Ranking vehicles…" rows={4} /> : !MV.length ? (
                     <Empty title={vmap.data.counts.exposed ? `No vehicle at risk ${minRisk} or more` : "No vehicle is exposed in this view"}>Lower the risk filter under the map, or pick a past flood above.</Empty>
                   ) : (
                     <ul className="flex flex-col gap-1">
-                      {MV.map((v) => {
+                      {MV.map((v, i) => {
                         const k = keyOf({ layer: "vehicles", id: v.plate });
                         return (
-                          <li key={v.plate}>
+                          <li key={v.plate} className={!allVeh && i >= 6 ? "hidden xl:block" : ""}>
                             <button onClick={() => { setPick(k); if (v.lat != null) setFocus({ key: `v|${v.plate}|${Date.now()}`, lat: v.lat, lon: v.lon, zoom: 12 }); }}
                               className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${pick === k ? "bg-white shadow-glass ring-1 ring-blue-200" : "hover:bg-white/70"}`}>
                               <span className="w-9 shrink-0 text-center text-[17px] font-extrabold tracking-tight" style={{ color: bandColor(v.band) }}>{v.risk}</span>
@@ -567,12 +590,14 @@ function FloodWatch() {
                           </li>
                         );
                       })}
-                      {vmap.data.total > MV.length && <li className="px-2.5 py-2 text-[11.5px] text-fg-4">The {MV.length} most at risk of {fmtN(vmap.data.total)}; the full list is below the map.</li>}
+                      {!allVeh && MV.length > 6 && <li className="xl:hidden"><button className="btn btn-sm mt-1" onClick={() => setAllVeh(true)}>Show {MV.length - 6} more</button></li>}
+                      {vmap.data.total > MV.length && <li className={`px-2.5 py-2 text-[11.5px] text-fg-3 ${!allVeh ? "hidden xl:list-item" : ""}`}>The {MV.length} most at risk of {fmtN(vmap.data.total)}; the full list is below the map.</li>}
                     </ul>
                   )}
                 </div>
               </section>
             </aside>
+            </div>
           </div>
 
           <section ref={table} className="card mb-5 flex scroll-mt-24 flex-col" aria-label="Vehicles to inspect">
@@ -594,9 +619,9 @@ function FloodWatch() {
               </div>
             ) : (
               <>
-                {/* seven columns do not fit a phone: the table scrolls inside the card, not the page */}
-                <div className="px-3 lg:px-4">
-                  <TableBox className="max-h-[70vh]">
+                {/* from sm up a table (it pages, so it does not scroll on its own; sideways it scrolls inside the card) */}
+                <div className="hidden px-3 sm:block lg:px-4">
+                  <TableBox className="max-h-none">
                     <table className="w-full min-w-[940px] text-[13px]">
                       <thead className={THEAD}>
                         <tr><th className="w-10"></th><th>Vehicle</th><th>District and exposure</th><th>Risk</th><th>Recommendation</th><th>Why this vehicle</th><th></th></tr>
@@ -639,6 +664,37 @@ function FloodWatch() {
                     </table>
                   </TableBox>
                 </div>
+                {/* a phone: one card per vehicle, the risk, the recommendation and the details button in view */}
+                <ul className="flex flex-col gap-2 px-3 sm:hidden" aria-label="Vehicles to inspect">
+                  {V.items.map((r: any) => {
+                    const own = r.reasons.filter((x: any) => !x.district);
+                    return (
+                      <li key={r.vehicle_id} data-flood-vehicle={r.plate} className="rounded-2xl p-3 ring-1 ring-ink-600/70" style={{ background: sel[r.plate] ? "rgba(37,99,235,0.08)" : "rgba(255,255,255,0.7)" }}>
+                        <div className="flex items-start gap-2.5">
+                          <input type="checkbox" aria-label={`Select ${r.plate}`} disabled={!!r.invited_at} checked={!!sel[r.plate]} onChange={(e) => setSel((x) => ({ ...x, [r.plate]: e.target.checked }))} className="mt-1 h-4 w-4 shrink-0 accent-cyan" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="min-w-0">
+                                <b className="block text-[14px]">{r.plate} <span className="font-medium text-fg-2">{r.make} {r.model}</span></b>
+                                <span className="block text-[11.5px] text-fg-3">{r.district}, {r.state} · {r.vtype} · {r.year}</span>
+                              </span>
+                              <span className="shrink-0 text-[22px] font-extrabold leading-none tracking-tight" style={{ color: bandColor(r.band) }}>{r.risk}</span>
+                            </div>
+                            <ul className="mt-1.5 flex flex-col gap-0.5 text-[12px] text-fg-2">
+                              {/* the vehicle's own reason (the district's is in the district list above) */}
+                              {own.length ? <WhyDot r={own[0]} /> : r.exposure_headline && <WhyDot r={{ text: r.exposure_headline, source: r.exposure_source }} />}
+                            </ul>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <Pill color={REC_COL[r.recommendation]}>{r.recommendation}</Pill>
+                              {r.invited_at && <span className="text-[11.5px] font-semibold text-ok">Invited</span>}
+                              <button className="btn btn-sm ml-auto" onClick={() => setOpen(r.plate)}>Details</button>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
                 <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-[12.5px] text-fg-3 lg:px-5">
                   <span>{fmtN(V.counts.to_inspect)} to inspect of {fmtN(V.counts.exposed)} vehicles in exposed districts: {fmtN(V.counts.flood_inspection)} flood-damage inspections, {fmtN(V.counts.corrosion_check)} underbody corrosion checks · {fmtN(V.counts.high)} high risk</span>
                   <span className="flex items-center gap-2">
@@ -651,7 +707,7 @@ function FloodWatch() {
             )}
           </section>
 
-          <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] xl:items-start">
             <Panel title="Stations by state" action={<JpsSource s={src} short />}>
               <TableBox className="max-h-[420px]">
                 <table className="w-full min-w-[420px] whitespace-nowrap text-[12.5px]">
@@ -682,28 +738,34 @@ function FloodWatch() {
             </Panel>
           </div>
 
-          <div className="mb-4 grid grid-cols-1 gap-5 xl:grid-cols-2">
+          <div className="mb-4 grid grid-cols-1 gap-5 xl:grid-cols-2 xl:items-start">
             <Panel title="Invitations sent" action={<Source kind="mock" text="Mock: recorded, no message is sent" />}>
               {!inv.data?.length ? <p className="text-[12.5px] text-fg-3">None yet. Tick vehicles in the list, or open one, and invite the owners for a flood inspection.</p> : (
                 <TableBox className="max-h-72">
                   <table className="w-full whitespace-nowrap text-[12.5px]">
-                    <thead className={THEAD}><tr><th>Plate</th><th>District</th><th>Risk</th><th>For</th><th>When</th></tr></thead>
+                    <thead className={THEAD}><tr><th>Plate</th><th>District</th><th className="!text-right">Risk</th><th>For</th><th>When</th></tr></thead>
                     <tbody>
                       {inv.data.map((i) => (
-                        <tr key={i.invite_id} className="border-b border-ink-600/60 last:border-0 [&>td]:px-3 [&>td]:py-2"><td><b>{i.plate}</b></td><td>{i.district}</td><td>{i.risk}</td><td>{i.recommendation}</td><td>{whenUtc(i.created_at)}</td></tr>
+                        <tr key={i.invite_id} className="border-b border-ink-600/60 last:border-0 [&>td]:px-3 [&>td]:py-2"><td><b>{i.plate}</b></td><td>{i.district}</td><td className="text-right font-semibold tabular-nums">{i.risk}</td><td>{i.recommendation}</td><td>{whenUtc(i.created_at)}</td></tr>
                       ))}
                     </tbody>
                   </table>
                 </TableBox>
               )}
             </Panel>
-            <Panel title="How it works" action={<Source kind="live_logic" text="Scoring logic over real + synthetic data" />}>
+            <Panel title="How it works" action={<Source kind="live_logic" text="Scoring real + synthetic data" />}>
               <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[12.5px] text-fg-2">
                 <li><b>River levels and rainfall</b> (real): JPS Public InfoBanjir, all states, read again every {o.source.ttl_min} minutes while the page is in use; the committed JPS snapshot when the site cannot be reached.</li>
                 <li><b>Status</b>: each station against its own JPS thresholds. A 0.00 m level under a positive normal level, or a reading more than a day old, counts as no reading.</li>
                 <li><b>Vehicles and their districts</b> (synthetic): fictional vehicles, each placed in a district of its registered state.</li>
                 <li><b>Past floods</b>: the flood dates in the synthetic insurance claims; Dec 2021 and Nov 2024 match real floods (public record).</li>
-                <li><b>Risk</b>: {o.method}</li>
+                <li>
+                  {/* the scoring formula is long: open on request */}
+                  <details className="group">
+                    <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden"><b>Risk</b>: <span className="font-medium text-cyan hover:underline group-open:hidden">how the score is worked out ›</span><span className="hidden font-medium text-cyan hover:underline group-open:inline">hide the formula</span></summary>
+                    <p className="mt-1.5 rounded-xl bg-[#F4F7FB] px-3 py-2 ring-1 ring-ink-600/60">{o.method}</p>
+                  </details>
+                </li>
               </ul>
             </Panel>
           </div>

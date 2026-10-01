@@ -7,14 +7,15 @@ import { Icon } from "@/components/icons";
 import { MobileShell, useMobileHref, useMobilePlate } from "@/components/MobileShell";
 import { MCard, MEmpty, MError, MSkeleton, MTitle, Plate, Segmented, Verdict, dayLabel, scoreCol } from "@/components/mobileKit";
 import { useProfile } from "@/components/mobileData";
-import { rm, TRUST_COL, TRUST_MARK, VehicleThumb } from "@/components/sales";
+import { MobileVehicleThumb } from "@/components/mobilePhoto";
+import { rm, TRUST_COL, TRUST_MARK } from "@/components/sales";
 import { Source } from "@/components/ui";
 import { fmtN, nextFailNote } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 const TONE: Record<string, string> = { ok: "bg-emerald-50 text-emerald-700", warn: "bg-amber-50 text-amber-800", bad: "bg-rose-50 text-rose-700", info: "bg-sky-50 text-sky-800", "": "bg-slate-100 text-slate-600" };
 const TONE_BOX: Record<string, string> = { ok: "border-emerald-200 bg-emerald-50/90", warn: "border-amber-200 bg-amber-50/90", bad: "border-rose-200 bg-rose-50/90" };
-const RESULT_TONE: Record<string, string> = { PASS: "ok", FAIL: "bad", CONDITIONAL: "warn", REFERRED: "info" };
+const RESULT_TONE: Record<string, string> = { PASS: "ok", FAIL: "bad", CONDITIONAL: "warn", REFERRED: "info", PASS_ADVISORY: "warn" };
 
 function Badge({ tone = "", children }: { tone?: string; children: ReactNode }) {
   return <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${TONE[tone]}`}>{children}</span>;
@@ -25,9 +26,9 @@ function SaleCard({ r, onOpen }: { r: any; onOpen: () => void }) {
   return (
     <button onClick={onOpen} aria-label={`${r.make} ${r.model} · ${r.plate}`}
       className="flex w-full gap-3 rounded-[20px] border border-white/90 bg-white/90 p-2.5 text-left shadow-[0_10px_24px_-18px_rgba(15,23,42,0.4)] transition active:scale-[.99]">
-      <VehicleThumb src={r.photo} vtype={r.vtype} light className="h-[84px] w-[92px] shrink-0 rounded-[14px]" />
+      <MobileVehicleThumb plate={r.plate} src={r.photo} vtype={r.vtype} className="h-[84px] w-[92px] shrink-0 overflow-hidden rounded-[14px]" />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="flex items-baseline justify-between gap-2"><b className="truncate text-[14.5px]">{r.make} {r.model}</b><b className="shrink-0 text-[14px] text-[#1D4ED8]">{rm(r.asking_price_rm)}</b></span>
+        <span className="flex items-start justify-between gap-2"><b className="line-clamp-2 min-w-0 break-words text-[14.5px] leading-snug">{r.make} {r.model}</b><b className="shrink-0 text-[14px] leading-snug text-[#1D4ED8]">{rm(r.asking_price_rm)}</b></span>
         <span className="text-[11.5px] text-slate-500">{r.year} · {fmtN(r.odometer_km)} km · {r.state}</span>
         <span className="flex flex-wrap gap-1">
           <Badge tone={r.trust.level}>{r.trust.label}</Badge>
@@ -82,11 +83,11 @@ function SaleDetail({ d }: { d: any }) {
         </figure>
       ) : (
         <div>
-          <VehicleThumb vtype={v.vtype} light className="h-40 w-full rounded-[22px]" icon={44} />
-          <p className="mt-1.5 px-1 text-[11.5px] text-slate-500">No photos on file yet. Lane cameras add them at the next inspection.</p>
+          <MobileVehicleThumb plate={v.plate} vtype={v.vtype} className="h-40 w-full overflow-hidden rounded-[22px]" />
+          <p className="mt-1.5 text-[11.5px] text-slate-500">No photos on file yet. Lane cameras add them at the next inspection.</p>
         </div>
       )}
-      <div className="px-1">
+      <div>
         <div className="flex items-baseline justify-between gap-2"><b className="text-[21px] font-extrabold tracking-tight">{v.make} {v.model}</b><b className="shrink-0 text-[18px] text-[#1D4ED8]">{rm(x.asking_price_rm)}</b></div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-slate-500"><Plate plate={v.plate} size="sm" /><span>{v.year} · {fmtN(v.odometer_km)} km · {x.seller === "dealer" ? "Dealer" : "Private seller"}, {x.state}</span></div>
         <p className="mt-1.5 text-[13px] italic text-slate-600">“{x.description}”</p>
@@ -115,14 +116,14 @@ function SaleDetail({ d }: { d: any }) {
         <ol className="flex flex-col gap-2">
           {[...d.inspections].reverse().map((i: any) => (
             <li key={i.id} className="border-t border-slate-100 pt-2 first:border-t-0 first:pt-0">
-              <div className="flex items-center justify-between gap-2"><b className="text-[13.5px]">{dayLabel(i.date, true)}</b><Badge tone={RESULT_TONE[i.result]}>{i.result}</Badge></div>
+              <div className="flex items-center justify-between gap-2"><b className="text-[13.5px]">{dayLabel(i.date, true)}</b><Verdict v={i.result} className="!px-2 !py-0.5 !text-[10.5px]" /></div>
               <div className="text-[12px] text-slate-500">{i.type_label} · {i.branch}{i.source === "lane" ? " · live lane" : ""}</div>
               <div className="text-[12px] text-slate-600">
                 {i.odometer_km != null ? `${fmtN(i.odometer_km)} km` : "odometer not read"}{i.health != null ? ` · health ${i.health}` : ""} · OBD {!i.obd.read ? "not read" : i.obd.dtcs.length ? i.obd.dtcs.map((c: any) => c.code).join(", ") : "clear"}
               </div>
               {i.reasons.length > 0 && <div className="text-[12px] text-rose-700">{i.result === "FAIL" ? "Failed on: " : "Noted: "}{i.reasons.slice(0, 3).join("; ")}</div>}
               <details className="text-[12px]">
-                <summary className="cursor-pointer font-semibold text-[#2563EB]">Measurements</summary>
+                <summary className="-my-1 cursor-pointer py-2 font-semibold text-[#2563EB]">Measurements</summary>
                 <div className="mt-1 grid grid-cols-1 gap-0.5">
                   {i.measures.map((m: any) => <div key={m.key} className="flex justify-between gap-2"><span className="text-slate-500">{m.label}</span><b>{fmtN(m.value, Math.abs(m.value) < 10 ? 2 : Math.abs(m.value) < 100 ? 1 : 0)} {m.unit}</b></div>)}
                 </div>
@@ -135,7 +136,7 @@ function SaleDetail({ d }: { d: any }) {
         <ol className="flex flex-col gap-1 text-[12.5px]">
           {d.odometer.points.map((pt: any, i: number) => (
             <li key={i} className={`flex justify-between gap-2 ${bad.has(`${pt.date}|${pt.km}`) ? "font-semibold text-rose-700" : ""}`}>
-              <span>{dayLabel(pt.date, true)} · {pt.source}</span><span>{fmtN(pt.km)} km{bad.has(`${pt.date}|${pt.km}`) ? " ▼" : ""}</span>
+              <span className="min-w-0">{dayLabel(pt.date, true)} · {pt.source}</span><span className="shrink-0 whitespace-nowrap">{fmtN(pt.km)} km{bad.has(`${pt.date}|${pt.km}`) ? " ▼" : ""}</span>
             </li>
           ))}
         </ol>
@@ -187,8 +188,8 @@ function MyListing({ plate, onOpen }: { plate: string; onOpen: (id: string) => v
         <b className="block text-[14px]">{id ? `Your ${v.model} is listed` : `Selling your ${v.model}?`}</b>
         <span className="block text-[12.5px] text-slate-500">{id ? "Buyers see its whole record, as below." : "An Ownership Transfer inspection gives buyers a report they can verify."}</span>
       </span>
-      {id ? <button className="shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-[12.5px] font-semibold text-[#1D4ED8]" onClick={() => onOpen(id)}>View</button>
-        : <a className="shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-[12.5px] font-semibold text-[#1D4ED8]" href={href("/mobile/book", { type: "TRANSFER" })}>Book</a>}
+      {id ? <button className="shrink-0 rounded-full bg-blue-50 px-4 py-2.5 text-[13px] font-semibold text-[#1D4ED8]" onClick={() => onOpen(id)}>View</button>
+        : <a className="shrink-0 rounded-full bg-blue-50 px-4 py-2.5 text-[13px] font-semibold text-[#1D4ED8]" href={href("/mobile/book", { type: "TRANSFER" })}>Book</a>}
     </MCard>
   );
 }
@@ -213,13 +214,13 @@ function SellScreen() {
   return (
     <MobileShell tab="vehicle" title="Marketplace" back={href("/mobile/vehicle")} backLabel="Vehicle">
       {plate && <MyListing plate={plate} onOpen={(id) => open(id)} />}
-      <div className="px-1">
+      <div>
         <h2 className="text-[20px] font-extrabold tracking-tight">Vehicles for sale</h2>
         <p className="text-[13px] text-slate-500">Every car and motorcycle comes with its full inspection record: odometer, fault codes, claims and photos.</p>
       </div>
-      <div className="sticky top-[var(--m-head)] z-20 -mx-4 mt-3 flex flex-col gap-2 bg-gradient-to-b from-[#F1F5FB] via-[#F1F5FB]/95 to-transparent px-4 pb-3 pt-1">
+      <div className="sticky top-[var(--m-head)] z-20 -mx-4 mb-3 mt-3 flex flex-col gap-2 bg-[#F1F5FB]/[0.97] px-4 pb-3 pt-2 shadow-[0_1px_0_rgba(15,23,42,0.08)] backdrop-blur-xl">
         <Segmented label="Vehicle type" value={kind} onChange={setKind} items={[{ id: "", label: "All" }, { id: "car", label: "Cars" }, { id: "motorcycle", label: "Motorcycles" }]} />
-        <label className="flex items-center gap-2 rounded-[14px] bg-white/90 px-3 py-2.5 shadow-sm ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-blue-300">
+        <label className="flex cursor-text items-center gap-2 rounded-[14px] bg-white px-3 py-2.5 shadow-sm ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-blue-300">
           <Icon name="search" size={17} color="#64748B" />
           <input aria-label="Search vehicles for sale" placeholder="Make, model or plate" className="w-full bg-transparent text-[14px] focus:outline-none" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
@@ -228,7 +229,7 @@ function SellScreen() {
         {list.error ? <MError onRetry={list.reload}>{list.error}</MError> : !list.data ? <MSkeleton rows={4} h={100} /> : !list.data.listings.length ? <MEmpty icon="search" title="Nothing for sale matches">Try another make, model or plate.</MEmpty>
           : list.data.listings.map((r: any) => <SaleCard key={r.listing_id} r={r} onOpen={() => open(r.listing_id)} />)}
       </div>
-      <div className="mt-4 px-1"><Source kind="synthetic" text="Listings of fictional vehicles" /></div>
+      <div className="mt-4"><Source kind="synthetic" text="Listings of fictional vehicles" /></div>
     </MobileShell>
   );
 }

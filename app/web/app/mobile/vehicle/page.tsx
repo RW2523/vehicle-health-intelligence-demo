@@ -4,14 +4,15 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
-import { Ring, StatusPill, Tone } from "@/components/glass";
+import { StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { MobileShell, useMobileHref, useMobilePlate } from "@/components/MobileShell";
-import { MCard, MEmpty, MError, MList, MRow, MSkeleton, MTitle, Plate, RESULT_TONE, Segmented, Verdict, dayLabel, inDays, scoreCol } from "@/components/mobileKit";
+import { HealthBadge, MCard, MEmpty, MError, MList, MRow, MSkeleton, MTitle, Plate, RESULT_TONE, Segmented, Verdict, dayLabel, inDays, scoreCol } from "@/components/mobileKit";
 import { BOOKING_STATUS, latestCheck, useBookings, usePassport, useProfile } from "@/components/mobileData";
 import { MobileVehiclePhoto, useMobilePhotos } from "@/components/mobilePhoto";
 import { Source } from "@/components/ui";
 import { fmtN } from "@/lib/format";
+import { useFetch } from "@/lib/live";
 
 type Seg = "overview" | "history" | "documents";
 
@@ -24,24 +25,16 @@ function PassportCard({ p }: { p: any }) {
       <div className="relative px-4 pb-2 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-blue-100">Vehicle Health Passport</div>
+            <div className="whitespace-nowrap text-[11.5px] font-semibold uppercase tracking-[0.12em] text-blue-100">Vehicle Health Passport</div>
             <div className="mt-1.5"><Plate plate={v.plate} size="lg" /></div>
             <div className="mt-2 text-[15px] font-bold">{v.make} {v.model} · {v.year}</div>
             <div className="text-[12.5px] text-blue-100">{fmtN(v.odometer_km)} km · {v.fuel === "ev" ? "electric" : v.fuel} · {v.state}</div>
           </div>
-          <div className="rounded-full bg-white/95 p-1 shadow-lg">
-            {p.health != null || !p.latest ? (
-              <Ring value={p.health ?? 0} size={78} stroke={8} color={scoreCol(p.health)} track="#E2E8F0">
-                <span className="text-[22px] font-extrabold" style={{ color: scoreCol(p.health) }}>{p.health ?? "–"}</span>
-                <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Health</span>
-              </Ring>
-            ) : (
-              <span className="flex h-[78px] w-[78px] flex-col items-center justify-center rounded-full text-center">
-                <span className="text-[15px] font-extrabold" style={{ color: scoreCol(p.latest.result === "PASS" ? 90 : p.latest.result === "FAIL" ? 20 : 60) }}>{p.latest.result}</span>
-                <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Latest</span>
-              </span>
-            )}
-          </div>
+          {(p.health != null || p.latest?.result) && (
+            <div className="shrink-0 rounded-full bg-white/95 p-1 shadow-lg">
+              <HealthBadge health={p.health} latest={p.latest} size={78} stroke={8} track="#E2E8F0" />
+            </div>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-px bg-white/15">
@@ -67,11 +60,11 @@ function Gallery({ plate, vtype }: { plate: string; vtype?: string }) {
   return (
     <>
       <MTitle>Photos</MTitle>
-      <div className="m-noscroll -mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1" aria-label="Vehicle photos">
+      <div className="m-noscroll -mx-4 flex snap-x scroll-px-4 gap-2.5 overflow-x-auto px-4 pb-1" aria-label="Vehicle photos">
         {all.map((ph, i) => (
           <figure key={ph.url + i} className="w-[220px] shrink-0 snap-start overflow-hidden rounded-[20px] bg-white shadow-sm ring-1 ring-white">
             <MobileVehiclePhoto plate={plate} vtype={vtype} photo={ph} size="480" credit className="h-[132px] w-full" />
-            <figcaption className="truncate px-3 py-2 text-[11.5px] text-slate-500">{ph.label || ph.view || "Photo"}{ph.representative ? " · photo of the model" : ""}</figcaption>
+            <figcaption className="line-clamp-2 px-3 py-2 text-[11.5px] leading-snug text-slate-500">{ph.label || ph.view || "Photo"}{ph.representative ? " · photo of the model" : ""}</figcaption>
           </figure>
         ))}
       </div>
@@ -126,21 +119,20 @@ function Overview({ p, prof, href }: { p: any; prof: any; href: (path: string, q
       {!certs.length ? <MEmpty icon="award" title="No certificates yet" action={<Link className="text-[13.5px] font-semibold text-[#2563EB]" href={href("/mobile/book")}>Book an inspection</Link>}>A health certificate is issued after each inspection.</MEmpty> : (
         <MCard pad={false} className="divide-y divide-slate-100" label="Health certificates">
           {shown.map((c: any, i: number) => {
-            const tone = RESULT_TONE[c.result] || "gray";
             const ring = c.score ?? (c.result === "PASS" ? 100 : c.result === "FAIL" ? 0 : 60);
             return (
               <div key={i} className="flex items-center gap-3 px-4 py-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[3px] text-[14px] font-extrabold" title={c.score != null ? "Health score from the lane" : c.result}
                   style={{ borderColor: scoreCol(ring), color: "#0F172A" }}>{c.score ?? (c.result === "PASS" ? "✓" : c.result === "FAIL" ? "✕" : "!")}</span>
                 <span className="min-w-0 flex-1 leading-snug">
-                  <span className="block truncate text-[14px] font-semibold">{c.kind}</span>
-                  <span className="flex flex-wrap items-center gap-x-2 text-[12px] text-slate-500">
+                  <span className="block text-[14px] font-semibold">{c.kind}</span>
+                  <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-500">
+                    <Verdict v={c.result} className="!px-2 !py-0.5 !text-[10.5px]" />
                     <span>{dayLabel(c.date, true)}</span>
                     {c.odometer_km != null && <span>{fmtN(c.odometer_km)} km</span>}
-                    <span className="font-semibold" style={{ color: tone === "green" ? "#059669" : tone === "red" ? "#DC2626" : "#D97706" }}>{c.result}</span>
                   </span>
                 </span>
-                {c.verify_token && <a className="shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-[12.5px] font-semibold text-[#1D4ED8]" href={`/verify/${c.verify_token}`}>Verify</a>}
+                {c.verify_token && <a className="shrink-0 rounded-full bg-blue-50 px-3.5 py-2.5 text-[12.5px] font-semibold text-[#1D4ED8]" href={`/verify/${c.verify_token}`}>Verify</a>}
               </div>
             );
           })}
@@ -149,7 +141,7 @@ function Overview({ p, prof, href }: { p: any; prof: any; href: (path: string, q
           )}
         </MCard>
       )}
-      <div className="mt-2 flex flex-wrap gap-1.5 px-1"><Source kind="live_model" text="Lane reports" /><Source kind="synthetic" text="Earlier inspections" /></div>
+      <div className="mt-2 flex flex-wrap gap-1.5"><Source kind="live_model" text="Lane reports" /><Source kind="synthetic" text="Earlier inspections" /></div>
 
       <MTitle>Selling or buying?</MTitle>
       <MList>
@@ -195,6 +187,8 @@ const EVENT_ICON: Record<string, { icon: string; tone: Tone }> = {
 
 function History({ p, prof }: { p: any; prof: any }) {
   const [more, setMore] = useState(false);
+  const branches = useFetch<any[]>("/api/branches");
+  const hubName = (id: string) => (branches.data || []).find((b) => b.branch_id === id)?.name || (branches.data ? id : "");
   const v = p.vehicle;
   const road = (p.reminders || []).find((r: any) => r.kind === "road_tax");
   const today = p.next_due ? new Date(new Date(p.next_due.date + "T00:00:00").getTime() - p.next_due.days * 864e5).toISOString().slice(0, 10)
@@ -223,15 +217,15 @@ function History({ p, prof }: { p: any; prof: any }) {
         )}
       </MCard>
 
-      <MTitle>Inspection history ({insp.length})</MTitle>
+      <MTitle>Inspection history · {insp.length}</MTitle>
       {!prof ? <MSkeleton rows={2} /> : !insp.length ? <MEmpty icon="clipboard" title="No earlier inspections">Lane reports appear under Overview.</MEmpty> : (
         <MCard pad={false} className="divide-y divide-slate-100">
           {insp.map((i: any) => (
             <details key={i.id} className="group px-4 py-3">
               <summary className="flex cursor-pointer list-none items-center gap-3">
                 <span className="min-w-0 flex-1 leading-snug">
-                  <span className="block truncate text-[14px] font-semibold">{i.type}</span>
-                  <span className="block text-[12px] text-slate-500">{dayLabel(i.date, true)} · {fmtN(i.odometer_km)} km · {i.branch_id}</span>
+                  <span className="block text-[14px] font-semibold">{i.type}</span>
+                  <span className="block text-[12px] text-slate-500">{dayLabel(i.date, true)} · {fmtN(i.odometer_km)} km{hubName(i.branch_id) ? ` · ${hubName(i.branch_id)}` : ""}</span>
                 </span>
                 <Verdict v={i.result} />
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.2" className="transition group-open:rotate-90" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
@@ -284,13 +278,14 @@ function History({ p, prof }: { p: any; prof: any }) {
           </MList>
         </>
       )}
-      <div className="mt-3 flex flex-wrap gap-1.5 px-1"><Source kind="synthetic" text="Inspection history and claims" /></div>
+      <div className="mt-3 flex flex-wrap gap-1.5"><Source kind="synthetic" text="Inspection history and claims" /></div>
     </>
   );
 }
 
-function Documents({ p, prof, plate }: { p: any; prof: any; plate: string }) {
+function Documents({ p, plate }: { p: any; plate: string }) {
   const v = p.vehicle;
+  const certs = p.certificates || [];
   const books = useBookings(plate);
   const road = (p.reminders || []).find((r: any) => r.kind === "road_tax");
   const paid = (books.data || []).filter((b) => b.payment_ref);
@@ -312,12 +307,15 @@ function Documents({ p, prof, plate }: { p: any; prof: any; plate: string }) {
           sub={road ? (road.days < 0 ? "Expired: renew before driving" : `${road.days} days left · renewing needs a valid insurance cover note`) : undefined} />
       </MList>
 
-      <MTitle>Inspection reports</MTitle>
-      {!prof ? <MSkeleton rows={2} /> : !prof.reports?.length ? <MEmpty icon="doc" title="No lane reports yet">Reports issued at the lane appear here with a link anyone can verify.</MEmpty> : (
-        <MList>
-          {prof.reports.map((r: any) => (
-            <MRow key={r.report_id} icon="doc" tone={RESULT_TONE[r.verdict] || "gray"} title={r.kind} sub={`${dayLabel(r.created_at, true)} · ${r.report_id}${r.health != null ? ` · health ${r.health}` : ""}`}
-              right={<Verdict v={r.verdict} />} href={`/verify/${r.verify_token}`} label={`Verify the ${r.kind} of ${dayLabel(r.created_at, true)}`} />
+      <MTitle>Reports and certificates · {certs.length}</MTitle>
+      {!certs.length ? <MEmpty icon="doc" title="No reports or certificates yet">Each inspection adds its report here, with a link anyone can use to verify it.</MEmpty> : (
+        <MList label="Reports and certificates">
+          {certs.map((c: any, i: number) => (
+            <MRow key={i} icon="doc" tone={RESULT_TONE[c.result] || "gray"} title={c.kind}
+              sub={<span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1"><Verdict v={c.result} className="!px-2 !py-0.5 !text-[10.5px]" />
+                <span>{dayLabel(c.date, true)}{c.score != null ? ` · health ${c.score}` : ""}{c.odometer_km != null ? ` · ${fmtN(c.odometer_km)} km` : ""}</span></span>}
+              href={c.verify_token ? `/verify/${c.verify_token}` : undefined}
+              label={c.verify_token ? `Verify the ${c.kind} of ${dayLabel(c.date, true)}` : undefined} />
           ))}
         </MList>
       )}
@@ -355,7 +353,7 @@ function VehicleScreen() {
             items={[{ id: "overview", label: "Overview" }, { id: "history", label: "History" }, { id: "documents", label: "Documents" }]} />
           {seg === "overview" && <><Gallery plate={p.vehicle.plate} vtype={p.vehicle.vtype} /><Overview p={p} prof={prof.data} href={href} /></>}
           {seg === "history" && <History p={p} prof={prof.data} />}
-          {seg === "documents" && <Documents p={p} prof={prof.data} plate={p.vehicle.plate} />}
+          {seg === "documents" && <Documents p={p} plate={p.vehicle.plate} />}
         </>
       )}
     </MobileShell>

@@ -45,14 +45,14 @@ function DayStrip({ start, value, onChange }: { start: string; value: string; on
   const days = Array.from({ length: 14 }, (_, i) => addDays(start, i));
   return (
     <div className="m-noscroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Day">
-      {days.map((d, i) => {
+      {days.map((d) => {
         const dt = new Date(d + "T00:00:00");
         const closed = dt.getDay() === 0;
         const on = d === value;
         return (
           <button key={d} disabled={closed} onClick={() => onChange(d)} aria-pressed={on} aria-label={`${dayLabel(d, true)}${closed ? ", closed" : ""}`}
             className={`flex w-[58px] shrink-0 flex-col items-center rounded-2xl py-2 transition ${on ? "bg-[#2563EB] text-white shadow-[0_10px_20px_-10px_rgba(37,99,235,0.9)]" : closed ? "bg-slate-100 text-slate-300" : "bg-white text-slate-800 ring-1 ring-slate-200"}`}>
-            <span className={`text-[11px] font-semibold uppercase ${on ? "text-blue-100" : "text-slate-400"}`}>{i === 0 ? "Next" : dt.toLocaleDateString("en-GB", { weekday: "short" })}</span>
+            <span className={`text-[11px] font-semibold uppercase ${on ? "text-blue-100" : "text-slate-400"}`}>{dt.toLocaleDateString("en-GB", { weekday: "short" })}</span>
             <span className="text-[19px] font-extrabold leading-tight">{dt.getDate()}</span>
             <span className={`text-[10.5px] ${on ? "text-blue-100" : "text-slate-400"}`}>{closed ? "Closed" : dt.toLocaleDateString("en-GB", { month: "short" })}</span>
           </button>
@@ -194,12 +194,12 @@ function TicketView({ b, fresh, onChange, href, readOnly = false }: {
           <div className="mt-2 text-[22px] font-extrabold leading-tight">{dayLabel(b.date)} · {b.slot}</div>
           <div className="text-[12.5px] text-blue-100">{b.branch_name}{b.gear ? " · Express slot" : ""}</div>
         </div>
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 px-4 py-3 text-[13px]">
-          <dt className="text-slate-500">Inspection hub</dt><dd className="font-semibold">{b.branch_name}</dd>
-          <dt className="text-slate-500">Date and time</dt><dd className="font-semibold">{dayLabel(b.date, true)} · {b.slot}{b.gear ? " (Express)" : ""}</dd>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 px-4 py-3 text-[13px]">
+          <dt className="text-slate-500">Hub</dt><dd className="min-w-0 text-right font-semibold">{b.branch_name}</dd>
+          <dt className="text-slate-500">Date</dt><dd className="min-w-0 text-right font-semibold">{dayLabel(b.date, true)} · {b.slot}{b.gear ? " (Express)" : ""}</dd>
           <dt className="text-slate-500">Payment</dt>
-          <dd className="font-semibold">RM {b.price_rm.toFixed(2)} · {b.payment_ref ? (b.status === "cancelled" ? "refunded" : "paid") : "not paid"} <span className="rounded bg-slate-100 px-1 text-[10.5px] font-bold text-slate-600">MOCK</span></dd>
-          <dt className="text-slate-500">Check-in code</dt><dd className="font-mono text-[14px] font-bold tracking-wider">{checkinCode(b)}</dd>
+          <dd className="min-w-0 text-right font-semibold">RM {b.price_rm.toFixed(2)} · {b.payment_ref ? (b.status === "cancelled" ? "refunded" : "paid") : "not paid"} <span className="ml-0.5 whitespace-nowrap rounded bg-slate-100 px-1 align-[1px] text-[10.5px] font-bold text-slate-600">MOCK</span></dd>
+          <dt className="text-slate-500">Check-in code</dt><dd className="text-right font-mono text-[14px] font-bold tracking-wider">{checkinCode(b)}</dd>
         </dl>
         <div className="relative border-t-2 border-dashed border-slate-200">
           <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#EEF3FA]" aria-hidden />
@@ -218,12 +218,12 @@ function TicketView({ b, fresh, onChange, href, readOnly = false }: {
       </section>
       {b.status === "pending_payment" && !readOnly && <button disabled={busy} className={`${BTN} w-full`} onClick={pay}>Pay RM {b.price_rm.toFixed(2)} with FPX</button>}
       <div className="grid w-full grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2">
-        {b.status !== "cancelled" && <button className={BTN2} onClick={download}><Icon name="calendar" size={16} />Add to calendar</button>}
-        <a className={BTN2} href={`/checkin/${b.checkin_token}`}><Icon name="qr" size={16} />Open the check-in page</a>
-        {changeable && <button className={BTN2} onClick={() => setSheet("move")}><Icon name="clock" size={16} />Reschedule</button>}
-        {changeable && <button className={`${BTN2} !text-rose-700`} onClick={() => setSheet("cancel")}><Icon name="xc" size={16} color="#BE123C" />Cancel booking</button>}
+        {b.status !== "cancelled" && <button className={`${BTN2} whitespace-nowrap !px-3`} onClick={download} aria-label="Add to calendar"><Icon name="calendar" size={16} />Calendar</button>}
+        <a className={`${BTN2} whitespace-nowrap !px-3`} href={`/checkin/${b.checkin_token}`} aria-label="Open the check-in page"><Icon name="qr" size={16} />Check-in page</a>
+        {changeable && <button className={`${BTN2} whitespace-nowrap !px-3`} onClick={() => setSheet("move")}><Icon name="clock" size={16} />Reschedule</button>}
+        {changeable && <button className={`${BTN2} whitespace-nowrap !px-3 !text-rose-700`} onClick={() => setSheet("cancel")} aria-label="Cancel booking"><Icon name="xc" size={16} color="#BE123C" />Cancel</button>}
       </div>
-      <a className="mt-1 text-[14px] font-semibold text-[#2563EB]" href={href("/mobile/book", { ticket: null, view: null })}>Make another booking</a>
+      <a className="px-3 py-2.5 text-[14px] font-semibold text-[#2563EB]" href={href("/mobile/book", { ticket: null, view: null })}>Make another booking</a>
       {fresh && <p className="text-[12px] text-slate-400">The ticket is also under My bookings.</p>}
       <Reschedule b={b} open={sheet === "move"} onClose={() => setSheet("")} onDone={(nb) => { setSheet(""); onChange(nb); }} />
       <MobileSheet open={sheet === "cancel"} onClose={() => setSheet("")} title="Cancel this booking?">
@@ -254,14 +254,17 @@ function MyBookings({ list, href }: { list: Booking[]; href: (p: string, q?: Rec
           <span className="text-[10px] font-semibold uppercase">{d.toLocaleDateString("en-GB", { month: "short" })}</span>
         </span>
         <span className="min-w-0 flex-1 leading-snug">
-          <span className="block truncate text-[14px] font-semibold">{b.type_label}</span>
-          <span className="block truncate text-[12.5px] text-slate-500">{b.slot} · {b.branch_name}</span>
+          <span className="line-clamp-2 break-words text-[14px] font-semibold">{b.type_label}</span>
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-slate-500">
+            <StatusPill tone={st.tone} className="!px-2 !py-0.5 !text-[10.5px]">{st.label}</StatusPill>
+            <span>{b.slot} · {b.branch_name}</span>
+          </span>
         </span>
-        <StatusPill tone={st.tone} className="!px-2 !py-0.5 !text-[10.5px]">{st.label}</StatusPill>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.2" strokeLinecap="round" className="shrink-0" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
       </a>
     );
   };
-  if (!list.length) return <MEmpty icon="calendar" title="No bookings yet" action={<a className="text-[14px] font-semibold text-[#2563EB]" href={href("/mobile/book", { view: null })}>Book an inspection</a>}>Your bookings and their check-in codes appear here.</MEmpty>;
+  if (!list.length) return <div className="mt-4"><MEmpty icon="calendar" title="No bookings yet" action={<a className="inline-block px-3 py-2.5 text-[14px] font-semibold text-[#2563EB]" href={href("/mobile/book", { view: null })}>Book an inspection</a>}>Your bookings and their check-in codes appear here.</MEmpty></div>;
   return (
     <>
       <MTitle>Upcoming</MTitle>
@@ -375,9 +378,12 @@ function BookScreen() {
       footer={view === "new" ? (
         <div className="border-t border-slate-200/70 bg-white/90 px-4 pb-2 pt-2.5 backdrop-blur-xl">
           {slot && t && (
-            <div className="mb-2 flex items-center justify-between gap-2 text-[12.5px]">
-              <span className="min-w-0 truncate text-slate-600">{t.label} · {branchName} · {dayLabel(date)} {slot.time}{slot.gear ? " (Express)" : ""}</span>
-              <b className="shrink-0">RM {price.toFixed(2)}</b>
+            <div className="mb-2 text-[12.5px] leading-snug">
+              <div className="truncate font-semibold text-slate-800">{dayLabel(date)} · {slot.time} · {branchName}</div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-slate-500">{t.label}{slot.gear ? " · Express slot" : ""}</span>
+                <b className="shrink-0 text-slate-800">RM {price.toFixed(2)}</b>
+              </div>
             </div>
           )}
           <button disabled={!slot || !itype || paying !== "" || readOnly} onClick={confirm} className={`${BTN} w-full`}>
@@ -416,22 +422,25 @@ function BookScreen() {
           </div>
 
           <MTitle>2 · Where?</MTitle>
-          <MCard className="flex items-center gap-3 !py-2.5">
+          <MCard className="relative flex items-center gap-3 !py-3 focus-within:ring-2 focus-within:ring-blue-300">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-blue-50"><Icon name="pin" size={19} color="#2563EB" /></span>
-            <span className="min-w-0 flex-1">
-              <select aria-label="Branch" className="w-full truncate bg-transparent text-[15px] font-semibold focus:outline-none" value={branch}
-                onChange={(e) => { setBranch(e.target.value); setSlot(null); setWanted(null); }}>
-                {hubs.map((b) => <option key={b.branch_id} value={b.branch_id}>{b.name}{b.km != null ? ` · ${b.km.toFixed(1)} km` : ""}</option>)}
-              </select>
-              <span className="block text-[12px] text-slate-500">{hub?.km != null ? `Nearest first, from ${where?.label}` : "Finding the nearest hubs…"}{hub ? ` · ${hub.lanes} lanes` : ""}</span>
+            <span className="min-w-0 flex-1 leading-snug" aria-hidden>
+              <span className="block truncate text-[15px] font-semibold">{hub?.name || "Choose a hub"}</span>
+              <span className="block text-[12px] text-slate-500">{hub?.km != null ? `${hub.km.toFixed(1)} km from ${where?.label}` : "Finding the nearest hubs…"}{hub ? ` · ${hub.lanes} lanes` : ""}</span>
             </span>
+            <Icon name="down" size={18} color="#2563EB" />
+            <select aria-label="Branch" className="absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-[22px] opacity-0" value={branch}
+              onChange={(e) => { setBranch(e.target.value); setSlot(null); setWanted(null); }}>
+              {hubs.map((b) => <option key={b.branch_id} value={b.branch_id}>{b.name}{b.km != null ? ` · ${b.km.toFixed(1)} km` : ""}</option>)}
+            </select>
           </MCard>
 
           <MTitle>3 · When?</MTitle>
           {gear.data && <DayStrip start={gear.data.date} value={date} onChange={(d) => { setDate(d); setSlot(null); setWanted(null); }} />}
           {gear.data && date === gear.data.date && (
             <div className="mt-2.5 flex items-center gap-2 rounded-2xl bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900 ring-1 ring-amber-200">
-              <Icon name="bolt" size={16} color="#D97706" />Tomorrow: Express next-day slots available (+RM {gear.data.surcharge_rm}).
+              <Icon name="bolt" size={16} color="#D97706" />
+              <span className="min-w-0 text-balance">{`Express next\u2011day slots on ${dayLabel(gear.data.date)}`} <span className="whitespace-nowrap">(+RM {gear.data.surcharge_rm})</span></span>
             </div>
           )}
           <div className="mt-2.5">{!slots.data ? <MSkeleton rows={1} h={120} /> : (

@@ -25,10 +25,10 @@ const today = () => new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Kua
 
 const RESULT: Record<string, { label: string; tone: Tone }> = {
   PASS: { label: "Passed", tone: "green" }, PASS_ADVISORY: { label: "Passed · advisory", tone: "amber" }, FAIL: { label: "Failed", tone: "red" },
+  CONDITIONAL: { label: "Conditional", tone: "amber" }, REFERRED: { label: "Referred", tone: "blue" },
 };
 
-function LaneCard({ ln }: { ln: any }) {
-  const st = LANE_STATE[ln.state];
+function LaneCard({ ln, canRun }: { ln: any; canRun: boolean }) {
   const v = ln.vehicle;
   if (!v) {
     const other = ln.next || ln.last;
@@ -52,14 +52,18 @@ function LaneCard({ ln }: { ln: any }) {
       </div>
     );
   }
-  const href = ln.live ? `/inspection/${v.inspection_id}` : `/vehicles/${encodeURIComponent(v.plate)}`;
+  // a lane-replay vehicle on its lane, waiting for its replay to be started
+  const ready = ln.state === "preparing" && !!ln.replay;
+  const st = ready ? { label: "Ready", tone: "amber" as Tone } : LANE_STATE[ln.state] || LANE_STATE.idle;
+  const start = ready && canRun;
+  const href = ln.live ? `/inspection/${v.inspection_id}` : start ? `/inspection/${ln.replay}` : `/vehicles/${encodeURIComponent(v.plate)}`;
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/80 bg-white/70 shadow-glass">
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-b from-[#F1F5FB] to-[#DEE6F2]">
         <VehicleImage plate={v.plate} vtype={v.vtype} photo={v.photo} className="h-full w-full" />
         <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-2">
           <b className="whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-[13px] shadow-sm backdrop-blur">Lane {ln.lane}{ln.live && <span className="ml-1 text-[10.5px] font-bold uppercase tracking-wider text-[#6D28D9]">· live</span>}</b>
-          <StatusPill tone={st.tone} className="shadow-sm">{st.label}</StatusPill>
+          <StatusPill tone={st.tone} dot={ready} className="shadow-sm">{st.label}</StatusPill>
         </div>
       </div>
       <div className="flex flex-1 flex-col p-4">
@@ -69,13 +73,76 @@ function LaneCard({ ln }: { ln: any }) {
         <div className="mt-auto pt-3">
           {ln.state === "operation" ? (
             <div className="flex items-center gap-2"><ProgressBar value={ln.progress} /><span className="w-10 text-right text-[12.5px] font-semibold text-fg-2">{ln.progress}%</span></div>
-          ) : <ProgressBar value={2} tone="gray" />}
+          ) : <ProgressBar value={2} tone={ready ? "amber" : "gray"} />}
           <div className="mt-1.5 text-[12.5px] text-fg-3">{ln.note}</div>
-          <Link href={href} className="mt-3 flex items-center justify-center gap-1 rounded-xl bg-blue-50 py-2 text-[13px] font-semibold text-[#1D4ED8] ring-1 ring-blue-100 transition hover:bg-blue-100">
-            View Details<Icon name="chev" size={15} />
+          <Link href={href} className={`mt-3 flex items-center justify-center gap-1.5 rounded-xl py-2 text-[13px] font-semibold ring-1 transition ${start ? "bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white ring-transparent hover:brightness-105" : "bg-blue-50 text-[#1D4ED8] ring-blue-100 hover:bg-blue-100"}`}>
+            {start ? <><Icon name="play" size={14} />Start the replay</> : <>View Details<Icon name="chev" size={15} /></>}
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** One vehicle of the day in the lower-left panel: still to come (status) or finished (result). One row per screen
+ *  size: a compact card on a phone, table-like columns from md (the owner only on the widest screens). */
+const UP_COLS = "md:grid md:grid-cols-[minmax(0,1.25fr)_minmax(0,1.35fr)_52px_104px_28px] 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,1.3fr)_52px_104px_28px]";
+const DONE_COLS = "md:grid md:grid-cols-[minmax(0,1.25fr)_minmax(0,1.35fr)_68px_132px] 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,1.3fr)_68px_132px]";
+
+function VehicleCell({ x, href }: { x: any; href: string }) {
+  return (
+    <Link href={href} className="flex min-w-0 flex-1 items-center gap-2.5 hover:text-cyan">
+      <VehicleImage plate={x.plate} vtype={x.vtype} photo={x.photo} size="480" className="h-9 w-14 shrink-0 rounded-lg" />
+      <span className="min-w-0 leading-tight"><b className="block whitespace-nowrap text-[13.5px]">{x.plate}</b><span className="block truncate text-[12px] text-fg-3">{x.make} {x.model}</span></span>
+    </Link>
+  );
+}
+
+function TypeCell({ x }: { x: any }) {
+  return (
+    <span className="hidden min-w-0 items-center gap-1.5 text-fg-2 md:flex" title={x.inspection_type}>
+      {x.source === "booking" && <span className="shrink-0 rounded-full bg-blue-50 px-1.5 text-[10.5px] font-semibold text-cyan ring-1 ring-blue-100">booked</span>}
+      <span className="truncate">{x.inspection_type}</span>
+    </span>
+  );
+}
+
+function UpcomingRow({ x }: { x: any }) {
+  return (
+    <li className={`flex items-center gap-3 border-t border-ink-600/60 px-3 py-2.5 text-[13.5px] md:gap-x-4 ${UP_COLS} md:items-center`}>
+      <span className="min-w-0 flex-1">
+        <VehicleCell x={x} href={`/vehicles/${encodeURIComponent(x.plate)}`} />
+        <span className="mt-1 block truncate pl-[66px] text-[12px] text-fg-3 md:hidden">{x.arrival_at} · {x.source === "booking" ? "booked · " : ""}{x.inspection_type}</span>
+      </span>
+      <span className="hidden truncate text-fg-2 2xl:block">{x.owner}</span>
+      <TypeCell x={x} />
+      <span className="hidden whitespace-nowrap text-fg-2 md:block">{x.arrival_at}</span>
+      <span className="shrink-0"><StatusPill tone={STATUS[x.status]?.tone || "gray"}>{STATUS[x.status]?.label || x.status}</StatusPill></span>
+      <Link href={`/vehicles/${encodeURIComponent(x.plate)}`} aria-label={`Open ${x.plate}`} className="hidden h-8 w-8 items-center justify-center rounded-lg hover:bg-white md:flex"><Icon name="dots" size={18} width={3} /></Link>
+    </li>
+  );
+}
+
+function DoneRow({ x }: { x: any }) {
+  const r = RESULT[x.result] || { label: x.result || "–", tone: "gray" as Tone };
+  return (
+    <li className={`flex items-center gap-3 border-t border-ink-600/60 px-3 py-2.5 text-[13.5px] md:gap-x-4 ${DONE_COLS} md:items-center`}>
+      <span className="min-w-0 flex-1">
+        <VehicleCell x={x} href={x.inspection_id ? `/inspection/${x.inspection_id}/review` : `/vehicles/${encodeURIComponent(x.plate)}`} />
+        <span className="mt-1 block truncate pl-[66px] text-[12px] text-fg-3 md:hidden">{x.end_at} · {x.inspection_type}</span>
+      </span>
+      <span className="hidden truncate text-fg-2 2xl:block">{x.owner}</span>
+      <TypeCell x={x} />
+      <span className="hidden whitespace-nowrap leading-tight text-fg-2 md:block">{x.end_at}<span className="block text-[11.5px] text-fg-4">on lane {x.lane}</span></span>
+      <span className="shrink-0"><StatusPill tone={r.tone}>{r.label}</StatusPill></span>
+    </li>
+  );
+}
+
+function RowsHead({ cols, labels }: { cols: string; labels: [string, string][] }) {
+  return (
+    <div className={`hidden gap-x-4 px-3 pb-2 text-[12.5px] font-medium text-fg-3 ${cols}`} aria-hidden>
+      {labels.map(([l, c], i) => <span key={i} className={c}>{l}</span>)}
     </div>
   );
 }
@@ -95,6 +162,9 @@ export default function Dashboard() {
   const k = D?.kpis;
   const deltaPct = k && k.total_prev ? Math.round((100 * (k.total - k.total_prev)) / k.total_prev) : null;
   const queue = useMemo(() => (D?.queue || []).slice(0, moreQueue ? 50 : 5), [D, moreQueue]);
+  // few vehicles still to come: the panel goes on with the latest finished ones, so the day reads in one place
+  const earlier = D?.upcoming?.length ? (D.done || []).slice(0, Math.max(0, 6 - D.upcoming.length)) : [];
+  const canRun = user?.role === "presenter" || user?.role === "examiner";
   return (
     <Shell>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -137,11 +207,11 @@ export default function Dashboard() {
           <div className="mb-5">
             <Panel title="Inspection Lanes" href="/lane" actionLabel="Live lane console">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {D.lanes.map((ln: any) => <LaneCard key={ln.lane} ln={ln} />)}
+                {D.lanes.map((ln: any) => <LaneCard key={ln.lane} ln={ln} canRun={canRun} />)}
               </div>
             </Panel>
           </div>
-          <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
               <Panel title="Lane Utilization" action={<span className="pill bg-white text-fg-2 ring-1 ring-ink-600">Now</span>}>
                 <div className="flex flex-wrap items-center gap-5">
                   <SegmentRing size={150} stroke={16} parts={[{ value: D.utilization.operation, color: "#10B981" }, { value: D.utilization.preparing, color: "#F59E0B" }, { value: D.utilization.idle, color: "#CBD5E1" }]}>
@@ -156,15 +226,23 @@ export default function Dashboard() {
                 </div>
               </Panel>
               <Panel title={`Current Queue (${D.queue.length})`} href="/inspection?tab=schedule&status=in_queue" actionLabel="View Queue">
-                {!D.queue.length ? <p className="text-[13.5px] text-fg-3">No one is waiting: every arrival is on a lane.</p> : (
+                {!D.queue.length ? (
+                  <div className="flex items-center gap-3 rounded-2xl bg-white/60 px-4 py-4 text-[13.5px] text-fg-3 ring-1 ring-ink-600/60">
+                    <Icon name="checkc" size={22} color="#10B981" />No one is waiting: every arrival is on a lane.
+                  </div>
+                ) : (
                   <ol className="flex flex-col">
                     {queue.map((q: any, i: number) => (
                       <li key={q.no} className="flex items-center gap-3 border-b border-ink-600/60 py-2.5 text-[14px] last:border-0">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[12px] font-bold ring-1 ring-ink-600">{i + 1}</span>
-                        <Link href={`/vehicles/${encodeURIComponent(q.plate)}`} className="w-[86px] shrink-0 font-bold hover:text-cyan">{q.plate}</Link>
-                        <span className="min-w-0 flex-1 truncate text-fg-2">{q.make} {q.model}</span>
-                        {i === 0 && <StatusPill tone="blue">Next</StatusPill>}
-                        <span className="w-[64px] shrink-0 text-right text-[13px] text-fg-3">~ {q.wait_min} min</span>
+                        <Link href={`/vehicles/${encodeURIComponent(q.plate)}`} className="flex min-w-0 flex-1 items-center gap-2.5 hover:text-cyan">
+                          <VehicleImage plate={q.plate} vtype={q.vtype} photo={q.photo} size="480" className="hidden h-9 w-14 shrink-0 rounded-lg sm:block" />
+                          <span className="min-w-0 leading-tight"><b className="block whitespace-nowrap">{q.plate}</b><span className="block truncate text-[12.5px] text-fg-3">{q.make} {q.model}</span></span>
+                        </Link>
+                        <span className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2.5">
+                          {i === 0 && <StatusPill tone="blue">Next</StatusPill>}
+                          <span className="whitespace-nowrap text-right text-[12.5px] text-fg-3">{q.behind_replay ? `after ${q.behind_replay}'s replay` : `~ ${q.wait_min} min`}</span>
+                        </span>
                       </li>
                     ))}
                   </ol>
@@ -176,33 +254,34 @@ export default function Dashboard() {
                 )}
               </Panel>
           </div>
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
+            {!D.upcoming.length ? (
+              <Panel title="Today's Inspections" href="/inspection?tab=schedule" actionLabel={`View all (${D.done.length})`} pad={false}
+                sub="No more vehicles expected today: here is how the day went.">
+                {!D.done.length ? <p className="px-5 pb-5 text-[13.5px] text-fg-3">Nothing inspected yet today.</p> : (
+                  <div className="px-1 pb-3 lg:px-2">
+                    <RowsHead cols={DONE_COLS} labels={[["Vehicle", ""], ["Owner", "hidden 2xl:block"], ["Inspection Type", ""], ["Finished", ""], ["Result", ""]]} />
+                    <ul>{D.done.slice(0, 10).map((x: any) => <DoneRow key={x.no} x={x} />)}</ul>
+                  </div>
+                )}
+              </Panel>
+            ) : (
             <Panel title="Upcoming Vehicles" href="/inspection?tab=schedule" actionLabel={`View all (${D.upcoming.length})`} pad={false}>
-              {!D.upcoming.length ? <p className="px-5 pb-5 text-[13.5px] text-fg-3">No more vehicles expected today.</p> : (
-                <div className="overflow-x-auto px-2 pb-3">
-                  <table className="w-full min-w-[720px] text-left text-[13.5px]">
-                    <thead className="text-[12.5px] text-fg-3"><tr className="[&>th]:px-3 [&>th]:py-2 [&>th]:font-medium"><th>#</th><th>Vehicle No.</th><th>Vehicle Type</th><th>Owner</th><th>Inspection Type</th><th>Scheduled</th><th>Status</th><th /></tr></thead>
-                    <tbody>
-                      {D.upcoming.slice(0, 10).map((x: any, i: number) => (
-                        <tr key={x.no} className="border-t border-ink-600/60 [&>td]:px-3 [&>td]:py-2.5">
-                          <td><span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[12px] font-bold ring-1 ring-ink-600">{i + 1}</span></td>
-                          <td className="whitespace-nowrap"><Link href={`/vehicles/${encodeURIComponent(x.plate)}`} className="flex items-center gap-2.5 font-bold hover:text-cyan"><VehicleImage plate={x.plate} vtype={x.vtype} photo={x.photo} size="480" className="h-9 w-14 shrink-0 rounded-lg" />{x.plate}</Link></td>
-                          <td className="whitespace-nowrap text-fg-2">{x.make} {x.model}</td>
-                          <td className="max-w-[160px] truncate text-fg-2">{x.owner}</td>
-                          <td className="max-w-[200px] truncate text-fg-2">{x.inspection_type}{x.source === "booking" && <span className="ml-1.5 text-[11px] font-semibold text-cyan">booked</span>}</td>
-                          <td className="whitespace-nowrap text-fg-2">{x.arrival_at}</td>
-                          <td><StatusPill tone={STATUS[x.status]?.tone || "gray"}>{STATUS[x.status]?.label || x.status}</StatusPill></td>
-                          <td><Link href={`/vehicles/${encodeURIComponent(x.plate)}`} aria-label={`Open ${x.plate}`} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white"><Icon name="dots" size={18} width={3} /></Link></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <div className="px-1 pb-3 lg:px-2">
+                <RowsHead cols={UP_COLS} labels={[["Vehicle", ""], ["Owner", "hidden 2xl:block"], ["Inspection Type", ""], ["Arrival", ""], ["Status", ""], ["", ""]]} />
+                <ul>{D.upcoming.slice(0, 10).map((x: any) => <UpcomingRow key={x.no} x={x} />)}</ul>
+                {earlier.length > 0 && (
+                  <>
+                    <div className="mt-3 px-3 pb-1 text-[12px] font-semibold uppercase tracking-wide text-fg-4">Earlier today</div>
+                    <ul>{earlier.map((x: any) => <DoneRow key={x.no} x={x} />)}</ul>
+                  </>
+                )}
+              </div>
             </Panel>
+            )}
             <Panel title="Recent Activity" href="/inspection?tab=schedule&status=completed">
               <ul className="flex flex-col gap-1">
-                {D.activity.slice(0, 10).map((a: any, i: number) => (
+                {D.activity.slice(0, D.upcoming.length ? 8 : 10).map((a: any, i: number) => (
                   <li key={i}>
                     <Link href={a.inspection_id ? `/inspection/${a.inspection_id}` : `/vehicles/${encodeURIComponent(a.plate)}`} className="flex items-center gap-3 rounded-xl px-1 py-1.5 hover:bg-white/70">
                       <IconTile icon={ACT[a.kind]?.icon || "clock"} tone={a.kind === "completed" && a.result === "FAIL" ? "red" : ACT[a.kind]?.tone || "blue"} size={36} />

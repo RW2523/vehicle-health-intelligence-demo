@@ -24,15 +24,27 @@ const SEGMENTS = [
   { id: "attention", label: "Needs attention" },
 ];
 
+/** A fuel code as people write it ("ev" → "EV"). */
+const FUEL: Record<string, string> = { ev: "EV", petrol: "Petrol", diesel: "Diesel", hybrid: "Hybrid" };
+const fuelLabel = (f?: string | null) => (f ? FUEL[f.toLowerCase()] || f.replace(/^./, (c) => c.toUpperCase()) : "");
+/** "~6 weeks", "~3 months", "> 1 year" in weeks, to find the soonest (a "> 1 year" is later than any year it names). */
+const weeksOf = (label?: string | null) => {
+  const m = /([\d.]+)\s*(day|week|month|year)/i.exec(label || "");
+  if (!m) return 999;
+  const n = parseFloat(m[1]) * ({ day: 1 / 7, week: 1, month: 4.35, year: 52 } as Record<string, number>)[m[2].toLowerCase()];
+  return /^\s*>/.test(label || "") ? n + 1 : n;
+};
+
 const needsAttention = (v: any) => v.latest?.result === "FAIL" || v.today?.result === "FAIL" || v.health?.risk === "High";
 
 /** The fleet vehicles' health at a glance: risk, the soonest to reach a fail limit, and FLEET07's next-inspection risk. */
 function FleetHealth({ items }: { items: any[] }) {
   const ov = useFetch<any>("/api/fleet/overview", { fleet_id: "FLEET07" });
   const fleet = items.filter((v) => v.health);
-  const soon = [...fleet].sort((a, b) => (parseFloat(a.health.weeks_label.replace(/[^0-9.]/g, "")) || 999) - (parseFloat(b.health.weeks_label.replace(/[^0-9.]/g, "")) || 999))[0];
+  const soon = [...fleet].sort((a, b) => weeksOf(a.health.weeks_label) - weeksOf(b.health.weeks_label))[0];
   const np = ov.data?.next_periodic;
   const truck = np?.vehicles?.find((x: any) => items.some((v) => v.plate === x.plate));
+  const fleetName = (ov.data?.fleets || []).find((f: any) => f.fleet_id === np?.fleet_id)?.name;
   return (
     <section className="card mb-5 grid grid-cols-1 gap-4 p-5 md:grid-cols-3" aria-label="Fleet health">
       <div className="min-w-0">
@@ -43,15 +55,17 @@ function FleetHealth({ items }: { items: any[] }) {
       {soon && (
         <Link href={`/vehicles/${encodeURIComponent(soon.plate)}?tab=health`} className="min-w-0 rounded-2xl bg-white/70 p-3 ring-1 ring-ink-600/60 hover:ring-blue-200">
           <div className="text-[11.5px] font-semibold uppercase tracking-wide text-fg-4">First to reach a fail limit</div>
-          <b className="block text-[16px]">{soon.plate} · {soon.health.weeks_label}</b>
+          <b className="mt-1 block text-[16px]">{soon.plate} · {soon.health.weeks_label}</b>
           <span className="block truncate text-[12.5px] text-fg-3">{soon.health.metric} · {soon.make} {soon.model}</span>
         </Link>
       )}
       {truck && (
         <Link href={`/vehicles/${encodeURIComponent(truck.plate)}?tab=health`} className="min-w-0 rounded-2xl bg-white/70 p-3 ring-1 ring-ink-600/60 hover:ring-blue-200">
-          <div className="text-[11.5px] font-semibold uppercase tracking-wide text-fg-4">{np.fleet_id} · next periodic inspection: fail risk</div>
-          <b className="block text-[16px]" style={{ color: truck.p_fail_next >= np.threshold ? "#DC2626" : "#047857" }}>{truck.plate} · {Math.round(truck.p_fail_next * 100)}%</b>
-          <span className="block truncate text-[12.5px] text-fg-3">due {dmy(truck.next_due)} · {np.model.split(" (")[0]}</span>
+          <b className="block truncate text-[13.5px]">{fleetName || "Fleet"}</b>
+          <div className="text-[11px] font-medium text-fg-4"><span className="font-mono">{np.fleet_id}</span> · next periodic inspection: fail risk</div>
+          <b className="mt-1 block text-[16px]" style={{ color: truck.p_fail_next >= np.threshold ? "#DC2626" : "#047857" }}>{truck.plate} · {Math.round(truck.p_fail_next * 100)}%</b>
+          <span className="block text-[12.5px] text-fg-3">due {dmy(truck.next_due)}</span>
+          <span className="mt-0.5 block text-[11px] leading-snug text-fg-4">Model: {np.model.split(" (")[0]}</span>
         </Link>
       )}
     </section>
@@ -88,13 +102,13 @@ function Records() {
       </div>
       {ucCar && (
         <section className="card mb-5 flex flex-wrap items-center gap-4 border-blue-100 bg-gradient-to-r from-blue-50/90 to-white/80 p-4" aria-label={`${uc.id} vehicle`}>
-          <VehicleImage plate={ucCar.plate} vtype={ucCar.vtype} photo={ucCar.photo} size="480" className="h-[64px] w-[104px] rounded-2xl" />
-          <div className="min-w-0 flex-1 leading-tight">
+          <VehicleImage plate={ucCar.plate} vtype={ucCar.vtype} photo={ucCar.photo} size="480" className="h-[64px] w-[104px] shrink-0 rounded-2xl" />
+          <div className="min-w-0 flex-[1_1_200px] leading-tight">
             <div className="eyebrow">{uc.id} vehicle</div>
             <b className="text-[17px]">{ucCar.plate} · {ucCar.make} {ucCar.model}</b>
             <div className="text-[13px] text-fg-3">{ucCar.health ? `${ucCar.health.metric}: ${ucCar.health.weeks_label} to the fail limit` : ucCar.story}</div>
           </div>
-          <Link className="btn btn-primary" href={`/vehicles/${encodeURIComponent(ucCar.plate)}?tab=${ucCar.health ? "health" : "overview"}`}>Open its history<Icon name="arrow" size={15} /></Link>
+          <Link className="btn btn-primary w-full sm:w-auto" href={`/vehicles/${encodeURIComponent(ucCar.plate)}?tab=${ucCar.health ? "health" : "overview"}`}>Open its history<Icon name="arrow" size={15} /></Link>
         </section>
       )}
       {(seg === "fleet" || seg === "attention") && items.length > 0 && <FleetHealth items={items} />}
@@ -131,7 +145,7 @@ function Records() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 leading-tight">
                     <b className="block truncate text-[16px]">{v.make} {v.model}</b>
-                    <span className="block truncate text-[12.5px] text-fg-3">{v.year} · {v.vtype} · {v.fuel} · {v.owner}</span>
+                    <span className="block truncate text-[12.5px] text-fg-3">{v.year} · {v.vtype} · {fuelLabel(v.fuel)} · {v.owner}</span>
                   </div>
                   {v.latest ? <StatusPill tone={RES[v.latest.result] || "gray"}>{v.latest.result}</StatusPill> : <StatusPill tone="gray">New</StatusPill>}
                 </div>

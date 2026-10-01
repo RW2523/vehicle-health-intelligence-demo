@@ -5,7 +5,7 @@ import { Suspense, useState } from "react";
 import { Panel, StatusPill } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { ImageLibrary } from "@/components/ImageLibrary";
-import { Shell } from "@/components/Shell";
+import { Shell, initials } from "@/components/Shell";
 import { LoadingState, PageHeader, ProvenanceLegend, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { APPS } from "@/lib/apps";
@@ -28,7 +28,7 @@ function General() {
         <Panel title="Account">
           {user && (
             <div className="flex flex-wrap items-center gap-4">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full text-[18px] font-bold text-white" style={{ background: "linear-gradient(135deg,#60A5FA,#1E3A8A)" }}>{user.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-[18px] font-bold text-white" style={{ background: "linear-gradient(135deg,#60A5FA,#1E3A8A)" }} aria-hidden>{initials(user.name)}</span>
               <div className="min-w-0 flex-1 leading-tight"><b className="block text-[17px]">{user.name}</b><span className="text-[13.5px] text-fg-3">{user.title}</span></div>
               <button className="btn btn-danger" onClick={logout}><Icon name="logout" size={16} />Log out</button>
             </div>
@@ -74,7 +74,7 @@ function Demo() {
         <Link className="btn btn-primary" href="/demo"><Icon name="play" size={15} color="#fff" />Open demo control</Link>
       </Panel>
       <Panel title="The hub's day" sub="The ten main vehicles at the Central Inspection Hub.">
-        <p className="mb-4 text-[13.5px] text-fg-2">The day&apos;s plan starts when it is first looked at: four inspections done, one vehicle on every lane, one waiting and one still to come, then it runs on with the clock. Start it again before a demo so the dashboard is busy. Outside opening hours it is shown at 10:30.</p>
+        <p className="mb-4 text-[13.5px] text-fg-2">The day&apos;s plan starts when it is first looked at: four fleet inspections already done, the lane-replay vehicles on their lanes ready for their replays (start them from Demo control or the lane cards), and two fleet vehicles waiting behind them. Start it again before a demo. Outside opening hours it is shown at 10:30.</p>
         <button className="btn" disabled={!can || busy} onClick={restart}><Icon name="refresh" size={15} />Start the day again from now</button>
         {!can && <p className="mt-2 text-[12px] text-fg-4">Only the presenter and HQ can restart the day.</p>}
       </Panel>
@@ -92,14 +92,14 @@ function System() {
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
             {[["Database", st.database], ["Message bus", st.bus.kind], ["Bus messages", fmtN(st.bus.published)], ["Model calls", fmtN(st.processor.model_calls)],
               ["Evidence entries", fmtN(st.counts.evidence_entries)], ["Assistant / reports", llmLabel(st.llm.backend) || "Template engine"]].map(([k, v]) => (
-              <div key={k as string} className="rounded-xl bg-white/70 px-3 py-2 ring-1 ring-ink-600"><div className="text-[11.5px] text-fg-3">{k}</div><div className="truncate font-semibold">{v}</div></div>
+              <div key={k as string} className="min-w-0 rounded-xl bg-white/70 px-3 py-2 ring-1 ring-ink-600"><div className="text-[11.5px] text-fg-3">{k}</div><div className="truncate font-semibold" title={String(v)}>{v}</div></div>
             ))}
           </div>
           <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {st.models.map((m: any) => (
-              <li key={m.key} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2.5 ring-1 ring-ink-600">
-                <span className="font-semibold">{m.title}</span>
-                <span className="flex items-center gap-2">{m.ready ? <StatusPill tone="green" dot>Ready</StatusPill> : <StatusPill tone="gray">Not trained</StatusPill>}<Source kind={m.runs_as} /></span>
+              <li key={m.key} className="flex min-w-0 flex-col items-start gap-1.5 rounded-xl bg-white/70 px-3 py-2.5 ring-1 ring-ink-600">
+                <span className="font-semibold leading-snug">{m.title}</span>
+                <span className="flex flex-wrap items-center gap-2">{m.ready ? <StatusPill tone="green" dot>Ready</StatusPill> : <StatusPill tone="gray">Not trained</StatusPill>}<Source kind={m.runs_as} /></span>
               </li>
             ))}
           </ul>

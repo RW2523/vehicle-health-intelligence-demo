@@ -40,8 +40,31 @@ function niceTicks(lo: number, hi: number, n = 4) {
 
 export type Series = { name?: string; color: string; points: Pt[]; dashed?: boolean; width?: number; dots?: boolean; area?: boolean };
 
+/** The width of an 11 px axis label, near enough to space and fit the labels. */
+const labelWidth = (t: string) => t.length * 6.4;
+
+/** Which x labels to draw: every `every`-th one when given, else as many as fit side by side (about 56 px apart for
+ *  a month label, closer for short ones like "12s"), always with the first and the last. */
+function pickLabels(labels: string[], room: number, every?: number) {
+  const n = labels.length;
+  const all = Array.from({ length: n }, (_, i) => i);
+  if (every) return all.filter((i) => i % every === 0);
+  if (n < 3) return all;
+  const each = Math.max(36, Math.max(...labels.map(labelWidth)) + 14);
+  const fit = Math.max(2, Math.floor(room / each) + 1);
+  if (n <= fit) return all;
+  const step = Math.ceil((n - 1) / (fit - 1));
+  const out = all.filter((i) => i % step === 0);
+  // the last label always shows; drop the one before it when the two would touch
+  if (out[out.length - 1] !== n - 1) {
+    if (((n - 1 - out[out.length - 1]) * room) / (n - 1) < each && out.length > 1) out.pop();
+    out.push(n - 1);
+  }
+  return out;
+}
+
 export function LineChart({
-  series, height = 220, xLabels, yMin, yMax, hlines = [], vlines = [], bands = [], markers = [], yFmt = (v: number) => String(v), xTickEvery = 1, children,
+  series, height = 220, xLabels, yMin, yMax, hlines = [], vlines = [], bands = [], markers = [], yFmt = (v: number) => String(v), xTickEvery, children,
 }: {
   series: Series[]; height?: number; xLabels?: { x: number; label: string; color?: string }[]; yMin?: number; yMax?: number;
   hlines?: { y: number; color: string; label?: string; dashed?: boolean }[]; vlines?: { x: number; color: string; label?: string }[];
@@ -63,6 +86,8 @@ export function LineChart({
   const sx = scale(x0, x1, L, W - R), sy = scale(lo, hi, H - B, T);
   const path = (pts: Pt[]) => pts.filter((p) => Number.isFinite(p.y)).map((p, i) => `${i ? "L" : "M"}${sx(p.x).toFixed(1)} ${sy(p.y).toFixed(1)}`).join("");
   const ticks = niceTicks(lo, hi);
+  const xl = xLabels || [];
+  const xShown = pickLabels(xl.map((l) => l.label), W - L - R, xTickEvery);
   return (
     <div ref={ref} className="w-full">
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img">
@@ -76,10 +101,7 @@ export function LineChart({
         <path key={i} fill={b.color} d={`${b.points.map((p, k) => `${k ? "L" : "M"}${sx(p.x)} ${sy(p.hi)}`).join("")}${[...b.points].reverse().map((p) => `L${sx(p.x)} ${sy(p.lo)}`).join("")}Z`} />
       ))}
       {hlines.map((h, i) => (
-        <g key={i}>
-          <line x1={L} x2={W - R} y1={sy(h.y)} y2={sy(h.y)} stroke={h.color} strokeWidth="2" strokeDasharray={h.dashed ? "6 5" : undefined} />
-          {h.label && <text x={W - R - 4} y={sy(h.y) - 6} textAnchor="end" fontSize="12" fontWeight="700" fill={h.color}>{h.label}</text>}
-        </g>
+        <line key={i} x1={L} x2={W - R} y1={sy(h.y)} y2={sy(h.y)} stroke={h.color} strokeWidth="2" strokeDasharray={h.dashed ? "6 5" : undefined} />
       ))}
       {vlines.map((v, i) => (
         <g key={i}>
@@ -111,9 +133,21 @@ export function LineChart({
           </g>
         ),
       )}
-      {(xLabels || []).filter((_, i) => i % xTickEvery === 0).map((l, i) => (
-        <text key={i} x={sx(l.x)} y={H - 8} textAnchor="middle" fontSize="11" fill={l.color || "#64748B"}>{l.label}</text>
-      ))}
+      {/* threshold labels last, over the data: at the left end, above the line (below it near the top), on a white halo */}
+      {hlines.map((h, i) => {
+        if (!h.label) return null;
+        const y = sy(h.y);
+        return (
+          <text key={i} x={L + 6} y={y - 7 < T + 10 ? y + 16 : y - 7} fontSize="12" fontWeight="700" fill={h.color}
+            stroke="#FFFFFF" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke">{h.label}</text>
+        );
+      })}
+      {xShown.map((k) => {
+        const l = xl[k], half = labelWidth(l.label) / 2;
+        // a label at either end moves inwards just enough not to be cut at the edge of the chart
+        const x = Math.min(Math.max(sx(l.x), half + 2), W - half - 2);
+        return <text key={k} x={x} y={H - 8} textAnchor="middle" fontSize="11" fill={l.color || "#64748B"}>{l.label}</text>;
+      })}
       {children}
     </svg>
     </div>

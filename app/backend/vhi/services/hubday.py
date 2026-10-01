@@ -256,6 +256,45 @@ def _live(branch_id: str, day: str) -> list[dict]:
         return out
 
 
+def _await_replays(items: list[dict], minute: int) -> None:
+    """The lane-replay vehicles (DMO 9001-9006) are inspected by their replays: until a replay has run today, its
+    vehicle waits on its lane, ready, instead of finishing by the plan - and the vehicles planned after it on that lane
+    wait in the queue behind it. So the dashboard, the live lanes and the inspection screens tell one story."""
+    waiting: dict[int, dict] = {}
+    for x in items:
+        m = showcase.BY_PLATE.get(x["plate"])
+        if m and m["session"] and x["status"] in ("in_progress", "completed"):
+            x.update(status="in_progress", progress=0, eta_min=None, awaiting_replay=True, session=m["session"], result=None, issues=[])
+            waiting[x["lane"]] = x
+    for x in items:
+        w = waiting.get(x["lane"])
+        if w is not None and x is not w and x["start"] > w["start"] and x["status"] in ("in_progress", "completed"):
+            x.update(status="in_queue" if x["arrival"] <= minute else "scheduled", behind_replay=w["plate"],
+                     wait_min=max(5, round(w["end"] - w["start"])))  # about one inspection once the replay starts
+
+
+def day_states(branch_id: str = "BR00", c: dict | None = None) -> list[dict]:
+    """Every vehicle of the day with its state now, as the dashboard tells it: a lane-replay vehicle follows its live
+    inspection when one ran today, else it waits on its lane for the replay (and those behind it wait too)."""
+    c = c or clock()
+    minute = c["minute"]
+    items = [_state(x, minute) for x in schedule(branch_id, c["date"], c)]
+    if branch_id != DEMO_HUB:
+        return items
+    live: dict[str, dict] = {}
+    for li in _live(branch_id, c["date"]):
+        live.setdefault(li["plate"], li)
+    _await_replays([x for x in items if x["plate"] not in live], minute)
+    for x in items:
+        li = live.get(x["plate"])
+        if li:
+            done = li["status"] == "reported"
+            x.update(status="completed" if done else "in_progress", progress=100 if done else x.get("progress", 0), live=True,
+                     inspection_id=li["inspection_id"], result=li["verdict"] if done else None, start_at=li["started_at"],
+                     end_at=li["started_at"] if done else x.get("end_at"), issues=[], awaiting_replay=False)
+    return items
+
+
 STEPS = ["check_in_anpr", "identity_ocr", "emission_idle_rev", "brake_roller", "suspension", "side_slip", "headlamp_tint",
          "undercarriage_ai", "above_carriage_ai", "examiner_review", "report"]
 
@@ -271,6 +310,8 @@ def today(branch_id: str = "BR00", at: str | None = None) -> dict:
             live.append(li)
             live_plates.add(li["plate"])
     items = [_state(x, minute) for x in schedule(branch_id, day, c) if x["plate"] not in live_plates]
+    if branch_id == DEMO_HUB:
+        _await_replays(items, minute)
     if branch_id == DEMO_HUB:
         prev = None  # the same ten vehicles: no day-to-day comparison
     else:
@@ -299,7 +340,10 @@ def today(branch_id: str = "BR00", at: str | None = None) -> dict:
             continue
         cur = next((x for x in items if x["lane"] == k and x["status"] == "in_progress"), None)
         nxt = next((x for x in sorted(items, key=lambda x: x["start"]) if x["lane"] == k and x["status"] in ("in_queue", "scheduled")), None)
-        if cur:
+        if cur and cur.get("awaiting_replay"):
+            lanes.append({"lane": k, "state": "preparing", "live": False, "vehicle": cur, "progress": 0, "replay": cur["session"],
+                          "note": "On the lane · ready for the lane replay"})
+        elif cur:
             lanes.append({"lane": k, "state": "operation", "live": False, "vehicle": cur, "progress": cur["progress"],
                           "note": f"About {cur['eta_min']} min left"})
         elif nxt and nxt["start"] - minute <= 10 and nxt["arrival"] <= minute:
@@ -323,9 +367,10 @@ def today(branch_id: str = "BR00", at: str | None = None) -> dict:
             word = {"PASS": "Passed", "FAIL": "Failed", "PASS_ADVISORY": "Passed with advisory"}[x["result"]]
             activity.append({"at": x["end"], "kind": "completed", "title": "Inspection completed", "sub": f"{x['plate']} · {word}",
                              "result": x["result"], "plate": x["plate"]})
-        if x["start"] <= minute:
-            activity.append({"at": x["start"], "kind": "started", "title": "Inspection started", "sub": f"{x['plate']} · Lane {x['lane']}",
-                             "plate": x["plate"]})
+        if x["start"] <= minute and x["status"] != "in_queue":
+            activity.append({"at": x["start"], "kind": "started",
+                             "title": "On the lane, ready for the replay" if x.get("awaiting_replay") else "Inspection started",
+                             "sub": f"{x['plate']} · Lane {x['lane']}", "plate": x["plate"]})
         if x["arrival"] <= minute:
             activity.append({"at": x["arrival"], "kind": "queued", "title": "New vehicle in queue",
                              "sub": f"{x['plate']} · {x['inspection_type']}", "plate": x["plate"]})
@@ -358,14 +403,21 @@ def today(branch_id: str = "BR00", at: str | None = None) -> dict:
         "branch": {"branch_id": branch_id, "name": name, "state": state, "lanes": lanes_n},
         "clock": {**c, "time": hhmm(minute)},
         "kpis": {"total": total, "total_prev": total_prev, "completed": inspected,
-                 "in_progress": sum(1 for ln in lanes if ln["state"] == "operation"),
+                 "in_progress": sum(1 for ln in lanes if ln["state"] == "operation" or (ln["state"] == "preparing" and ln.get("replay"))),
                  "in_queue": len(queue), "issues": len(issues), "issue_rate": round(len(issues) / inspected, 3) if inspected else None,
                  "fails": sum(1 for x in done if x["result"] == "FAIL") + sum(1 for li in live_done if li["verdict"] == "FAIL")},
         "lanes": lanes, "utilization": {**states, "pct": round(100 * states["operation"] / lanes_n) if lanes_n else 0},
-        "queue": [{**{k: x[k] for k in ("no", "plate", "make", "model", "vtype", "inspection_type", "wait_min", "lane", "start_at")},
+        "queue": [{**{k: x.get(k) for k in ("no", "plate", "make", "model", "vtype", "inspection_type", "wait_min", "lane", "start_at", "behind_replay")},
                    "photo": photo(x["plate"])} for x in queue],
         "upcoming": [{**{k: x.get(k) for k in ("no", "plate", "make", "model", "vtype", "owner", "inspection_type", "arrival_at", "status",
                                                "source", "lane")}, "photo": photo(x["plate"])} for x in upcoming],
+        "done": sorted([{**{k: x.get(k) for k in ("no", "plate", "make", "model", "vtype", "owner", "inspection_type", "lane", "result")},
+                         "end_at": x["end_at"], "at": x["end"], "photo": photo(x["plate"])} for x in done]
+                       + [{"no": li["inspection_id"], "plate": li["plate"], "make": li["make"], "model": li["model"], "vtype": li["vtype"],
+                           "owner": li["owner"], "inspection_type": li["inspection_type"], "lane": li["lane"], "result": li["verdict"],
+                           "end_at": li["started_at"], "at": int(li["started_at"][:2]) * 60 + int(li["started_at"][3:5]),
+                           "inspection_id": li["inspection_id"], "photo": photo(li["plate"])} for li in live_done],
+                       key=lambda x: -x["at"]),
         "activity": activity, "live": live,
         "provenance": {"schedule": ("synthetic: the hub's plan for the ten main vehicles, laid against the clock" if branch_id == DEMO_HUB
                                     else "synthetic: drawn from the registered vehicles, deterministic per hub and day"),
@@ -375,11 +427,7 @@ def today(branch_id: str = "BR00", at: str | None = None) -> dict:
 
 def item(plate: str, branch_id: str = "BR00") -> dict | None:
     """A vehicle's place in today's schedule, if it has one."""
-    c = clock()
-    for x in schedule(branch_id, c["date"]):
-        if x["plate"] == plate:
-            return _state(x, c["minute"])
-    return None
+    return next((x for x in day_states(branch_id) if x["plate"] == plate), None)
 
 
 def evidence_today(limit: int = 20) -> list[dict]:

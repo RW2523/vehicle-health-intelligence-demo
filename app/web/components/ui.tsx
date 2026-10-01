@@ -12,10 +12,13 @@ export function Source({ kind, text, className = "" }: { kind: string; text?: st
   const { kind: k, detail } = provenance(kind, text);
   const s = PROVENANCE[k];
   const help = `${s.label}: ${s.help}${detail ? ` (${detail})` : ""}`;
+  // a grid, not a flex row: the dot and the label keep their width (the chip never shrinks below the label in a
+  // crowded row) and only the detail column gives way, truncated
   return (
-    <span className={`chip max-w-full overflow-hidden ${className}`} style={{ borderColor: s.color + "66", color: s.color, background: s.color + "12" }} title={help} aria-label={help}>
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: s.color }} aria-hidden />
-      <span className="shrink-0 tracking-wide">{s.label}</span>
+    <span className={`chip inline-grid max-w-full ${detail ? "grid-cols-[auto_auto_minmax(0,auto)]" : "grid-cols-[auto_auto]"} ${className}`}
+      style={{ borderColor: s.color + "66", color: s.color, background: s.color + "12" }} title={help} aria-label={help}>
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} aria-hidden />
+      <span className="tracking-wide">{s.label}</span>
       {detail && <span className="min-w-0 truncate font-medium text-fg-3" aria-hidden>· {detail}</span>}
     </span>
   );
@@ -25,10 +28,10 @@ export const ProvenanceBadge = Source;
 /** What each provenance label means: for first-time viewers (header help and the demo control). */
 export function ProvenanceLegend({ compact = false }: { compact?: boolean }) {
   return (
-    <ul className={`grid gap-2 ${compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
+    <ul className={`grid gap-2 ${compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 sm:gap-x-5"}`}>
       {PROVENANCE_ORDER.map((k) => (
-        <li key={k} className="flex items-start gap-2 text-[12.5px] leading-snug">
-          <span className="mt-0.5 shrink-0"><Source kind={k} /></span>
+        <li key={k} className="grid grid-cols-[116px_minmax(0,1fr)] items-start gap-2 text-[12.5px] leading-snug">
+          <span className="mt-0.5"><Source kind={k} /></span>
           <span className="text-fg-3">{PROVENANCE[k].help}</span>
         </li>
       ))}
@@ -131,9 +134,10 @@ export function PageHeader({ title, sub, actions, children, eyebrow }: { title: 
   );
 }
 
-export function Tabs({ value, onChange, items, size = "md" }: { value: string; onChange: (v: any) => void; items: { id: string; label: ReactNode }[]; size?: "sm" | "md" }) {
+/** Tab buttons; `nowrap` keeps them on one row that scrolls sideways on a narrow screen. */
+export function Tabs({ value, onChange, items, size = "md", nowrap = false }: { value: string; onChange: (v: any) => void; items: { id: string; label: ReactNode }[]; size?: "sm" | "md"; nowrap?: boolean }) {
   return (
-    <div role="tablist" className="inline-flex flex-wrap gap-1 rounded-xl border border-white/80 bg-white/60 p-1 shadow-glass">
+    <div role="tablist" className={`${nowrap ? "flex max-w-full flex-nowrap overflow-x-auto [&>button]:shrink-0 [&>button]:whitespace-nowrap" : "inline-flex flex-wrap"} gap-1 rounded-xl border border-white/80 bg-white/70 p-1 shadow-glass`}>
       {items.map((it) => (
         <button
           key={it.id}
@@ -215,8 +219,8 @@ export function Modal({ open, onClose, children, title }: { open: boolean; onClo
   // rendered into <body>: a modal opened from the blurred sticky header would otherwise be confined to the header
   // (backdrop-filter makes it the containing block of fixed elements)
   return createPortal(
-    <div role="dialog" aria-label={title} className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-6" onClick={onClose}>
-      <div className="card max-h-[90vh] max-w-[900px] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
+    <div role="dialog" aria-label={title} className="fade-in fixed inset-0 z-40 flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-[3px] sm:p-6" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-[900px] overflow-auto rounded-3xl border border-white bg-white p-4 shadow-float sm:w-auto sm:min-w-[360px] sm:p-5" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between gap-6">
           <h2 className="h-title">{title}</h2>
           <button className="btn btn-sm" onClick={onClose}>Close</button>

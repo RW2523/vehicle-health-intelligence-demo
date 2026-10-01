@@ -33,7 +33,7 @@ async def hub_schedule(branch_id: str | None = None, status: str = "", q: str = 
     """Every vehicle at the hub today, with its state now (completed, on a lane, waiting, still to come)."""
     def run():
         c = hubday.clock()
-        rows = [hubday._state(x, c["minute"]) for x in hubday.schedule(_hub(branch_id), c["date"])]
+        rows = hubday.day_states(_hub(branch_id), c)
         for r in rows:
             r["photo"] = registry._photo(r["plate"])
         counts = {k: sum(1 for r in rows if r["status"] == k) for k in ("completed", "in_progress", "in_queue", "scheduled")}

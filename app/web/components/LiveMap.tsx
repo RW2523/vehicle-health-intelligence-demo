@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import type * as Leaflet from "leaflet";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
+import { useEdgeFade } from "./OversightShell";
 
 export type MapShape = "dot" | "ring" | "pulse" | "area" | "pin" | "diamond" | "hub";
 export type MapPoint = {
@@ -71,7 +72,7 @@ const CSS = `
 .lm-map .leaflet-pane > svg { pointer-events: none; }
 .lm-map .leaflet-control-attribution { font-size: 10px; background: rgba(255,255,255,.72); backdrop-filter: blur(6px); border-top-left-radius: 8px; color: #64748B; }
 .lm-map .leaflet-control-attribution a { color: #475569; }
-.leaflet-tooltip.lm-tip { border-radius: 12px; border: 1px solid rgba(255,255,255,.9); background: rgba(255,255,255,.96); box-shadow: 0 14px 34px -14px rgba(15,23,42,.45); padding: 8px 11px; color: #0F172A; font: 12px/1.4 Inter, system-ui, sans-serif; max-width: 300px; white-space: normal; }
+.leaflet-tooltip.lm-tip { border-radius: 12px; border: 1px solid rgba(255,255,255,.9); background: rgba(255,255,255,.96); box-shadow: 0 14px 34px -14px rgba(15,23,42,.45); padding: 8px 11px; color: #0F172A; font: 12px/1.4 Inter, system-ui, sans-serif; width: max-content; max-width: min(300px, calc(100vw - 48px)); white-space: normal; }
 .leaflet-tooltip.lm-tip::before { display: none; }
 .lm-tip b { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; margin-bottom: 2px; }
 .lm-tip .lm-sw { width: 8px; height: 8px; border-radius: 99px; flex: none; }
@@ -153,6 +154,8 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
   const [view, setView] = useState<string | null>(views[0]?.id ?? null);
   const [off, setOff] = useState<Record<string, boolean>>(() => Object.fromEntries(layers.filter((l) => l.on === false).map((l) => [l.id, true])));
   const [failed, setFailed] = useState(false);
+  const strip = useRef<HTMLDivElement>(null);
+  useEdgeFade(strip);
 
   // the map itself, once; Leaflet only exists in the browser
   useEffect(() => {
@@ -179,7 +182,10 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
       m.createPane("lm-dots").style.zIndex = "415";
       Lf.tileLayer(BASEMAP.url, { attribution: BASEMAP.attribution, subdomains: BASEMAP.subdomains || "abc", maxZoom: 19, maxNativeZoom: BASEMAP.maxNativeZoom, className: "lm-base" }).addTo(m);
       if (BASEMAP.labels) Lf.tileLayer(BASEMAP.labels, { pane: "lm-labels", maxZoom: 19, maxNativeZoom: BASEMAP.maxNativeZoom, className: "lm-labels" }).addTo(m);
-      m.fitBounds(views[0].bounds, { padding: [8, 8] });
+      // a phone-width map of the whole country leaves the Peninsula a thumbnail: start there when the views offer it
+      const start = (el.current.clientWidth < 640 && views.find((v) => v.id === "pen")) || views[0];
+      m.fitBounds(start.bounds, { padding: [8, 8] });
+      setView(start.id);
       m.getContainer().classList.add("lm-map");
       ro = new ResizeObserver(() => m.invalidateSize({ pan: false }));
       ro.observe(el.current);
@@ -325,7 +331,7 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
     <div className="flex min-w-0 flex-col">
       {/* hoisted and de-duplicated by React: one copy however many maps the page has */}
       <style href="vhi-livemap" precedence="default">{CSS}</style>
-      {hasControls && <div className="mb-2 flex min-w-0 gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">{controls(false)}</div>}
+      {hasControls && <div ref={strip} className="mb-2 flex min-w-0 gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">{controls(false)}</div>}
       <div className={`relative isolate min-w-0 overflow-hidden rounded-2xl border border-white/80 bg-[#E6EDF6] shadow-glass ${className}`}>
         <div ref={el} role="img" aria-label={label} className="absolute inset-0 z-0" />
         {!ready && (
@@ -334,7 +340,7 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
           </div>
         )}
         {/* top left from sm up (a strip above the map on a phone): region views and layer toggles, clear of the badge */}
-        {hasControls && <div className="absolute left-2 top-2 z-10 hidden flex-wrap items-start gap-1.5 sm:flex" style={{ right: overlay ? 250 : 56 }}>{controls(true)}</div>}
+        {hasControls && <div className="absolute left-2 top-2 z-10 hidden flex-wrap items-start gap-1.5 sm:flex" style={{ right: overlay ? 264 : 56 }}>{controls(true)}</div>}
         {/* the caller's badge: top left on a phone, beside the zoom buttons from sm up */}
         {overlay && <div className="absolute left-2 top-2 z-10 sm:left-auto sm:right-14">{overlay}</div>}
         {/* top right: zoom and fit */}
@@ -343,9 +349,10 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
           <button className={ctl} onClick={() => map.current?.zoomOut()} aria-label="Zoom out"><span className="block h-[2px] w-3.5 rounded bg-current" aria-hidden /></button>
           <button className={ctl} onClick={() => fit()} aria-label="Fit the map to Malaysia" title="Fit to the region"><Icon name="globe" size={16} /></button>
         </div>
-        {/* bottom left: the legend (from sm up; below the map on a phone) */}
+        {/* bottom left, clear of the tile attribution (a licence requirement) along the bottom edge: the legend (from sm
+            up; below the map on a phone) */}
         {legend.length > 0 && (
-          <div className="absolute bottom-2 left-2 z-10 hidden max-w-[calc(100%-1rem)] flex-wrap gap-x-3 gap-y-1 rounded-xl border border-white/90 bg-white/90 px-3 py-2 text-[11px] text-fg-2 shadow-glass backdrop-blur sm:flex">
+          <div className="absolute bottom-7 left-2 z-10 hidden max-w-[calc(100%-1rem)] flex-wrap gap-x-3 gap-y-1 rounded-xl border border-white/90 bg-white/90 px-3 py-2 text-[11px] text-fg-2 shadow-glass backdrop-blur sm:flex">
             {legend.map((x) => <LegendEntry key={x.label} x={x} />)}
           </div>
         )}

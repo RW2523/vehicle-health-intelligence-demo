@@ -146,7 +146,7 @@ function AssistantScreen() {
           </form>
         </div>
       }>
-      <div className="flex flex-col gap-3 px-4 pb-4">
+      <div className="flex flex-col gap-3 px-4 pb-4 pt-2">
         <Segmented label="Answer language" value={lang} onChange={setLang} className="mb-1"
           items={[{ id: "auto", label: "Auto" }, { id: "ms", label: "BM" }, { id: "en", label: "English" }, { id: "zh", label: "中文" }]} />
         <div className="flex justify-center"><Source kind="live_logic" text="Knowledge base · live booking slots" /></div>

@@ -47,6 +47,16 @@ export function itemOf(code: string, ev: boolean): string {
   return "engine";
 }
 
+/** The checklist item a finding belongs to, by its label: the same words as the checklist and the finding tabs. */
+export function itemLabel(code: string, ev: boolean): string {
+  const id = itemOf(code, ev);
+  return ITEMS.find((x) => x[0] === id)?.[1] || "Engine & Diagnostics";
+}
+
+/** A fuel code as people write it ("ev" → "EV", "petrol" → "Petrol"). */
+export const FUEL_LABEL: Record<string, string> = { ev: "EV", petrol: "Petrol", diesel: "Diesel", hybrid: "Hybrid", phev: "Plug-in hybrid", lpg: "LPG", cng: "CNG" };
+export const fuelLabel = (f?: string | null) => (f ? FUEL_LABEL[String(f).toLowerCase()] || String(f).replace(/^./, (c) => c.toUpperCase()) : "");
+
 export type CheckItem = { id: string; label: string; icon: string; status: string; findings: number; open: number };
 
 /** The inspection checklist from the live state: what the lane has measured, and the decisions on its findings. */
@@ -123,13 +133,13 @@ export function VehicleStrip({ insp, right }: { insp: any; right?: ReactNode }) 
     </div>
   );
   return (
-    <section className="card mb-5 flex flex-wrap items-center gap-x-6 gap-y-4 p-4" aria-label="Vehicle">
-      <div className="flex h-[96px] w-[176px] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-[#F1F5FB] to-[#E3EAF5]">
+    <section className="card mb-5 flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6" aria-label="Vehicle">
+      <div className="flex aspect-[2/1] w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-[#F1F5FB] to-[#E3EAF5] sm:aspect-auto sm:h-[96px] sm:w-[176px] sm:shrink-0">
         {insp?.photo ? <VehicleImage plate={insp.plate} vtype={o.vtype} photo={insp.photo} size="480" className="h-full w-full" /> : <VehicleArt vtype={o.vtype} seed={insp?.plate} className="h-[86px] w-[164px]" />}
       </div>
-      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 2xl:grid-cols-6">
-        <div className="min-w-0"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-3">Vehicle No.</div><div className="text-[26px] font-extrabold leading-tight tracking-tight">{insp?.plate}</div></div>
-        {field("Vehicle Type", o.vtype || "–", v.fuel ? String(v.fuel).replace(/^./, (c: string) => c.toUpperCase()) : undefined)}
+      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-5 gap-y-3 sm:min-w-[320px] sm:grid-cols-3 2xl:grid-cols-6">
+        <div className="min-w-0"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-3">Vehicle No.</div><div className="whitespace-nowrap text-[24px] font-extrabold leading-tight tracking-tight sm:text-[26px]">{insp?.plate}</div></div>
+        {field("Vehicle Type", o.vtype || "–", v.fuel ? fuelLabel(v.fuel) : undefined)}
         {field("Make / Model", `${v.make || ""} ${v.model || ""}`.trim() || "–", v.year || o.year)}
         {field("Owner", o.name || "–", insp?.inspection_type)}
         {field("Lane", `${laneLabel(insp?.lane_id)}`, insp?.branch_name)}
@@ -148,22 +158,30 @@ export function VehicleStrip({ insp, right }: { insp: any; right?: ReactNode }) 
 export function StepNav({ id, at, findings, open }: { id: string; at: "capture" | "findings" | "review"; findings: number; open: number }) {
   const steps = [
     { k: "capture", label: "Capture & checklist", href: `/inspection/${id}` },
-    { k: "findings", label: `Findings${findings ? ` (${findings})` : ""}`, href: `/inspection/${id}/findings` },
+    { k: "findings", label: "Findings", href: `/inspection/${id}/findings` },
     { k: "review", label: "Final review & approval", href: `/inspection/${id}/review` },
   ];
   const idx = steps.findIndex((s) => s.k === at);
   return (
     <nav aria-label="Inspection steps" className="mb-5 flex flex-wrap items-center gap-2">
-      {steps.map((s, i) => (
-        <span key={s.k} className="flex items-center gap-2">
-          <Link href={s.href} aria-current={s.k === at ? "step" : undefined}
-            className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-semibold ring-1 transition ${s.k === at ? "bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white ring-transparent shadow" : i < idx ? "bg-white/80 text-[#047857] ring-emerald-200" : "bg-white/70 text-fg-2 ring-ink-600 hover:bg-white"}`}>
-            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${s.k === at ? "bg-white/25" : i < idx ? "bg-emerald-100" : "bg-ink-700"}`}>{i < idx ? "✓" : i + 1}</span>
-            {s.label}{s.k === "findings" && open > 0 && s.k !== at && <span className="rounded-full bg-red-100 px-1.5 text-[11px] text-red-700">{open}</span>}
-          </Link>
-          {i < steps.length - 1 && <Icon name="chev" size={14} color="#94A3B8" />}
-        </span>
-      ))}
+      {steps.map((s, i) => {
+        const on = s.k === at;
+        const done = i < idx && !(s.k === "findings" && open > 0);  // a step behind this one, finished (findings: all decided)
+        // the findings count, once: how many still need a decision while some do, else how many there are
+        const badge = s.k !== "findings" || !findings ? null : open > 0
+          ? <span className={`rounded-full px-1.5 text-[11px] ${on ? "bg-white/25" : "bg-red-100 text-red-700"}`} title={`${open} of ${findings} still to decide`}>{open} open</span>
+          : <span className={`rounded-full px-1.5 text-[11px] ${on ? "bg-white/25" : "bg-ink-700 text-fg-2"}`} title={`${findings} findings, all decided`}>{findings}</span>;
+        return (
+          <span key={s.k} className="flex items-center gap-2">
+            <Link href={s.href} aria-current={on ? "step" : undefined}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold ring-1 transition ${on ? "bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white ring-transparent shadow" : done ? "bg-white/80 text-[#047857] ring-emerald-200" : "bg-white/70 text-fg-2 ring-ink-600 hover:bg-white"}`}>
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${on ? "bg-white/25" : done ? "bg-emerald-100" : "bg-ink-700"}`}>{done ? "✓" : i + 1}</span>
+              {s.label}{badge}
+            </Link>
+            {i < steps.length - 1 && <Icon name="chev" size={14} color="#94A3B8" />}
+          </span>
+        );
+      })}
     </nav>
   );
 }
@@ -203,18 +221,19 @@ export function Spectrogram({ img, hl }: { img: number[][]; hl?: number[] }) {
   );
 }
 
-/** The measured value against its limit, when the finding is a measurement with one (never invented). */
-export function measureOf(a: any, L: any): { observed: string; limit: string; delta?: string } | null {
+/** The measured value against its limit, when the finding is a measurement with one (never invented); `status` says
+ *  which way it is off ("Over the limit", "Under the limit", ...), for the pill next to the value. */
+export function measureOf(a: any, L: any): { observed: string; limit: string; delta?: string; status: string } | null {
   const ev = a.evidence || {};
   const r = L.results || {};
   const code: string = a.code || "";
   const num = (v: any) => typeof v === "number" && Number.isFinite(v);
   const fmt = (v: number, unit: string, d = 1) => `${fmtN(v, Math.abs(v) < 10 ? Math.min(2, d + 1) : d)}${unit}`;
-  const over = (v: number, lim: number, unit: string, d = 1) => ({ observed: fmt(v, unit, d), limit: `at most ${fmt(lim, unit, d)}`, delta: `${fmt(v - lim, unit, d)} over` });
-  const under = (v: number, lim: number, unit: string, d = 1) => ({ observed: fmt(v, unit, d), limit: `at least ${fmt(lim, unit, d)}`, delta: `${fmt(lim - v, unit, d)} under` });
+  const over = (v: number, lim: number, unit: string, d = 1) => ({ observed: fmt(v, unit, d), limit: `at most ${fmt(lim, unit, d)}`, delta: `${fmt(v - lim, unit, d)} over`, status: "Over the limit" });
+  const under = (v: number, lim: number, unit: string, d = 1) => ({ observed: fmt(v, unit, d), limit: `at least ${fmt(lim, unit, d)}`, delta: `${fmt(lim - v, unit, d)} under`, status: "Under the limit" });
   if (code === "pn:high" && ev.pn) {
     const lim = ev.pn.verdict === "fail" ? ev.pn.limit_tamper : ev.pn.limit_advisory;
-    return { observed: `${(ev.pn.median_per_cm3 / 1e6).toFixed(2)} M/cm³`, limit: `${ev.pn.verdict === "fail" ? "tamper level" : "advisory level"} ${(lim / 1e6).toFixed(2)} M/cm³`, delta: `${(ev.pn.median_per_cm3 / lim).toFixed(1)}× the level` };
+    return { observed: `${(ev.pn.median_per_cm3 / 1e6).toFixed(2)} M/cm³`, limit: `${ev.pn.verdict === "fail" ? "tamper level" : "advisory level"} ${(lim / 1e6).toFixed(2)} M/cm³`, delta: `${(ev.pn.median_per_cm3 / lim).toFixed(1)}× the level`, status: "Above the level" };
   }
   if (code === "brake:efficiency" && ev.brakes) return under(ev.brakes.efficiency_pct, ev.brakes.limit_efficiency_pct, "%", 0);
   if (code === "brake:imbalance" && ev.brakes) {
@@ -225,7 +244,7 @@ export function measureOf(a: any, L: any): { observed: string; limit: string; de
     const f = code.split(":")[1];
     const ins = r.instruments?.[f];
     const v = ev[f];
-    if (f === "lambda" && num(v)) return { observed: Number(v).toFixed(2), limit: `between ${ins?.limit || "0.97-1.03"}`, delta: v < 0.97 ? "rich mixture" : "lean mixture" };
+    if (f === "lambda" && num(v)) return { observed: Number(v).toFixed(2), limit: `between ${ins?.limit || "0.97-1.03"}`, delta: v < 0.97 ? "rich mixture" : "lean mixture", status: "Outside the range" };
     if (num(v) && num(ins?.limit)) return over(v, ins.limit, f === "co_pct" ? "%" : " ppm", f === "co_pct" ? 1 : 0);
   }
   if (code === "ev:hv_isolation" && num(ev.hv_isolation_mohm)) return under(ev.hv_isolation_mohm, 2, " MΩ");
@@ -236,10 +255,10 @@ export function measureOf(a: any, L: any): { observed: string; limit: string; de
     const k = code.split(":")[1];
     if (num(ev.hubs[k])) return over(ev.hubs[k], 100, " °C", 0);
   }
-  if (code.startsWith("corrosion:") && ev.image) return { observed: `${ev.image.corrosion_score}/10`, limit: "flagged from 4/10", delta: ev.image.level };
-  if (code === "identity:odometer" && ev.odometer?.max_recorded_km) return { observed: `${fmtN(ev.odometer.reading_km)} km`, limit: `at least ${fmtN(ev.odometer.max_recorded_km)} km (highest on record)`, delta: `${fmtN(ev.odometer.rollback_km)} km lower` };
-  if (code === "identity:engine" && ev.fingerprint) return { observed: `similarity ${ev.fingerprint.similarity}`, limit: `at least ${ev.fingerprint.threshold} to match`, delta: `${(ev.fingerprint.threshold - ev.fingerprint.similarity).toFixed(2)} under` };
-  if (code === "flood" && ev.flood) return { observed: pct(ev.flood.p), limit: "flagged from 50%" };
+  if (code.startsWith("corrosion:") && ev.image) return { observed: `${ev.image.corrosion_score}/10`, limit: "flagged from 4/10", delta: ev.image.level, status: "At or above the flag level" };
+  if (code === "identity:odometer" && ev.odometer?.max_recorded_km) return { observed: `${fmtN(ev.odometer.reading_km)} km`, limit: `at least ${fmtN(ev.odometer.max_recorded_km)} km (highest on record)`, delta: `${fmtN(ev.odometer.rollback_km)} km lower`, status: "Lower than on record" };
+  if (code === "identity:engine" && ev.fingerprint) return { observed: `similarity ${ev.fingerprint.similarity}`, limit: `at least ${ev.fingerprint.threshold} to match`, delta: `${(ev.fingerprint.threshold - ev.fingerprint.similarity).toFixed(2)} under`, status: "Under the match threshold" };
+  if (code === "flood" && ev.flood) return { observed: pct(ev.flood.p), limit: "flagged from 50%", status: "At or above the flag level" };
   return null;
 }
 

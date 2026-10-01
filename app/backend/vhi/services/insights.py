@@ -52,7 +52,13 @@ def equipment() -> dict:
 def demand(branch_id: str, models) -> dict:
     def run():
         b = pd.read_sql(text("select * from hist_bookings"), engine())
-        fc = models.demand.forecast(b, branch_id, 14)
+        # the next 14 days from today: the model runs on from the end of the booking history, and the days already
+        # gone are dropped
+        from . import booking as booking_svc
+        today = booking_svc.today()
+        last = pd.to_datetime(b[b.branch_id == branch_id]["date"]).max().date()
+        gone = max(0, (today - last).days - 1)
+        fc = [d for d in models.demand.forecast(b, branch_id, 14 + gone) if str(d["date"])[:10] >= today.isoformat()][:14]
         recent = b[b.branch_id == branch_id].sort_values("date").tail(28)
         gap_days = [d for d in fc if d["gap"] > 0]
         extra = int(sum(d["gap"] for d in gap_days))

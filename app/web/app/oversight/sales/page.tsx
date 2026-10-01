@@ -3,18 +3,18 @@
    (?id=LS0001). Buyers see the same record in the mobile app. */
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { ReactNode, Suspense, useEffect, useRef, useState } from "react";
 import { LineChart } from "@/components/charts";
 import { visitStep } from "@/components/Demo";
 import { Panel, StatusPill } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
-import { OversightShell } from "@/components/OversightShell";
+import { OversightShell, useEdgeFade } from "@/components/OversightShell";
 import { FLAGS, PRICES, RESULT_COL, rm, TRUST_COL, TRUST_MARK, VehicleThumb } from "@/components/sales";
 import { Empty, ErrorState, LoadingState, Modal, PageHeader, Pill, ScoreRing, Source, Tabs } from "@/components/ui";
 import { nextFailNote, dmy, fmtN, pct, scoreColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
-import { FilterPill, OvStat, THEAD, TableBox } from "../parts";
+import { FilterPill, OvStat, THEAD, TableBox, useNarrow } from "../parts";
 
 const BASE = "/oversight/sales";
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -27,10 +27,28 @@ function Filter({ label, value, options, onChange }: { label: string; value: str
   return (
     <label className="flex min-w-[150px] flex-1 flex-col gap-1 sm:flex-none">
       <span className="text-[12px] font-medium text-fg-3">{label}</span>
-      <select aria-label={label} className="input py-2" value={value} onChange={(e) => onChange(e.target.value)}>
+      <select aria-label={label} className="input h-10 py-0" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     </label>
+  );
+}
+
+/** The next-inspection fail risk's colour: green, amber from 25%, red from 45%. */
+const riskColor = (p: number) => (p >= 0.45 ? "#DC2626" : p >= 0.25 ? "#D97706" : "#059669");
+
+/** The record in one line, for the phone cards: inspections, odometer, claims, fault codes. */
+function RecordLine({ r }: { r: any }) {
+  const b = r.badges;
+  return (
+    <span className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11.5px] text-fg-3">
+      <span>{b.inspections} inspection{b.inspections === 1 ? "" : "s"} · <b style={{ color: RESULT_COL[b.last_result] }}>{b.last_result || "none"}</b></span>
+      {b.next_fail != null && <span><b style={{ color: riskColor(b.next_fail) }}>{pct(b.next_fail)}</b> next-test risk</span>}
+      {!b.odometer_ok && <b className="text-bad">Rollback {fmtN(b.rollback_km)} km</b>}
+      {b.flood_claims > 0 && <b className="text-bad">Flood claim</b>}
+      {b.accident_claims > 0 && <span className="text-warn">{b.accident_claims} accident{b.accident_claims > 1 ? "s" : ""}</span>}
+      {b.open_obd.length > 0 && <span className="font-mono text-warn">{b.open_obd.join(", ")}</span>}
+    </span>
   );
 }
 
@@ -42,7 +60,11 @@ function Listings() {
   const state = sp.get("state") || "";
   const max = sp.get("max") || "";
   const [q, setQ] = useState(sp.get("q") || "");
+  // a phone shows cards, ten at a time; a wider screen the table, twenty at a time
+  const narrow = useNarrow();
+  const per = narrow ? 10 : 20;
   const [shown, setShown] = useState(20);
+  useEffect(() => setShown(per), [per]);
   // the newest filters, including a change whose navigation has not landed yet: building on the current URL instead
   // lets a quick second change (typing right after picking a tab) undo the first
   const next = useRef<string | null>(null);
@@ -50,15 +72,25 @@ function Listings() {
     if (next.current === sp.toString()) next.current = null;
   }, [sp]);
   const set = (patch: Record<string, string>) => {
-    setShown(20);
+    setShown(per);
     const u = new URLSearchParams(next.current ?? sp.toString());
     Object.entries(patch).forEach(([k, v]) => (v ? u.set(k, v) : u.delete(k)));
     next.current = u.toString();
     router.replace(u.toString() ? `${BASE}?${u}` : BASE, { scroll: false });
   };
-  const { data: d, error } = useFetch<any>("/api/sales", { kind, flag, state, max_price: max, q });
-  const c = d?.counts;
-  const filtered = !!(kind || flag || state || max || q);
+  // the type, search, state and price filters ask the API; the record filter applies here, so the counts on the tiles
+  // and the record pills follow the other filters (each pill says how many it would show)
+  const { data: d, error } = useFetch<any>("/api/sales", { kind, state, max_price: max, q });
+  const scope: any[] = d?.listings || [];
+  const list = flag ? scope.filter((r) => r.trust.flags.includes(flag)) : scope;
+  const c = d ? {
+    car: scope.filter((r) => r.kind === "car").length, motorcycle: scope.filter((r) => r.kind === "motorcycle").length,
+    flagged: scope.filter((r) => r.trust.level === "bad").length,
+    ...Object.fromEntries(FLAGS.map((f) => [f.id, scope.filter((r) => r.trust.flags.includes(f.id)).length])),
+  } as Record<string, number> : null;
+  const scoped = !!(kind || state || max || q);
+  const filtered = scoped || !!flag;
+  const ofAll = scoped && d ? ` · of ${d.total} listed` : "";
   return (
     <>
       <PageHeader eyebrow="Oversight · Used-vehicle sales" title="Used-vehicle sales"
@@ -68,26 +100,29 @@ function Listings() {
         <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="card p-4"><LoadingState label="" rows={2} /></div>)}</div>
       ) : (
         <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
-          <OvStat icon="sale" tone="blue" label="For sale" value={d.total} sub={`${c.car} cars · ${c.motorcycle} motorcycles`} />
-          <OvStat icon="warn" tone="red" alert label="Serious red flags" value={c.flagged} sub="Rollback, flood, write-off or failed test" />
-          <OvStat icon="trend" tone="red" alert label="Odometer rollbacks" value={c.rollback} sub="Readings lower than an earlier one"
+          <OvStat icon="sale" tone="blue" label={scoped ? "For sale, matching" : "For sale"} value={scope.length} sub={`${c.car} cars · ${c.motorcycle} motorcycles${ofAll}`} />
+          <OvStat icon="warn" tone="red" alert={!!c.flagged} label="Serious red flags" value={c.flagged} sub="Rollback, flood, write-off or failed test" />
+          <OvStat icon="trend" tone="red" alert={!!c.rollback} label="Odometer rollbacks" value={c.rollback} sub="Readings lower than an earlier one"
             onClick={() => set({ flag: flag === "rollback" ? "" : "rollback" })} pressed={flag === "rollback"} />
           <OvStat icon="checkc" tone="green" alert label="No red flags" value={c.clean} sub="Clean record end to end"
             onClick={() => set({ flag: flag === "clean" ? "" : "clean" })} pressed={flag === "clean"} />
         </div>
       )}
       <section className="card mb-5 flex flex-col gap-4 p-4 lg:p-5" aria-label="Filters">
+        {/* one height for every control in the row: the segmented control, the search box and the two selects */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <span className="text-[12px] font-medium text-fg-3">Vehicle type</span>
-            <Tabs value={kind} onChange={(v: string) => set({ kind: v })}
-              items={[{ id: "", label: "All" }, { id: "car", label: "Cars" }, { id: "motorcycle", label: "Motorcycles" }]} />
+            <div className="[&>[role=tablist]]:h-10 [&>[role=tablist]]:items-center [&>[role=tablist]]:py-0">
+              <Tabs value={kind} onChange={(v: string) => set({ kind: v })}
+                items={[{ id: "", label: "All" }, { id: "car", label: "Cars" }, { id: "motorcycle", label: "Motorcycles" }]} />
+            </div>
           </div>
           <label className="flex min-w-[180px] flex-1 flex-col gap-1">
             <span className="text-[12px] font-medium text-fg-3">Search</span>
-            <span className="flex items-center gap-2 rounded-xl border border-ink-500/80 bg-white/90 px-3 focus-within:border-cyan focus-within:ring-4 focus-within:ring-blue-100">
+            <span className="flex h-10 items-center gap-2 rounded-xl border border-ink-500/80 bg-white/90 px-3 focus-within:border-cyan focus-within:ring-4 focus-within:ring-blue-100">
               <Icon name="search" size={16} color="#64748B" />
-              <input className="w-full bg-transparent py-2 text-[13px] focus:outline-none" aria-label="Search listings" placeholder="Plate, make or model" value={q}
+              <input className="w-full bg-transparent text-[13px] focus:outline-none" aria-label="Search listings" placeholder="Plate, make or model" value={q}
                 onChange={(e) => { setQ(e.target.value); set({ q: e.target.value }); }} />
             </span>
           </label>
@@ -96,69 +131,90 @@ function Listings() {
         </div>
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 text-[12px] font-medium text-fg-3">Record</span>
-          <div role="group" aria-label="Record" className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
-            <FilterPill on={!flag} onClick={() => set({ flag: "" })}>Any record</FilterPill>
+          <PillRow>
+            <FilterPill on={!flag} onClick={() => set({ flag: "" })} count={scoped ? scope.length : undefined}>Any record</FilterPill>
             {FLAGS.map((f) => (
               <FilterPill key={f.id} on={flag === f.id} onClick={() => set({ flag: flag === f.id ? "" : f.id })} count={c?.[f.id]} tone={f.id === "clean" ? "green" : "red"}>{f.label}</FilterPill>
             ))}
-          </div>
+          </PillRow>
         </div>
       </section>
-      <Panel pad={false} title={<span className="flex flex-wrap items-center gap-2.5"><h2 className="text-[18px] font-bold tracking-tight">Listings</h2>{d && <span className="chip border-ink-500 text-fg-2">{d.listings.length} of {d.total}</span>}<span className="text-[12.5px] text-fg-3">Newest first · click a vehicle for its whole record</span></span>}
-        action={<><Source kind="synthetic" text="Synthetic history" /><Source kind="live_model" text="Health model" /></>}>
+      <Panel pad={false} title={<span className="flex flex-wrap items-center gap-2.5"><h2 className="text-[18px] font-bold tracking-tight">Listings</h2>{d && <span className="chip border-ink-500 text-fg-2">{list.length} of {d.total}</span>}<span className="text-[12.5px] text-fg-3">Newest first · click a vehicle for its whole record</span></span>}
+        action={<><Source kind="synthetic" text="Synthetic history" /><Source kind="live_model" text="Next-test risk model" /></>}>
         <div className="px-3 pb-3 lg:px-4 lg:pb-4">
-          {error ? <ErrorState title="The listings could not load">{error}</ErrorState> : !d ? <LoadingState label="Loading listings…" rows={4} /> : !d.listings.length ? (
+          {error ? <ErrorState title="The listings could not load">{error}</ErrorState> : !d ? <LoadingState label="Loading listings…" rows={4} /> : !list.length ? (
             <Empty title="Nothing matches" actions={<Link className="btn" href={BASE}>Clear the filters</Link>}>No listing matches these filters.</Empty>
           ) : (
             <>
-              {/* nine columns do not fit a phone: the table scrolls inside the card, not the page */}
-              <TableBox className="max-h-[72vh]">
-                <table className="w-full min-w-[1080px] text-[13px]">
-                  <thead className={THEAD}>
-                    <tr><th>Vehicle</th><th>Asking price</th><th>Seller</th><th>Inspections</th><th>Health</th><th>Odometer</th><th>Claims</th><th>OBD</th><th>Buyer check</th></tr>
-                  </thead>
-                  <tbody>
-                    {d.listings.slice(0, shown).map((r: any) => {
-                      const b = r.badges;
-                      return (
-                        <tr key={r.listing_id} className="cursor-pointer border-b border-ink-600/60 align-top transition last:border-0 hover:bg-blue-50/50 [&>td]:px-3 [&>td]:py-2.5" onClick={() => router.push(`${BASE}?id=${r.listing_id}`)}>
-                          <td>
-                            <div className="flex items-center gap-3">
-                              <VehicleThumb src={r.photo} vtype={r.vtype} className="h-12 w-[72px] shrink-0 rounded-xl" icon={18} />
-                              <span className="flex flex-col">
-                                <Link href={`${BASE}?id=${r.listing_id}`} onClick={(e) => e.stopPropagation()} className="text-[14px] font-bold hover:text-cyan">{r.plate}</Link>
-                                <span className="text-[11.5px] text-fg-2">{r.make} {r.model} · {r.year}</span>
-                                <span className="text-[11.5px] text-fg-3">{r.vtype} · {fmtN(r.odometer_km)} km{r.images ? ` · ${r.images} photo${r.images > 1 ? "s" : ""}` : ""}</span>
-                              </span>
-                            </div>
-                          </td>
-                          <td><b>{rm(r.asking_price_rm)}</b><div className="text-[11.5px] text-fg-3">listed {dmy(r.listed_at)}</div></td>
-                          <td>{r.seller === "dealer" ? "Dealer" : "Private"}<div className="text-[11.5px] text-fg-3">{r.state}</div></td>
-                          <td>{b.inspections} · <b style={{ color: RESULT_COL[b.last_result] }}>{b.last_result || "none"}</b><div className="text-[11.5px] text-fg-3">latest {dmy(b.last_date)}</div></td>
-                          <td>
-                            {b.health == null ? <span className="text-fg-4">–</span> : <b style={{ color: scoreColor(b.health) }}>{b.health}</b>}
-                            {b.next_fail != null && <div className="text-[11.5px] text-fg-3">{pct(b.next_fail)} next-test risk</div>}
-                          </td>
-                          <td>{b.odometer_ok ? <span className="text-ok">✓ Consistent</span> : <b className="text-bad">Rollback {fmtN(b.rollback_km)} km</b>}</td>
-                          <td className="text-[12.5px]">
-                            {!b.flood_claims && !b.accident_claims && <span className="text-fg-3">none</span>}
-                            {b.flood_claims > 0 && <div className="font-semibold text-bad">Flood</div>}
-                            {b.accident_claims > 0 && <div className="text-warn">{b.accident_claims} accident{b.accident_claims > 1 ? "s" : ""}</div>}
-                          </td>
-                          <td className="font-mono text-[12px]">{b.open_obd.length ? <span className="text-warn">{b.open_obd.join(", ")}</span> : <span className="font-sans text-fg-3">no codes</span>}</td>
-                          <td><StatusPill tone={TRUST_TONE[r.trust.level] || "gray"} dot>{r.trust.label}</StatusPill></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </TableBox>
+              {/* a phone: one card per listing, the price and the buyer check in view */}
+              <ul className="flex flex-col gap-2 sm:hidden" aria-label="Listings">
+                {list.slice(0, shown).map((r: any) => (
+                  <li key={r.listing_id}>
+                    <Link href={`${BASE}?id=${r.listing_id}`} className="flex gap-3 rounded-2xl bg-white/70 p-3 ring-1 ring-ink-600/70 transition active:bg-white">
+                      <VehicleThumb src={r.photo} vtype={r.vtype} className="h-16 w-20 shrink-0 rounded-xl" icon={18} />
+                      <span className="flex min-w-0 flex-1 flex-col gap-1">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <b className="text-[14px]">{r.plate}</b>
+                          <b className="whitespace-nowrap text-[14px] tabular-nums">{rm(r.asking_price_rm)}</b>
+                        </span>
+                        <span className="text-[12px] leading-snug text-fg-2">{r.make} {r.model} · {r.year} · {fmtN(r.odometer_km)} km</span>
+                        <span><StatusPill tone={TRUST_TONE[r.trust.level] || "gray"} dot>{r.trust.label}</StatusPill></span>
+                        <RecordLine r={r} />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {/* from sm up a table: the key columns first; it scrolls inside the card, its edge fading while more is hidden */}
+              <div className="hidden sm:block">
+                <TableBox className="max-h-none">
+                  <table className="w-full min-w-[1080px] text-[13px]">
+                    <thead className={THEAD}>
+                      <tr><th>Vehicle</th><th className="!text-right">Asking price</th><th>Buyer check</th><th>Inspections</th><th className="!text-right">Next-test risk</th><th>Odometer</th><th>Claims</th><th>OBD</th><th>Seller</th></tr>
+                    </thead>
+                    <tbody>
+                      {list.slice(0, shown).map((r: any) => {
+                        const b = r.badges;
+                        return (
+                          <tr key={r.listing_id} className="cursor-pointer border-b border-ink-600/60 align-top transition last:border-0 hover:bg-blue-50/50 [&>td]:px-3 [&>td]:py-2.5" onClick={() => router.push(`${BASE}?id=${r.listing_id}`)}>
+                            <td>
+                              <div className="flex items-center gap-3">
+                                <VehicleThumb src={r.photo} vtype={r.vtype} className="h-12 w-[72px] shrink-0 rounded-xl" icon={18} />
+                                <span className="flex flex-col">
+                                  <Link href={`${BASE}?id=${r.listing_id}`} onClick={(e) => e.stopPropagation()} className="text-[14px] font-bold hover:text-cyan">{r.plate}</Link>
+                                  <span className="text-[11.5px] text-fg-2">{r.make} {r.model} · {r.year}</span>
+                                  <span className="text-[11.5px] text-fg-3">{r.vtype} · {fmtN(r.odometer_km)} km{r.images ? ` · ${r.images} photo${r.images > 1 ? "s" : ""}` : ""}</span>
+                                </span>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap text-right"><b className="tabular-nums">{rm(r.asking_price_rm)}</b><div className="text-[11.5px] text-fg-3">listed {dmy(r.listed_at)}</div></td>
+                            <td><StatusPill tone={TRUST_TONE[r.trust.level] || "gray"} dot>{r.trust.label}</StatusPill></td>
+                            <td className="whitespace-nowrap">{b.inspections} · <b style={{ color: RESULT_COL[b.last_result] }}>{b.last_result || "none"}</b><div className="text-[11.5px] text-fg-3">latest {dmy(b.last_date)}</div></td>
+                            <td className="whitespace-nowrap text-right" title={b.next_fail != null ? "Chance of failing the next inspection (risk model)" : r.vtype === "Motorcycle" ? "The risk model covers cars and heavier vehicles" : "No inspection to score"}>
+                              {b.next_fail != null ? <b className="tabular-nums" style={{ color: riskColor(b.next_fail) }}>{pct(b.next_fail)}</b> : <span className="text-fg-3">Not scored</span>}
+                              {b.health != null && <div className="text-[11.5px] text-fg-3">health <b style={{ color: scoreColor(b.health) }}>{b.health}</b></div>}
+                            </td>
+                            <td className="whitespace-nowrap">{b.odometer_ok ? <span className="text-ok">✓ Consistent</span> : <b className="text-bad">Rollback {fmtN(b.rollback_km)} km</b>}</td>
+                            <td className="text-[12.5px]">
+                              {!b.flood_claims && !b.accident_claims && <span className="text-fg-3">none</span>}
+                              {b.flood_claims > 0 && <div className="font-semibold text-bad">Flood</div>}
+                              {b.accident_claims > 0 && <div className="whitespace-nowrap text-warn">{b.accident_claims} accident{b.accident_claims > 1 ? "s" : ""}</div>}
+                            </td>
+                            <td className="font-mono text-[12px]">{b.open_obd.length ? <span className="text-warn">{b.open_obd.join(", ")}</span> : <span className="font-sans text-fg-3">no codes</span>}</td>
+                            <td>{r.seller === "dealer" ? "Dealer" : "Private"}<div className="text-[11.5px] text-fg-3">{r.state}</div></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </TableBox>
+              </div>
               <div className="flex flex-wrap items-center justify-between gap-2 pt-3 text-[12.5px] text-fg-3">
-                <span>Showing {Math.min(shown, d.listings.length)} of {d.listings.length}{filtered && <> · <Link className="font-semibold text-cyan hover:underline" href={BASE}>clear the filters</Link></>}</span>
-                {shown < d.listings.length && (
+                <span>Showing {Math.min(shown, list.length)} of {list.length}{filtered && <> · <Link className="font-semibold text-cyan hover:underline" href={BASE}>clear the filters</Link></>}</span>
+                {shown < list.length && (
                   <span className="flex gap-2">
-                    <button className="btn btn-sm" onClick={() => setShown((n) => n + 20)}>Show 20 more</button>
-                    <button className="btn btn-sm" onClick={() => setShown(d.listings.length)}>Show all</button>
+                    <button className="btn btn-sm" onClick={() => setShown((n) => n + per)}>Show {Math.min(per, list.length - shown)} more</button>
+                    <button className="btn btn-sm" onClick={() => setShown(list.length)}>Show all</button>
                   </span>
                 )}
               </div>
@@ -168,6 +224,13 @@ function Listings() {
       </Panel>
     </>
   );
+}
+
+/** The record pills: one row that scrolls sideways, its edge fading while more pills are hidden. */
+function PillRow({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEdgeFade(ref);
+  return <div ref={ref} role="group" aria-label="Record" className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">{children}</div>;
 }
 
 function OdometerChart({ odo }: { odo: any }) {
@@ -224,7 +287,7 @@ function Dossier({ id }: { id: string }) {
           <Source kind="synthetic" text="Synthetic listing" />
         </div>
       </section>
-      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:items-start">
         <Panel title="What the record says" action={<Source kind="live_logic" text="Checks on the record" />}>
           <ul className="flex flex-col gap-2" aria-label="Trust summary">
             {t.points.map((p: any, i: number) => (
@@ -283,7 +346,7 @@ function Dossier({ id }: { id: string }) {
           </div>
         </div>
       </div>
-      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:items-start">
         <Panel title={`Inspection history (${d.inspections.length})`}
           action={<><Source kind="synthetic" text="Synthetic history" />{d.inspections.some((i: any) => i.source === "lane") && <Source kind="live_model" text="Live lane report" />}</>}>
           {!ins.length && <p className="text-[13px] text-fg-3">No inspection on record.</p>}
@@ -360,7 +423,7 @@ function Dossier({ id }: { id: string }) {
           </Panel>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:items-start">
         <Panel title={`Photos (${d.images.count})`} action={<Source kind="sample" text="Sample images" />}>
           {!d.images.count ? (
             <div className="flex items-center gap-4">

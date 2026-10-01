@@ -115,7 +115,7 @@ export function MobileSheet({ open, onClose, title, children, dismissable = true
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="text-[18px] font-bold tracking-tight">{title}</h2>
             {dismissable && (
-              <button onClick={onClose} aria-label="Close" className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 active:scale-95">
+              <button onClick={onClose} aria-label="Close" className="-mr-1 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 active:scale-95">
                 <Icon name="close" size={16} width={2.2} />
               </button>
             )}
@@ -279,22 +279,22 @@ function Screen({ framed, user, p }: { framed: boolean; user: User | null | unde
       <SheetHost.Provider value={host}>
         <div ref={scroller} className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
           onScroll={(e) => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 4)}>
-          <header className={`sticky top-0 z-30 transition-[background,box-shadow] duration-200 ${scrolled ? "bg-[#F4F7FC]/[0.93] shadow-[0_1px_0_rgba(15,23,42,0.08)] backdrop-blur-2xl" : "bg-transparent"}`}
+          <header className={`sticky top-0 z-30 transition-[background,box-shadow] duration-200 ${scrolled ? "bg-[#F4F7FC]/[0.98] shadow-[0_1px_0_rgba(15,23,42,0.08)] backdrop-blur-2xl" : "bg-transparent"}`}
             style={{ paddingTop: framed ? 0 : "env(safe-area-inset-top)" }}>
             {framed && <StatusBar />}
-            <div className="flex h-[54px] items-center gap-1.5 px-3">
+            <div className="flex h-[54px] items-center gap-1.5 px-4">
               {p.back ? (
                 typeof p.back === "string" ? (
-                  <Link href={p.back} aria-label={p.backLabel || "Back"} className="-ml-1 flex h-10 min-w-10 shrink-0 items-center gap-0.5 rounded-full pr-2 text-[#2563EB] active:bg-blue-50">
+                  <Link href={p.back} aria-label={p.backLabel || "Back"} className="-ml-2 flex h-10 min-w-10 shrink-0 items-center gap-0.5 rounded-full pr-2 text-[#2563EB] active:bg-blue-50">
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>
                     {p.backLabel && <span className="max-w-[96px] truncate text-[15px] font-medium" aria-hidden>{p.backLabel}</span>}
                   </Link>
                 ) : (
-                  <button onClick={() => router.back()} aria-label={p.backLabel || "Back"} className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#2563EB] active:bg-blue-50">
+                  <button onClick={() => router.back()} aria-label={p.backLabel || "Back"} className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#2563EB] active:bg-blue-50">
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>
                   </button>
                 )
-              ) : isPublic ? <span className="ml-1 mr-1 shrink-0"><Logo size={28} /></span> : <span className="w-1.5" />}
+              ) : isPublic ? <span className="mr-0.5 shrink-0"><Logo size={28} /></span> : null}
               <div className="min-w-0 flex-1">
                 {home ? (
                   <span className="flex items-center gap-2"><Logo size={30} /><span className="truncate text-[17px] font-extrabold tracking-tight">VehicleSense</span></span>
@@ -330,6 +330,11 @@ function Screen({ framed, user, p }: { framed: boolean; user: User | null | unde
 
 /* ---------------------------------------------------------------- the desktop side panel */
 
+/** A small label above a group in the side panel. */
+function PanelLabel({ children }: { children: ReactNode }) {
+  return <div className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-3">{children}</div>;
+}
+
 function PersonaSwitcher({ plate }: { plate: string | null }) {
   const router = useRouter();
   const path = usePathname();
@@ -342,19 +347,19 @@ function PersonaSwitcher({ plate }: { plate: string | null }) {
   };
   const others = plate && !OWNERS.some((o) => o.plate === plate);
   return (
-    <section className="rounded-3xl border border-white/80 bg-white/70 p-3 shadow-glass backdrop-blur-xl" aria-label="Show the app as">
-      <div className="px-1.5 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-4">Show the app as · presenter</div>
-      <div className="flex flex-col gap-1">
+    <section aria-label="Show the app as">
+      <PanelLabel>Show the app as</PanelLabel>
+      <div className="flex flex-col gap-0.5 rounded-2xl bg-white/75 p-1 ring-1 ring-white">
         {OWNERS.map((o) => {
           const on = o.plate === plate;
           return (
             <button key={o.plate} onClick={() => pick(o.plate)} aria-pressed={on}
-              className={`flex items-center gap-3 rounded-2xl px-2.5 py-2 text-left transition ${on ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-white"}`}>
-              <Avatar name={o.name} size={36} />
+              className={`flex items-center gap-3 rounded-xl px-2.5 py-[5px] text-left transition ${on ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-white"}`}>
+              <Avatar name={o.name} size={34} />
               <span className="min-w-0 flex-1 leading-tight">
                 <b className="block truncate text-[13.5px]">{o.name}</b>
-                <span className="block truncate text-[12px] text-fg-3">{o.plate} · {o.car}</span>
-                <span className="block truncate text-[11px] text-fg-4">{o.story}</span>
+                <span className="block truncate text-[12px] text-fg-2">{o.plate} · {o.car}</span>
+                <span className="block truncate text-[11.5px] text-fg-3">{o.story}</span>
               </span>
               {on && <Icon name="check" size={16} color="#2563EB" width={2.4} />}
             </button>
@@ -364,6 +369,12 @@ function PersonaSwitcher({ plate }: { plate: string | null }) {
       </div>
     </section>
   );
+}
+
+/** The address with places to wrap after its slashes and separators (never in the middle of a word). */
+function WrappedUrl({ url }: { url: string }) {
+  const parts = url.replace(/^https?:\/\//, "").split(/(?<=[/?&])/);
+  return <>{parts.map((p, i) => <span key={i}>{p}{i < parts.length - 1 && <wbr />}</span>)}</>;
 }
 
 function OpenOnPhone({ user }: { user: User | null | undefined }) {
@@ -386,17 +397,16 @@ function OpenOnPhone({ user }: { user: User | null | undefined }) {
     }
   };
   return (
-    <section className="rounded-3xl border border-white/80 bg-white/70 p-4 shadow-glass backdrop-blur-xl" aria-label="Open on your phone">
-      <div className="text-[13.5px] font-bold">Open on your phone</div>
-      <p className="mt-0.5 text-[12px] text-fg-3">{canQr ? "Scan the code with the phone's camera, or type the address." : "Type this address on the phone."}</p>
-      <div className="mt-3 flex items-start gap-3">
+    <section aria-label="Open on your phone">
+      <PanelLabel>{canQr ? "Open on your phone: scan or type" : "Open on your phone"}</PanelLabel>
+      <div className="flex items-center gap-3 rounded-2xl bg-white/75 p-2.5 ring-1 ring-white">
         {canQr && qrOk && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={`/api/owner/link-qr.svg?url=${encodeURIComponent(url)}`} alt="QR code of this page" onError={() => setQrOk(false)}
-            className="h-[104px] w-[104px] shrink-0 rounded-2xl bg-white p-1.5 ring-1 ring-slate-200" />
+            className="h-[76px] w-[76px] shrink-0 rounded-xl bg-white p-1 ring-1 ring-slate-200" />
         )}
         <div className="min-w-0 flex-1">
-          <code className="block break-all rounded-xl bg-slate-50 px-2.5 py-2 font-mono text-[11.5px] leading-snug text-fg-2 ring-1 ring-slate-200">{url || "…"}</code>
+          <code className="block break-words font-mono text-[11.5px] leading-snug text-fg" title={url}>{url ? <WrappedUrl url={url} /> : "…"}</code>
           <button className="btn btn-sm mt-2" onClick={copy}><Icon name="copy" size={14} />Copy link</button>
         </div>
       </div>
@@ -409,50 +419,74 @@ function SidePanel({ user, isPublic }: { user: User | null | undefined; isPublic
   const href = useMobileHref();
   const owner = canOpen(user?.role, ["owner"]);
   const guided = user?.role === "presenter" || user?.role === "viewer";
+  // the lower part scrolls when the window is short; a fade at its foot shows there is more
+  const scroller = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  const measure = useCallback(() => {
+    const el = scroller.current;
+    if (el) setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+  }, []);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    Array.from(el.children).forEach((c) => ro.observe(c));
+    return () => ro.disconnect();
+  }, [measure, user, isPublic]);
+  // the account button shows the name and the role: once is enough when they are the same ("Demo presenter")
+  const sameRole = !!user && (ROLE_LABEL[user.role] || user.role) === user.name;
   const tryIt = [
-    { label: "Run the self-check", sub: "Tint and a headlamp fail first; fix them, run it again", path: "/mobile/check", icon: "camera" },
-    { label: "Book and pay", sub: "Inspection, hub and slot; mock FPX or card; check-in QR", path: "/mobile/book", icon: "calendar" },
-    { label: "See the passport", sub: "Certificates, odometer, findings, documents", path: "/mobile/vehicle", icon: "shield" },
+    { label: "Run the self-check", sub: "Tint and a lamp fail first; fix, run again", path: "/mobile/check", icon: "camera" },
+    { label: "Book and pay", sub: "Hub and slot, mock payment, check-in QR", path: "/mobile/book", icon: "calendar" },
+    { label: "See the passport", sub: "Certificates, odometer, findings, papers", path: "/mobile/vehicle", icon: "shield" },
     { label: "Ask the assistant", sub: "Bahasa Melayu, English or Chinese", path: "/mobile/assistant", icon: "chat" },
     { label: "Shop for a used vehicle", sub: "Every listing with its whole record", path: "/mobile/sell", icon: "sale" },
   ];
+  const fade = more ? "linear-gradient(to bottom, #000 calc(100% - 44px), transparent)" : undefined;
   return (
-    <aside className="flex max-h-[calc(100dvh-48px)] w-[290px] shrink-0 flex-col gap-4 overflow-y-auto pb-2 lg:w-[340px]" aria-label="About the mobile app">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-3">
-          <Logo size={44} />
-          <span className="min-w-0 leading-tight">
-            <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-fg-4">VehicleSense</span>
-            <span className="block truncate text-[21px] font-extrabold tracking-tight">VehicleSense Mobile</span>
+    <aside className="flex max-h-[calc(100dvh-48px)] w-[290px] shrink-0 flex-col rounded-[30px] border border-white/70 bg-white/[0.8] shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_30px_60px_-30px_rgba(15,23,42,0.35)] backdrop-blur-2xl lg:w-[340px]"
+      aria-label="About the mobile app">
+      <div className="flex shrink-0 flex-col gap-3 px-4 pb-3 pt-4">
+        <div className="flex items-center gap-3">
+          <Logo size={42} />
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block truncate text-[19px] font-extrabold tracking-tight">VehicleSense Mobile</span>
+            <span className="block truncate text-[12.5px] text-fg-3">{isPublic ? "A public page of the owner's app" : "The vehicle owner's phone app"}</span>
           </span>
-        </span>
-      </div>
-      <p className="text-[13.5px] leading-relaxed text-fg-2">
-        {isPublic
-          ? "A public page of the owner's app, opened from a QR code: no login is needed. Anyone holding the code sees the same result."
-          : "The vehicle owner's phone app: the health passport, a guided self-check with the phone's camera, booking with a mock payment and the check-in QR code, and an assistant in Bahasa Melayu, English and Chinese."}
-      </p>
-      {user && (
-        <div className="flex items-center justify-between gap-2">
-          <UserMenu user={user} />
-          <AppSwitcher current="mobile" />
+          {user && <AppSwitcher current="mobile" />}
         </div>
-      )}
-      {guided && !isPublic && <div className="flex min-w-0 [&_a]:!max-w-full"><DemoBar /></div>}
-      {user?.role === "presenter" && !isPublic && <PersonaSwitcher plate={plate} />}
-      <OpenOnPhone user={user} />
-      {owner && !isPublic && (
-        <section className="rounded-3xl border border-white/80 bg-white/60 p-2 shadow-glass backdrop-blur-xl" aria-label="Try it">
-          <div className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-4">Try it</div>
-          {tryIt.map((t) => (
-            <Link key={t.path} href={href(t.path)} className="flex items-center gap-3 rounded-2xl px-2.5 py-2 hover:bg-white">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#DBEAFE] to-[#EFF6FF]"><Icon name={t.icon} size={17} color="#2563EB" /></span>
-              <span className="min-w-0 leading-tight"><b className="block truncate text-[13px]">{t.label}</b><span className="block truncate text-[11.5px] text-fg-3">{t.sub}</span></span>
-            </Link>
-          ))}
-        </section>
-      )}
-      <p className="px-1 text-[11.5px] leading-relaxed text-fg-4">Concept demo · fictional owners, vehicles and inspection hubs. Payments run through a mock gateway; nothing is charged.</p>
+        {/* what the app does is the "Try it" list below; a public page says what it is */}
+        {(isPublic || !owner) && (
+          <p className="text-[13px] leading-relaxed text-fg-2">
+            {isPublic
+              ? "Opened from a QR code: no login is needed, and anyone holding the code sees the same result."
+              : "The health passport, a guided self-check with the phone's camera, booking with a mock payment and a check-in QR code, and an assistant in Bahasa Melayu, English and Chinese."}
+          </p>
+        )}
+        {user && <span className={sameRole ? "[&_button_.flex-col>span]:hidden" : ""}><UserMenu user={user} /></span>}
+        {guided && !isPublic && <div className="flex min-w-0 [&_a]:!flex [&_a]:w-full [&_a]:!max-w-full [&_a]:justify-center [&_a]:py-1.5"><DemoBar /></div>}
+      </div>
+      <div ref={scroller} onScroll={measure} className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain border-t border-slate-900/[0.07] px-4 pb-4 pt-3"
+        style={{ maskImage: fade, WebkitMaskImage: fade }}>
+        {user?.role === "presenter" && !isPublic && <PersonaSwitcher plate={plate} />}
+        {owner && !isPublic && (
+          <section aria-label="Try it">
+            <PanelLabel>Try it</PanelLabel>
+            <div className="flex flex-col gap-0.5 rounded-2xl bg-white/75 p-1 ring-1 ring-white">
+              {tryIt.map((t) => (
+                <Link key={t.path} href={href(t.path)} className="flex items-center gap-3 rounded-xl px-2.5 py-[5px] hover:bg-white">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#DBEAFE] to-[#EFF6FF]"><Icon name={t.icon} size={16} color="#2563EB" /></span>
+                  <span className="min-w-0 leading-tight"><b className="block truncate text-[13px]">{t.label}</b><span className="block truncate text-[11.5px] text-fg-3">{t.sub}</span></span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+        <OpenOnPhone user={user} />
+        <p className="px-1 text-[11.5px] leading-snug text-fg-3">Concept demo · fictional data · mock payments</p>
+      </div>
     </aside>
   );
 }

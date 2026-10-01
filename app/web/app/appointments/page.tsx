@@ -209,8 +209,8 @@ function Appointments() {
                           <li key={a.booking_id}>
                             <button onClick={() => { pick(a.date); open(a); }} className="flex w-full items-center gap-3 rounded-xl p-1.5 text-left transition hover:bg-white">
                               <ApptPhoto plate={a.plate} vtype={a.vehicle.vtype} className="h-10 w-14 shrink-0 rounded-lg" />
-                              <span className="min-w-0 flex-1 leading-tight"><b className="block text-[14px]">{a.plate}</b><span className="block truncate text-[12px] text-fg-3">{dayShort(a.date)} · {a.slot} · {a.branch_name.replace(" Inspection Hub", "")}</span></span>
-                              <StagePill stage={a.stage} />
+                              <span className="min-w-0 flex-1 leading-tight"><b className="block text-[14px]">{a.plate}</b><span className="block whitespace-nowrap text-[12px] text-fg-3">{dayShort(a.date)} · {a.slot}</span><span className="block truncate text-[11.5px] text-fg-4">{a.branch_name}</span></span>
+                              <StagePill stage={a.stage} className="shrink-0" />
                             </button>
                           </li>
                         ))}

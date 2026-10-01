@@ -83,6 +83,8 @@ export const monthGrid = (first: string) => { const s = weekStart(first); return
 export const mytToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
 export const atTime = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+const FUEL: Record<string, string> = { ev: "EV", petrol: "Petrol", diesel: "Diesel", hybrid: "Hybrid" };
+const fuelLabel = (f?: string | null) => (f ? FUEL[f.toLowerCase()] || f.replace(/^./, (c) => c.toUpperCase()) : "");
 const rm = (n: number) => `RM ${n.toFixed(2)}`;
 const code = (t: string) => (t || "").toUpperCase().replace(/(.{4})(?=.)/g, "$1 ");
 
@@ -141,7 +143,7 @@ export function WeekStrip({ selected, today, days, onSelect }: { selected: strin
             <span className={`text-[11px] font-semibold uppercase tracking-wide ${sel ? "text-white/80" : "text-fg-3"}`}>{fmt(d, { weekday: "short" })}</span>
             <span className={`text-[19px] font-bold leading-tight sm:text-[22px] ${!sel && d === today ? "text-cyan" : ""}`}>{fmt(d, { day: "numeric" })}</span>
             <span className={`mt-0.5 h-[18px] text-[11px] font-semibold ${sel ? "text-white" : sun ? "text-fg-4" : n ? "text-cyan" : "text-fg-4"}`}>
-              {sun ? "Closed" : n ? <><span className="sm:hidden">{n}</span><span className="hidden sm:inline">{n} appt{n === 1 ? "" : "s"}</span></> : "–"}
+              {sun ? "Closed" : n ? <><span className="sm:hidden">{n}</span><span className="hidden sm:inline">{n} appt{n === 1 ? "" : "s"}</span></> : d < today ? "" : "–"}
             </span>
           </button>
         );
@@ -194,7 +196,7 @@ function ApptCard({ a, selected, onOpen }: { a: Appt; selected: boolean; onOpen:
           <b className={`text-[15.5px] tracking-tight ${a.status === "cancelled" ? "line-through decoration-1" : ""}`}>{a.plate}</b>
           <span className="truncate text-[12.5px] text-fg-3">{a.vehicle.make} {a.vehicle.model}</span>
         </span>
-        <span className="block truncate text-[13px] text-fg-2">{a.type_label}</span>
+        <span className="line-clamp-2 block text-[13px] leading-snug text-fg-2" title={a.type_label}>{a.type_label}</span>
         <span className="mt-1 flex flex-wrap items-center gap-1.5">
           <StagePill stage={a.stage} />
           {a.status !== "cancelled" && <PayChip a={a} />}
@@ -305,7 +307,7 @@ export function ApptTable({ items, selectedId, onOpen }: { items: Appt[]; select
                     <span className="block max-w-[150px] truncate text-[12px] text-fg-4">{a.vehicle.owner_name}</span></span>
                 </span>
               </td>
-              <td className="max-w-[190px]"><span className="block truncate text-fg-2" title={a.type_label}>{a.type_label}</span><span className="text-[12px] text-fg-4">{a.source_label}</span></td>
+              <td className="max-w-[200px]"><span className="line-clamp-2 block text-fg-2" title={a.type_label}>{a.type_label}</span><span className="text-[12px] text-fg-4">{a.source_label}</span></td>
               <td><span className="flex flex-col items-start gap-1"><StagePill stage={a.stage} />{a.status !== "cancelled" && <PayChip a={a} />}</span></td>
             </tr>
           ))}
@@ -392,7 +394,7 @@ export function ApptDetail({ a, today, options, canWrite, onChanged, onClose }: 
       </div>
       <div>
         <h2 className="text-[22px] font-bold leading-tight tracking-tight">{v.make} {v.model}</h2>
-        <p className="text-[13.5px] text-fg-3">{[v.year, v.vtype, v.fuel].filter(Boolean).join(" · ")} · {v.owner_name}</p>
+        <p className="text-[13.5px] text-fg-3">{[v.year, v.vtype, fuelLabel(v.fuel)].filter(Boolean).join(" · ")} · {v.owner_name}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -125,13 +125,13 @@ export default function DemoControl() {
             const l = LANE_SESSIONS.find((x) => x.session === s.session_id);
             return (
               <div key={s.session_id} className="card card-pad">
-                <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="grid grid-cols-1 items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                   <div className="min-w-0">
                     <div className="text-[11.5px] font-semibold uppercase tracking-wide text-fg-3">{s.session_id} · {l?.label} · Central Inspection Hub</div>
-                    <h3 className="font-display text-[15px] font-semibold">{s.title}</h3>
+                    <h3 className="font-display text-[15px] font-semibold leading-snug">{s.title}</h3>
                     {s.vehicle && <p className="text-[12px] text-fg-3">{s.vehicle.plate} · {s.vehicle.year} · {fmtN(s.vehicle.odometer_km)} km</p>}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <Link className="btn btn-sm" href={`/lane?lane=${s.lane_id}`}>Lane</Link>
                     <Link className="btn btn-sm" href={`/inspection/${s.session_id}`}>Inspection</Link>
                   </div>
@@ -152,9 +152,9 @@ export default function DemoControl() {
           <div className="mt-3"><ProvenanceLegend /></div>
         </details>
         <details className="card card-pad group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-            <span className="h-title">Under the hood · live pipeline and models</span>
-            <span className="flex items-center gap-2"><Source kind="live_logic" text="Pipeline status" /><span className="text-[12px] text-fg-3 group-open:hidden">Show</span></span>
+          <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+            <span className="h-title min-w-0 flex-[1_1_240px]">Under the hood · live pipeline and models</span>
+            <span className="flex shrink-0 items-center gap-2"><Source kind="live_logic" text="Pipeline status" /><span className="text-[12px] text-fg-3 group-open:hidden">Show</span></span>
           </summary>
           {!status ? <p className={`mt-3 text-[13px] ${checked ? "text-bad" : "text-fg-3"}`}>{checked ? "The API is not reachable." : "Loading…"}</p> : (
             <div className="mt-3 flex flex-col gap-4 text-[13px]">
@@ -165,9 +165,9 @@ export default function DemoControl() {
                   ["Evidence entries", fmtN(status.counts.evidence_entries)],
                   ["Assistant / reports", llm || "Template engine"], ["Photo explanations", llmLabel(status.vlm?.backend) || "Off"],
                 ].map(([k, v]) => (
-                  <div key={k as string} className="rounded-lg border border-ink-600 bg-ink-850 px-3 py-2">
+                  <div key={k as string} className="min-w-0 rounded-lg border border-ink-600 bg-ink-850 px-3 py-2">
                     <div className="text-[11px] text-fg-3">{k}</div>
-                    <div className="truncate font-semibold">{v}</div>
+                    <div className="truncate font-semibold" title={String(v)}>{v}</div>
                   </div>
                 ))}
               </div>

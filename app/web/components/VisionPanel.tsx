@@ -32,8 +32,8 @@ function Modules({ systems }: { systems: any[] }) {
       {systems.filter((s) => s.model).map((s) => (
         <div key={s.id} className="card card-pad">
           <div className="flex items-start justify-between gap-2">
-            <div className="font-display text-[15.5px] font-semibold">{s.name}</div>
-            <span className="shrink-0 whitespace-nowrap"><Source kind="live_model" /></span>
+            <div className="min-w-0 font-display text-[15.5px] font-semibold">{s.name}</div>
+            <Source kind="live_model" className="shrink-0" />
           </div>
           <p className="mt-1 text-[12.5px] text-fg-2">{s.note}</p>
           <p className="mt-2 text-[12px] text-fg-3">Detects: {s.detects.join(", ")}.</p>
@@ -151,33 +151,37 @@ export function VisionPanel() {
       </div>
       {view === "cases" && data?.systems && <Modules systems={data.systems} />}
       {view === "cases" && cur && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_minmax(320px,0.9fr)]">
-          <Card className="flex max-h-[860px] flex-col">
+        // three columns that end level: the capture list takes the row's height (its own length does not count,
+        // lg:[contain:size]) and scrolls inside; the last card of the other two grows. On a phone the list is a
+        // sideways strip above the image.
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[296px_minmax(0,1fr)_minmax(320px,0.9fr)]">
+          <Card className="flex min-w-0 flex-col lg:[contain:size]">
             <div className="mb-3 flex flex-wrap gap-1.5">
               {FILTERS.map((f) => (
                 <button key={f.id} onClick={() => setFilt(f.id)} aria-pressed={filt === f.id}
                   className={`chip ${filt === f.id ? "border-cyan bg-cyan/10 text-fg" : "border-ink-500 text-fg-2"}`}>{f.label}</button>
               ))}
             </div>
-            <div className="flex flex-col gap-1.5 overflow-auto pr-1">
+            <div className="-mx-1 flex min-h-0 snap-x gap-1.5 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-1 lg:snap-none lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:px-0 lg:pb-0 lg:pr-1" aria-label="Captures">
               {list.map((c) => {
                 const i = cases.indexOf(c), o = outcome(c);
                 return (
                   <button key={c.id} onClick={() => { setSel(i); setMode("ai"); show(null); router.replace(`/lane?view=vision&case=${c.id}`, { scroll: false }); }}
-                    className={`flex items-center gap-3 rounded-xl border p-2 text-left ${i === sel ? "border-cyan bg-ink-750" : "border-transparent bg-ink-850"}`}>
+                    aria-current={i === sel ? "true" : undefined}
+                    className={`flex w-[244px] shrink-0 snap-start items-center gap-3 rounded-xl border p-2 text-left lg:w-auto ${i === sel ? "border-cyan bg-ink-750" : "border-transparent bg-ink-850"}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={c.original_url} alt="" className="h-16 w-12 shrink-0 rounded-lg object-cover" />
-                    <span className="min-w-0 flex-1">
+                    <span className="min-w-0 flex-1 leading-snug">
                       <span className="block text-[13.5px] font-semibold">{c.title}</span>
-                      <span className="block truncate text-[12px] text-fg-3">{SYSTEM_NAME[c.system]} · {c.vehicle}</span>
-                      <span className="text-[12px]" style={{ color: o.c }}>{c.findings.length} finding{c.findings.length > 1 ? "s" : ""} · {o.label.split(" ·")[0]}</span>
+                      <span className="block text-[12px] text-fg-3">{SYSTEM_NAME[c.system]} · {c.vehicle}</span>
+                      <span className="block text-[12px]" style={{ color: o.c }}>{c.findings.length} finding{c.findings.length > 1 ? "s" : ""} · <span className="whitespace-nowrap">{o.label.split(" ·")[0]}</span></span>
                     </span>
                   </button>
                 );
               })}
             </div>
           </Card>
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <div className="relative aspect-[520/636] w-full overflow-hidden rounded-2xl border border-ink-600 bg-ink-850">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={cur.original_url} alt={`${cur.title} original`} className="absolute inset-0 h-full w-full object-cover" />
@@ -194,15 +198,15 @@ export function VisionPanel() {
               <Tabs value={mode} onChange={setMode} items={[{ id: "orig", label: "Original" }, { id: "ai", label: "AI overlay" }, { id: "cmp", label: "Compare" }]} />
               {mode === "cmp" && <input aria-label="Compare position" type="range" min={0} max={100} value={split} onChange={(e) => setSplit(+e.target.value)} className="flex-1 accent-cyan" />}
             </div>
-            <Card title="Run the live model on this capture" right={<Source kind="live_model" />}>
+            <Card title="Run the live model on this capture" right={<Source kind="live_model" />} className="flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <Tabs size="sm" value={task} onChange={setTask} items={TASKS} />
                 <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => run({ task, capture_id: cur.id })}>{busy ? "Running…" : "Run"}</button>
                 <label className="btn btn-sm">Upload photo<input type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} /></label>
               </div>
               {samples.data && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="text-[12px] text-fg-3">Real curated images:</span>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <span className="basis-full text-[12px] text-fg-3">Real curated images:</span>
                   {(samples.data[task] || []).slice(0, 6).map((p: string, i: number) => {
                     const folder = p.split("/").slice(-2, -1)[0] || "";
                     const lab = ({ defective: "Defective tyre", perfect: "Good tyre", r_breakage: "Breakage", f_crushed: "Crushed", f_normal: "No damage",
@@ -219,15 +223,15 @@ export function VisionPanel() {
               )}
             </Card>
           </div>
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4 lg:col-span-2 xl:col-span-1 xl:[&>*:last-child]:flex-1">
             <Card>
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <div className="label">{SYSTEM_NAME[cur.system]} · {cur.group === "lane" ? "Malaysia lane" : cur.group === "close" ? "close-up" : "fleet inspection"}</div>
                   <h2 className="font-display text-[22px] font-semibold">{cur.title}</h2>
                   <p className="text-[13px] text-fg-3">{cur.vehicle} · {cur.camera}</p>
                 </div>
-                <Source kind="sample" />
+                <Source kind="sample" className="shrink-0" />
               </div>
               {cur.source_image && images.length > 0 && (
                 <button className="mt-2 text-left text-[12.5px] text-cyan hover:underline"

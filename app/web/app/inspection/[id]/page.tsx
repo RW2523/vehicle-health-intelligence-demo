@@ -4,7 +4,7 @@ import { use, useRef, useState } from "react";
 import { NextAction, useActiveUseCase } from "@/components/Demo";
 import { IconTile, Panel, ProgressBar, Ring, StatusPill } from "@/components/glass";
 import { Icon } from "@/components/icons";
-import { ITEM_STATUS, NoInspection, PageLoading, StepNav, VIEWS, VehicleStrip, atTime, capturesOf, checklistOf, useInspectionParam } from "@/components/insp";
+import { ITEM_STATUS, NoInspection, PageLoading, StepNav, VIEWS, VehicleStrip, atTime, capturesOf, checklistOf, itemLabel, useInspectionParam } from "@/components/insp";
 import { ucFor } from "@/components/insp";
 import { useVehiclePhotos } from "@/components/Photo";
 import { PlayerControls, useSessions } from "@/components/Player";
@@ -16,6 +16,7 @@ import { STEP_LABEL } from "@/lib/format";
 import { alertSeverity, isRequired } from "@/lib/present";
 
 /** The model's reference photo for a camera view the lane has not captured (front ← hero, sides ← side view). */
+const SHOW_ISSUES = 5;
 const REF_VIEW: Record<string, string[]> = { front: ["hero"], rear: ["rear"], left: ["side", "hero"], right: ["side", "hero"], interior: ["interior"], tyre: ["tyre"], underbody: ["underbody"] };
 
 function CaptureTile({ view, label, c, canCapture, onFile, busy, refPhoto }: { view: string; label: string; c: any; canCapture: boolean; onFile: (f: File) => void; busy: boolean; refPhoto?: any }) {
@@ -30,26 +31,18 @@ function CaptureTile({ view, label, c, canCapture, onFile, busy, refPhoto }: { v
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={refPhoto.url_480 || refPhoto.url} alt={`${label}: reference photo of the model`} className="absolute inset-0 h-full w-full object-cover opacity-45 grayscale-[35%]" />
-            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-white/35 text-fg-3">
-              <Icon name="camera" size={26} width={1.5} color="#475569" /><span className="rounded-full bg-white/85 px-2 py-0.5 text-[11px] font-semibold">Reference · not captured</span>
-            </span>
+            <span className="absolute inset-0 flex items-center justify-center bg-white/35 pb-4 text-fg-3"><Icon name="camera" size={26} width={1.5} color="#475569" /></span>
+            <span className="absolute left-2 top-2 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-fg-3" title="A reference photo of the model: this view is not captured yet">Reference photo</span>
           </>
         ) : (
-          <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-fg-4">
-            <Icon name="camera" size={30} width={1.4} color="#94A3B8" /><span className="text-[12px]">No lane camera for this view</span>
+          <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-3 pb-6 text-center text-fg-4">
+            <Icon name="camera" size={28} width={1.4} color="#94A3B8" /><span className="text-[12px] leading-tight">No lane camera for this view</span>
           </span>
         )}
         {c?.flag && <span className="absolute left-2 top-2"><StatusPill tone="red">Flagged</StatusPill></span>}
-      </div>
-      <figcaption className="flex items-center gap-2.5 px-3 py-2.5">
-        {c?.annotated ? <Icon name="checkc" size={20} color="#10B981" width={2.2} /> : <Icon name="minusc" size={20} color="#CBD5E1" width={2} />}
-        <span className="min-w-0 flex-1 leading-tight">
-          <b className="block truncate text-[13.5px]">{label}</b>
-          <span className="block truncate text-[11.5px] text-fg-3">{c?.annotated ? `${c.by ? "Examiner" : c.module} · ${c.result || ""}` : "Not captured"}{c?.at ? ` · ${atTime(c.at)}` : ""}</span>
-        </span>
         {canCapture && (
           <>
-            <button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-cyan ring-1 ring-blue-100 transition hover:bg-blue-100"
+            <button className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-cyan shadow-md ring-1 ring-blue-100 transition hover:bg-blue-50"
               onClick={() => input.current?.click()} disabled={busy} aria-label={`${c?.annotated ? "Retake" : "Capture"} ${label}`} title={`${c?.annotated ? "Retake" : "Capture"}: the photo runs through the ${view === "tyre" ? "Tyre" : view === "underbody" ? "Undercarriage" : "Above-carriage"} AI`}>
               {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan border-t-transparent" /> : <Icon name="camera" size={17} />}
             </button>
@@ -57,6 +50,13 @@ function CaptureTile({ view, label, c, canCapture, onFile, busy, refPhoto }: { v
               onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
           </>
         )}
+      </div>
+      <figcaption className="flex items-center gap-2 px-3 py-2.5">
+        {c?.annotated ? <Icon name="checkc" size={18} color="#10B981" width={2.2} /> : <Icon name="minusc" size={18} color="#CBD5E1" width={2} />}
+        <span className="min-w-0 flex-1 leading-tight">
+          <b className="block truncate text-[13.5px]">{label}</b>
+          <span className="block truncate text-[11.5px] text-fg-3">{c?.annotated ? `${c.by ? "Examiner" : c.module} · ${c.result || ""}` : "Not captured"}{c?.at ? ` · ${atTime(c.at)}` : ""}</span>
+        </span>
       </figcaption>
     </figure>
   );
@@ -87,6 +87,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
   const stepIdx = timeline.findIndex((x: any) => x.step === L.step);
   const sess = sessions.find((s) => s.session_id === (insp.session_id || insp.session));
   const sid = session || iid;
+  const ev = insp.vehicle?.fuel === "ev";
 
   const upload = async (view: string, f: File) => {
     setBusy(view);
@@ -138,9 +139,11 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
           {sess && canAct && <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} quiet />}
         </div>
       )}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)]">
+      {/* lg: capture | checklist over the issues, then progress and actions side by side; 2xl: capture | checklist | the rest.
+          Cards keep their own height (items-start): a short card never stretches into empty space. */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr_auto] 2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)] 2xl:grid-rows-[auto_auto_1fr]">
         <Panel title="Image Capture" sub="Lane cameras fill these in; capture or retake any view: the photo runs through its AI module."
-          action={<Source kind="sample" text="Lane frames" />}>
+          action={<Source kind="sample" text="Lane frames" />} className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 2xl:row-span-3">
           <div className="grid grid-cols-2 gap-3">
             {VIEWS.map((v) => <CaptureTile key={v.id} view={v.id} label={v.label} c={caps[v.id]} canCapture={canAct && !locked} busy={busy === v.id} onFile={(f) => upload(v.id, f)}
               refPhoto={(REF_VIEW[v.id] || []).map((k) => refs.data?.gallery?.find((g: any) => g.view === k) || (k === "hero" ? refs.data?.hero : null)).find(Boolean)} />)}
@@ -149,7 +152,8 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
             </Link>
           </div>
         </Panel>
-        <Panel title="Inspection Checklist" sub="Verify all items and record results." action={<span className="text-[14px] font-semibold text-cyan">{ck.done}/{ck.total} completed</span>}>
+        <Panel title="Inspection Checklist" sub="Verify all items and record results." action={<span className="text-[14px] font-semibold text-cyan">{ck.done}/{ck.total} completed</span>}
+          className="min-w-0 lg:col-start-2 lg:row-start-1 2xl:row-span-3">
           <ul className="flex flex-col">
             {ck.items.map((it) => {
               const s = ITEM_STATUS[it.status];
@@ -167,63 +171,66 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
             })}
           </ul>
         </Panel>
-        <div className="grid min-w-0 grid-cols-1 gap-5 lg:col-span-2 lg:grid-cols-3 2xl:col-span-1 2xl:flex 2xl:flex-col">
-          <Panel title="Inspection Progress">
-            <div className="flex items-center gap-5">
-              <Ring value={pct} size={128} stroke={13}><span className="text-[28px] font-bold">{pct}%</span></Ring>
-              <div className="min-w-0 flex-1">
-                <div className="text-[30px] font-bold leading-tight">{ck.done} / {ck.total}</div>
-                <div className="text-[13px] text-fg-3">Inspection items completed</div>
-                <ProgressBar value={pct} className="mt-3" />
-              </div>
+        <Panel title="Inspection Progress" className="min-w-0 lg:col-start-1 lg:row-start-3 2xl:col-start-3 2xl:row-start-1">
+          <div className="flex items-center gap-5">
+            <Ring value={pct} size={120} stroke={12}><span className="text-[26px] font-bold">{pct}%</span></Ring>
+            <div className="min-w-0 flex-1">
+              <div className="text-[30px] font-bold leading-tight">{ck.done} / {ck.total}</div>
+              <div className="text-[13px] text-fg-3">Inspection items completed</div>
+              <ProgressBar value={pct} className="mt-3" />
             </div>
-          </Panel>
-          <Panel title={<span className="flex items-center gap-2 text-[18px] font-bold">Detected Issues {L.alerts.length > 0 && <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-red-100 px-1.5 text-[12px] font-bold text-red-700">{L.alerts.length}</span>}</span>}>
-            {!L.alerts.length ? (
-              <div className="rounded-xl bg-emerald-50 px-4 py-3 text-[13.5px] text-emerald-800 ring-1 ring-emerald-200">{running ? "No issues detected so far." : "No anomalies detected in this inspection."}</div>
-            ) : (
-              <ul className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-1">
-                {issues.slice(0, 8).map((a) => {
-                  const img = a.evidence?.image?.annotated;
-                  const sev = alertSeverity(a);
-                  return (
-                    <li key={a.alert_id}>
-                      <Link href={`/inspection/${sid}/findings?finding=${a.alert_id}`} className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-2.5 hover:bg-white">
-                        {img ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={img} alt="" className="h-14 w-16 shrink-0 rounded-xl object-cover" />
-                        ) : <IconTile icon={a.system?.includes("Brake") ? "brake" : a.system?.includes("Tyre") ? "tyre" : a.system?.includes("emission") ? "smoke" : a.system?.includes("Identity") ? "user" : "warn"} tone={sev === "critical" ? "red" : "amber"} size={52} />}
-                        <span className="min-w-0 flex-1 leading-tight">
-                          <span className="flex items-center justify-between gap-2"><span className="truncate text-[11.5px] text-fg-3">{a.system}</span>
-                            <StatusPill tone={a.status === "open" ? (sev === "critical" ? "red" : "amber") : a.status === "dismissed" ? "green" : "gray"}>{a.status === "open" ? (sev === "critical" ? "Issue" : "Pending") : a.status === "dismissed" ? "Passed" : a.status}</StatusPill></span>
-                          <b className="mt-0.5 block truncate text-[13.5px]">{a.title}</b>
-                          <span className="block truncate text-[12px] text-fg-3">{a.detail}</span>
-                        </span>
-                        <Icon name="chev" size={16} color="#94A3B8" />
-                      </Link>
-                    </li>
-                  );
-                })}
-                {issues.length > 8 && <Link className="text-center text-[13px] font-semibold text-cyan" href={`/inspection/${sid}/findings`}>All {issues.length} findings →</Link>}
+          </div>
+        </Panel>
+        <Panel title={<span className="flex items-center gap-2 text-[18px] font-bold">Detected Issues {L.alerts.length > 0 && <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-red-100 px-1.5 text-[12px] font-bold text-red-700">{L.alerts.length}</span>}</span>}
+          href={L.alerts.length ? `/inspection/${sid}/findings` : undefined} actionLabel="Review all"
+          className="min-w-0 lg:col-start-2 lg:row-start-2 2xl:col-start-3 2xl:row-start-2">
+          {!L.alerts.length ? (
+            <div className="rounded-xl bg-emerald-50 px-4 py-3 text-[13.5px] text-emerald-800 ring-1 ring-emerald-200">{running ? "No issues detected so far." : "No anomalies detected in this inspection."}</div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {issues.slice(0, SHOW_ISSUES).map((a) => {
+                const img = a.evidence?.image?.annotated;
+                const sev = alertSeverity(a);
+                return (
+                  <li key={a.alert_id}>
+                    <Link href={`/inspection/${sid}/findings?finding=${a.alert_id}`} className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-2.5 hover:bg-white">
+                      {img ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={img} alt="" className="h-12 w-14 shrink-0 rounded-xl object-cover" />
+                      ) : <IconTile icon={a.system?.includes("Brake") ? "brake" : a.system?.includes("Tyre") ? "tyre" : a.system?.includes("emission") ? "smoke" : a.system?.includes("Identity") ? "user" : "warn"} tone={sev === "critical" ? "red" : "amber"} size={48} />}
+                      <span className="min-w-0 flex-1 leading-tight">
+                        <span className="flex items-center justify-between gap-2"><span className="truncate text-[11.5px] text-fg-3">{itemLabel(a.code || "", ev)}</span>
+                          <StatusPill tone={a.status === "open" ? (sev === "critical" ? "red" : "amber") : a.status === "dismissed" ? "green" : "gray"}>{a.status === "open" ? (sev === "critical" ? "Issue" : "Pending") : a.status === "dismissed" ? "Passed" : a.status}</StatusPill></span>
+                        <b className="mt-0.5 block truncate text-[13.5px]">{a.title}</b>
+                        <span className="block truncate text-[12px] text-fg-3">{a.detail}</span>
+                      </span>
+                      <Icon name="chev" size={16} color="#94A3B8" />
+                    </Link>
+                  </li>
+                );
+              })}
+              {issues.length > SHOW_ISSUES && (
+                <li><Link className="flex items-center justify-center gap-1 rounded-xl bg-blue-50 py-2 text-[13px] font-semibold text-[#1D4ED8] ring-1 ring-blue-100 hover:bg-blue-100" href={`/inspection/${sid}/findings`}>
+                  +{issues.length - SHOW_ISSUES} more · all {issues.length} findings<Icon name="chev" size={15} /></Link></li>
+              )}
+            </ul>
+          )}
+        </Panel>
+        <Panel title="Quick Actions" sub="Use these actions to proceed with the inspection." className="min-w-0 lg:col-start-2 lg:row-start-3 2xl:col-start-3">
+          <div className="flex flex-col gap-2.5">
+            {primary}
+            <div className="flex flex-wrap gap-2.5 [&>*]:min-w-[150px] [&>*]:flex-1 [&>*]:whitespace-nowrap">
+              <button className="btn" disabled={!canAct || locked} onClick={() => setRemarkOpen(true)}><Icon name="edit" size={16} />Add Remark</button>
+              <Link className="btn" href={`/inspection/${sid}/review`}><Icon name="doc" size={16} />Complete Inspection</Link>
+            </div>
+            <p className="flex items-start gap-1.5 text-[12px] text-fg-3"><Icon name="checkc" size={14} color="#10B981" className="mt-px shrink-0" />Every result and decision is saved as it happens, in the hash-chained evidence log.</p>
+            {(insp.remarks || []).length > 0 && (
+              <ul className="mt-1 flex flex-col gap-1.5 border-t border-ink-600/60 pt-2 text-[12.5px]">
+                {insp.remarks.slice(-3).map((r: any, i: number) => <li key={i} className="rounded-lg bg-white/70 px-2.5 py-1.5"><b>{r.by}</b> · {atTime(r.at)}<div className="text-fg-2">{r.text}</div></li>)}
               </ul>
             )}
-          </Panel>
-          <Panel title="Quick Actions" sub="Use these actions to proceed with the inspection.">
-            <div className="flex flex-col gap-2.5">
-              {primary}
-              <div className="grid grid-cols-2 gap-2.5">
-                <button className="btn" disabled={!canAct || locked} onClick={() => setRemarkOpen(true)}><Icon name="edit" size={16} />Add Remark</button>
-                <Link className="btn" href={`/inspection/${sid}/review`}><Icon name="doc" size={16} />Complete Inspection</Link>
-              </div>
-              <p className="flex items-center gap-1.5 text-[12px] text-fg-3"><Icon name="checkc" size={14} color="#10B981" />Every result and decision is saved as it happens, in the hash-chained evidence log.</p>
-              {(insp.remarks || []).length > 0 && (
-                <ul className="mt-1 flex flex-col gap-1.5 border-t border-ink-600/60 pt-2 text-[12.5px]">
-                  {insp.remarks.slice(-3).map((r: any, i: number) => <li key={i} className="rounded-lg bg-white/70 px-2.5 py-1.5"><b>{r.by}</b> · {atTime(r.at)}<div className="text-fg-2">{r.text}</div></li>)}
-                </ul>
-              )}
-            </div>
-          </Panel>
-        </div>
+          </div>
+        </Panel>
       </div>
       <Modal open={remarkOpen} onClose={() => setRemarkOpen(false)} title="Add a remark">
         <div className="flex w-[min(520px,calc(100vw-5rem))] flex-col gap-3">

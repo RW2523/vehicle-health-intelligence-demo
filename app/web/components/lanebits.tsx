@@ -13,12 +13,12 @@ const ENOSE_COLORS = ["#2563EB", "#3B82F6", "#7C3AED", "#DB2777", "#EA580C", "#D
 export function Timeline({ timeline, step, t }: { timeline: any[]; step: string; t?: number }) {
   const idx = timeline.findIndex((s) => s.step === step);
   return (
-    <ol className="flex flex-col gap-1.5">
+    <ol className="flex flex-col gap-1">
       {timeline.map((s, i) => {
         const done = step === "done" || (idx >= 0 && i < idx);
         const cur = i === idx;
         return (
-          <li key={s.step} className={`flex items-center gap-3 rounded-lg px-2.5 py-1.5 ${cur ? "bg-cyan/10 ring-1 ring-cyan/50" : ""}`}>
+          <li key={s.step} className={`flex items-center gap-3 rounded-lg px-2.5 py-1 ${cur ? "bg-cyan/10 ring-1 ring-cyan/50" : ""}`}>
             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${done ? "bg-ok text-ink-900" : cur ? "bg-cyan text-ink-900" : "bg-ink-600 text-fg-3"}`}>
               {done ? "✓" : i + 1}
             </span>
@@ -128,19 +128,18 @@ export function OBDChart({ obd, height = 150 }: { obd: { t: number; rpm: number 
 export function Frames({ images, onOpen, done = false }: { images: any[]; onOpen?: (img: any) => void; done?: boolean }) {
   if (!images?.length) return <p className="text-[13px] text-fg-3">{done ? "No camera frames were captured in this replay." : "Results arrive from the undercarriage, above-carriage and tyre AI during those lane steps."}</p>;
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {images.map((im, i) => (
-        <button key={i} className="overflow-hidden rounded-xl border border-ink-600 bg-ink-850 text-left" onClick={() => onOpen?.(im)} aria-label={`Open ${SYSTEM_NAME[im.system] || im.kind} frame from ${im.camera}`}>
+        <button key={i} className="flex flex-col overflow-hidden rounded-xl border border-ink-600 bg-ink-850 text-left" onClick={() => onOpen?.(im)} aria-label={`Open ${SYSTEM_NAME[im.system] || im.kind} frame from ${im.camera}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={im.annotated} alt={`${im.kind} frame`} className="h-40 w-full object-cover" />
-          <div className="flex flex-col gap-1 p-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[12.5px] font-semibold">{SYSTEM_NAME[im.system] || im.kind} · {im.camera}</span>
-              <Source kind={im.model === "corrosion segmentation" ? "live_logic" : "live_model"} />
-            </div>
-            <span className="text-[12px] text-fg-3">
+          <img src={im.annotated} alt={`${im.kind} frame`} className="h-40 w-full shrink-0 object-cover" />
+          {/* the caption fills the tile and the label sits at its foot, so the tiles of a row line up */}
+          <div className="flex flex-1 flex-col items-start gap-1 p-2.5">
+            <span className="text-[12.5px] font-semibold leading-snug">{SYSTEM_NAME[im.system] || im.kind} · {im.camera}</span>
+            <span className="text-[12px] leading-snug text-fg-3">
               {im.corrosion_score !== undefined ? `Corrosion ${im.corrosion_score}/10 · ${im.boxes?.length || 0} regions` : `${im.label} (${Math.round((im.p || 0) * 100)}%)`}
             </span>
+            <span className="mt-auto pt-1"><Source kind={im.model === "corrosion segmentation" ? "live_logic" : "live_model"} /></span>
           </div>
         </button>
       ))}

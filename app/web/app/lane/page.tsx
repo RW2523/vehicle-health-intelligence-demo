@@ -38,7 +38,7 @@ function LaneConsole() {
   const insp = L.insp;
   const r = L.results;
   const presenter = user?.role === "presenter" || user?.role === "examiner";
-  const controls = sess && presenter ? <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} quiet={!!L.insp} /> : null;
+  const controls = (center = false) => sess && presenter ? <PlayerControls s={sess} onState={setPlayer} compact center={center} onFastDone={L.reload} quiet={!!L.insp} /> : null;
   const loading = !insp && !L.notFound;
   const running = insp?.status === "in_lane";
   const timeline = insp?.timeline || L.player?.timeline || [];
@@ -58,7 +58,7 @@ function LaneConsole() {
       <PageHeader eyebrow="Live Lane" title={vision ? "AI vision" : "Lane console"}
         sub={vision ? "The platform's AI inspection modules (undercarriage, above-carriage and tyre) on inspection captures and the image library. Run the live models on any capture, a curated photo or your own upload."
           : "What the lane sees as it happens: what it has found first, then the evidence, then the raw readings."}
-        actions={!vision && insp ? controls : null}>
+        actions={!vision && insp ? controls() : null}>
         <div className="mt-3 flex max-w-full flex-wrap items-center gap-3">
           <div className="flex shrink-0 gap-1 rounded-full border border-white/80 bg-white/70 p-1 shadow-glass" role="tablist" aria-label="Live Lane view">
             {[{ id: "lane", label: "Sensors & lane", icon: "lane" }, { id: "vision", label: "AI vision", icon: "vision" }].map((x) => {
@@ -77,7 +77,7 @@ function LaneConsole() {
       {vision ? <VisionPanel /> : loading ? (
         <div className="card card-pad"><LoadingState label="Loading the latest inspection on this lane…" rows={4} /></div>
       ) : !insp ? (
-        <Empty title={`${laneInfo.plate} has not entered ${laneInfo.label.toLowerCase()} yet`} actions={controls}>
+        <Empty title={`${laneInfo.plate} has not entered ${laneInfo.label.toLowerCase()} yet`} actions={controls(true)}>
           {laneInfo.plate} ({laneInfo.car}) comes in for {STORY[laneInfo.session]}. {presenter ? "Start the replay to watch the sensors and AI live, or fast-forward to the finished result." : "The presenter starts the replay."}
         </Empty>
       ) : (
@@ -170,7 +170,8 @@ function LaneConsole() {
                 </div>
               </details>
             </div>
-            <div className="flex min-w-0 flex-col gap-4">
+            {/* stays in view beside the long left column; scrolls on its own only if it is taller than the window */}
+            <div className="flex min-w-0 flex-col gap-4 self-start xl:sticky xl:top-4 xl:-m-3 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:p-3 xl:[scrollbar-width:thin]">
               <Card title="Lane steps" right={L.player ? <span className="text-[12px] text-fg-3">{L.player.status} · {L.player.speed}×</span> : null}>
                 <Timeline timeline={timeline} step={L.step} />
               </Card>
@@ -179,7 +180,7 @@ function LaneConsole() {
                   {r.anpr ? (
                     <div className="flex gap-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={r.anpr.image} alt="Plate camera frame" className="h-16 w-28 shrink-0 rounded-lg object-cover" />
+                      <img src={r.anpr.image} alt="Plate camera frame" className="h-16 w-28 shrink-0 rounded-lg bg-[#0F172A] object-contain" />
                       <div className="min-w-0">
                         <div className="font-display text-[18px] font-bold">{r.anpr.plate || "not read"}</div>
                         <div className="text-[12px] text-fg-3">Plate read {Math.round((r.anpr.conf || 0) * 100)}% · {r.anpr.registry?.found ? "registry record found" : "no registry record"} <span className="text-fg-4">(mock registry)</span></div>
@@ -190,7 +191,7 @@ function LaneConsole() {
                   {r.chassis ? (
                     <div className="flex items-center gap-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={r.chassis.image} alt="Chassis number plate" className="h-10 w-32 shrink-0 rounded object-cover" />
+                      <img src={r.chassis.image} alt="Chassis number plate" className="h-10 w-32 shrink-0 rounded bg-[#E8EEF7] object-contain" />
                       <div className="min-w-0">
                         <div className="truncate font-mono text-[12.5px]">{r.chassis.read || "not read"}</div>
                         <div className={r.chassis.match ? "text-ok" : "text-bad"}>{r.chassis.match ? "Matches the registry" : "Does not match the registry"}</div>

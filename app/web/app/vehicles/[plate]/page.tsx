@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, use, useState } from "react";
+import { ReactNode, Suspense, use, useEffect, useRef, useState } from "react";
 import { LineChart } from "@/components/charts";
 import { IconTile, Panel, StatusPill, Tone } from "@/components/glass";
 import { HealthTrends } from "@/components/HealthTrends";
 import { Icon } from "@/components/icons";
 import { ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
+import { PhotoCreditBadge } from "@/components/Photo";
 import { Shell } from "@/components/Shell";
 import { ErrorState, LoadingState, Modal, Source } from "@/components/ui";
 import { VehicleImage } from "@/components/VehicleImage";
@@ -14,7 +15,37 @@ import { dmy, fmtN } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 const RES: Record<string, Tone> = { PASS: "green", FAIL: "red", CONDITIONAL: "amber", REFERRED: "blue", PASS_ADVISORY: "amber" };
-const RES_WORD: Record<string, string> = { PASS_ADVISORY: "PASS · advisory" };
+/** A result in the words the rest of the app uses ("Pass", "Fail", "Pass · advisory"). */
+const RES_WORD: Record<string, string> = { PASS: "Pass", FAIL: "Fail", CONDITIONAL: "Conditional", REFERRED: "Referred", PASS_ADVISORY: "Pass · advisory" };
+const resWord = (r?: string | null) => (r ? RES_WORD[r] || r : "–");
+const FUEL: Record<string, string> = { ev: "EV", petrol: "Petrol", diesel: "Diesel", hybrid: "Hybrid" };
+const fuelLabel = (f?: string | null) => (f ? FUEL[f.toLowerCase()] || f.replace(/^./, (c) => c.toUpperCase()) : "");
+
+/** A row that scrolls sideways (tabs, the ten plates): the current item is brought into view, and a fade at an edge
+ *  says there is more to scroll to. Only the row scrolls, never the page. */
+function ScrollRow({ children, className = "", label, role, active }: { children: ReactNode; className?: string; label: string; role?: string; active: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const measure = () => {
+    const el = ref.current;
+    if (el) setEdge({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
+  };
+  useEffect(() => {
+    const el = ref.current;
+    const cur = el?.querySelector<HTMLElement>("[aria-selected='true'], [aria-current='page']");
+    if (el && cur && el.scrollWidth > el.clientWidth) el.scrollLeft = cur.offsetLeft - (el.clientWidth - cur.offsetWidth) / 2;
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [active]);  // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="relative min-w-0 max-w-full">
+      <div ref={ref} onScroll={measure} role={role} aria-label={label} className={`relative flex max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}>{children}</div>
+      {edge.l && <span className="pointer-events-none absolute inset-y-0 left-0 w-10 rounded-l-full bg-gradient-to-r from-white via-white/80 to-white/0" aria-hidden />}
+      {edge.r && <span className="pointer-events-none absolute inset-y-0 right-0 w-12 rounded-r-full bg-gradient-to-l from-white via-white/80 to-white/0" aria-hidden />}
+    </div>
+  );
+}
 const TODAY: Record<string, { label: string; tone: Tone }> = {
   completed: { label: "Inspected today", tone: "green" }, in_progress: { label: "On a lane now", tone: "amber" }, in_queue: { label: "Waiting at the hub", tone: "blue" },
   scheduled: { label: "Expected today", tone: "gray" },
@@ -37,11 +68,7 @@ function Gallery({ p }: { p: any }) {
       <div className="relative aspect-[16/10] overflow-hidden rounded-3xl bg-gradient-to-b from-[#F1F5FB] to-[#DEE6F2]">
         <VehicleImage plate={v.plate} vtype={v.vtype} photo={ph} size="full" className="h-full w-full" />
         <span className="absolute bottom-3 left-3 rounded-lg bg-[#0F172A]/85 px-3 py-1 font-mono text-[15px] font-bold tracking-wider text-white">{v.plate}</span>
-        {ph?.credit && (
-          <a href={ph.page_url} target="_blank" rel="noreferrer" className="absolute bottom-3 right-3 max-w-[60%] truncate rounded-lg bg-white/85 px-2 py-0.5 text-[10.5px] text-fg-3 backdrop-blur hover:text-cyan" title={ph.credit}>
-            {ph.credit}
-          </a>
-        )}
+        {ph?.credit && <PhotoCreditBadge photo={ph} />}
       </div>
       {photos.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -73,6 +100,8 @@ function Odometer({ p }: { p: any }) {
   );
 }
 
+const TRAIL = "flex shrink-0 flex-col items-end gap-1 text-right sm:w-[112px]";
+
 function History({ p, compact = false }: { p: any; compact?: boolean }) {
   const hist = [...p.inspections].reverse();
   const today = p.today?.status === "completed" ? p.today : null;
@@ -85,30 +114,33 @@ function History({ p, compact = false }: { p: any; compact?: boolean }) {
             <IconTile icon="clipboard" tone={RES[today.result] || "gray"} size={42} />
             <span className="min-w-0 flex-1 leading-tight"><b className="block truncate text-[14px]">{today.inspection_type} · today</b>
               <span className="block truncate text-[12.5px] text-fg-3">Lane {today.lane} · {today.start_at}–{today.end_at}{today.issues?.length ? ` · ${today.issues.join("; ")}` : ""}</span></span>
-            <StatusPill tone={RES[today.result] || "gray"}>{RES_WORD[today.result] || today.result}</StatusPill>
+            <span className={TRAIL}><StatusPill tone={RES[today.result] || "gray"}>{resWord(today.result)}</StatusPill></span>
           </li>
         )}
         {p.reports.map((r: any) => (
           <li key={r.report_id} className="flex items-center gap-3 border-b border-ink-600/50 py-3 last:border-0">
             <IconTile icon="award" tone={RES[r.verdict] || "gray"} size={42} />
             <span className="min-w-0 flex-1 leading-tight"><b className="block truncate text-[14px]">{r.kind}</b><span className="block truncate text-[12.5px] text-fg-3">{dmy(r.issued_at || r.created_at)} · {r.synthetic ? "synthetic record" : "lane report"}{r.health != null ? ` · health ${r.health}` : ""}{r.findings?.length ? ` · ${r.findings.slice(0, 2).join("; ")}` : ""}</span></span>
-            <StatusPill tone={RES[r.verdict] || "gray"}>{r.verdict}</StatusPill>
-            <Link className="btn btn-sm" href={`/report?id=${r.report_id}`}>Report</Link>
+            <span className={TRAIL}>
+              <StatusPill tone={RES[r.verdict] || "gray"}>{resWord(r.verdict)}</StatusPill>
+              <Link className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-cyan hover:underline" href={`/report?id=${r.report_id}`}>Report<Icon name="chev" size={13} /></Link>
+            </span>
           </li>
         ))}
         {(compact ? hist.slice(0, 4) : hist).map((i: any) => (
-          <li key={i.id} className="flex flex-wrap items-center gap-3 border-b border-ink-600/50 py-3 last:border-0">
+          <li key={i.id} className="flex items-center gap-3 border-b border-ink-600/50 py-3 last:border-0">
             <IconTile icon="clipboard" tone={RES[i.result] || "gray"} size={42} />
             <span className="min-w-0 flex-1 leading-tight"><b className="block truncate text-[14px]">{i.type}</b>
-              <span className="block truncate text-[12.5px] text-fg-3">{dmy(i.date)} · {fmtN(i.odometer_km)} km{i.fail_reasons.length ? ` · failed on ${i.fail_reasons.join(", ").replaceAll("_", " ")}` : ""}</span></span>
-            {!compact && (
-              <span className="hidden gap-4 text-[12px] text-fg-3 md:flex">
-                {i.brake_efficiency_pct != null && <span>Brakes <b className="text-fg">{Math.round(i.brake_efficiency_pct)}%</b></span>}
-                {i.tyre_tread_min_mm != null && <span>Tread <b className="text-fg">{i.tyre_tread_min_mm} mm</b></span>}
-                {i.corrosion != null && <span>Corrosion <b className="text-fg">{i.corrosion}/10</b></span>}
-              </span>
-            )}
-            <StatusPill tone={RES[i.result] || "gray"}>{i.result}</StatusPill>
+              <span className="block truncate text-[12.5px] text-fg-3">{dmy(i.date)} · {fmtN(i.odometer_km)} km{i.fail_reasons.length ? ` · failed on ${i.fail_reasons.join(", ").replaceAll("_", " ")}` : ""}</span>
+              {!compact && (i.brake_efficiency_pct != null || i.tyre_tread_min_mm != null || i.corrosion != null) && (
+                <span className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] text-fg-3">
+                  {i.brake_efficiency_pct != null && <span>Brakes <b className="text-fg">{Math.round(i.brake_efficiency_pct)}%</b></span>}
+                  {i.tyre_tread_min_mm != null && <span>Tread <b className="text-fg">{i.tyre_tread_min_mm} mm</b></span>}
+                  {i.corrosion != null && <span>Corrosion <b className="text-fg">{i.corrosion}/10</b></span>}
+                </span>
+              )}
+            </span>
+            <span className={TRAIL}><StatusPill tone={RES[i.result] || "gray"}>{resWord(i.result)}</StatusPill></span>
           </li>
         ))}
         {!n && <p className="text-[13.5px] text-fg-3">No inspection on record for this vehicle.</p>}
@@ -152,12 +184,12 @@ function Profile({ plate }: { plate: string }) {
     <Shell>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <Link href="/vehicles" className="inline-flex items-center gap-1 text-[14px] text-fg-2 hover:text-cyan"><Icon name="back" size={16} />Vehicle Records</Link>
-        <div className="flex max-w-full gap-1.5 overflow-x-auto pb-1" aria-label="The ten vehicles">
+        <ScrollRow label="The ten vehicles" active={plate} className="gap-1.5 pb-1">
           {(list.data?.items || []).map((x: any) => (
             <Link key={x.plate} href={`/vehicles/${encodeURIComponent(x.plate)}${tab === "overview" ? "" : `?tab=${tab}`}`} aria-current={x.plate === plate ? "page" : undefined}
               className={`chip shrink-0 px-3 py-1.5 text-[12px] ${x.plate === plate ? "border-cyan bg-blue-50 font-semibold text-[#1D4ED8]" : "border-white/80 bg-white/70 text-fg-2 hover:bg-white"}`}>{x.plate}</Link>
           ))}
-        </div>
+        </ScrollRow>
       </div>
       {d.error ? <ErrorState title="Vehicle not found">{d.error}</ErrorState> : !p ? <div className="card p-6"><LoadingState label={`Loading ${plate}…`} rows={6} /></div> : (() => {
         const v = p.vehicle;
@@ -172,7 +204,7 @@ function Profile({ plate }: { plate: string }) {
                   {p.main?.session && <span className="pill bg-blue-50 text-[#1D4ED8]">Lane {p.main.lane.split("-L")[1]} replay</span>}
                 </div>
                 <h1 className="mt-1 text-[34px] font-extrabold leading-tight tracking-tight">{v.make} {v.model}</h1>
-                <div className="text-[16px] text-fg-2">{v.plate} · {v.year} · {v.vtype} · <span className="capitalize">{v.fuel}</span></div>
+                <div className="text-[16px] text-fg-2">{v.plate} · {v.year} · {v.vtype} · {fuelLabel(v.fuel)}</div>
                 {p.main?.story && <p className="mt-3 rounded-2xl bg-blue-50/70 px-4 py-3 text-[13.5px] leading-relaxed text-[#1E3A8A]">{p.main.story}</p>}
                 <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[13.5px] sm:grid-cols-3">
                   <div><dt className="text-fg-3">Owner</dt><dd className="font-semibold">{v.owner_name || (p.fleet ? p.fleet.name : "Company")}</dd></div>
@@ -183,25 +215,31 @@ function Profile({ plate }: { plate: string }) {
                   <div><dt className="text-fg-3">Paint</dt><dd className="font-semibold capitalize">{p.photos?.paint || "–"}</dd></div>
                   <div className="col-span-2 sm:col-span-3"><dt className="text-fg-3">Chassis no.</dt><dd className="break-all font-mono text-[12.5px]">{v.chassis_no}</dd></div>
                 </dl>
-                <div className="mt-auto flex flex-wrap gap-2 pt-5">
-                  <Link className="btn btn-primary" href={`/appointments?new=1&plate=${encodeURIComponent(v.plate)}`}><Icon name="calendar" size={16} color="#fff" />Book appointment</Link>
-                  <Link className="btn" href={`/assistant?plate=${encodeURIComponent(v.plate)}`}><Icon name="bot" size={16} />Ask the Chat Bot</Link>
-                  {p.links.passport && <Link className="btn" href={p.links.passport}><Icon name="owner" size={16} />Owner&apos;s app</Link>}
-                  {p.links.sale && <Link className="btn" href={p.links.sale}><Icon name="sale" size={16} />For sale</Link>}
-                  <Link className="btn" href={p.links.flood}><Icon name="flood" size={16} />Flood risk</Link>
+                <div className="mt-auto flex flex-col gap-3 pt-5">
+                  <div className="flex flex-wrap gap-2">
+                    <Link className="btn btn-primary" href={`/appointments?new=1&plate=${encodeURIComponent(v.plate)}`}><Icon name="calendar" size={16} color="#fff" />Book appointment</Link>
+                    <Link className="btn" href={`/assistant?plate=${encodeURIComponent(v.plate)}`}><Icon name="bot" size={16} />Ask the Chat Bot</Link>
+                  </div>
+                  <nav aria-label="Elsewhere in VehicleSense" className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] font-semibold text-cyan">
+                    {p.links.passport && <Link className="inline-flex items-center gap-1.5 hover:underline" href={p.links.passport}><Icon name="owner" size={15} />Owner&apos;s app</Link>}
+                    {p.links.sale && <Link className="inline-flex items-center gap-1.5 hover:underline" href={p.links.sale}><Icon name="sale" size={15} />For sale</Link>}
+                    <Link className="inline-flex items-center gap-1.5 hover:underline" href={p.links.flood}><Icon name="flood" size={15} />Flood risk</Link>
+                  </nav>
                 </div>
               </div>
             </section>
-            <div className="mb-5 flex max-w-full gap-1.5 overflow-x-auto rounded-full border border-white/80 bg-white/70 p-1 shadow-glass" role="tablist" aria-label="Record">
-              {TABS.filter((t) => t.id !== "photos" || library.length || p.photos?.hero).map((t) => (
-                <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
-                  className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-[13.5px] font-semibold transition ${tab === t.id ? "bg-gradient-to-r from-[#3B82F6] to-[#1D4ED8] text-white shadow" : "text-fg-2 hover:bg-white"}`}>
-                  <Icon name={t.icon} size={16} color={tab === t.id ? "#fff" : "#475569"} />{t.label}
-                </button>
-              ))}
+            <div className="mb-5">
+              <ScrollRow role="tablist" label="Record" active={tab} className="gap-1.5 rounded-full border border-white/80 bg-white/70 p-1 shadow-glass">
+                {TABS.filter((t) => t.id !== "photos" || library.length || p.photos?.hero).map((t) => (
+                  <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
+                    className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[13.5px] font-semibold transition ${tab === t.id ? "bg-gradient-to-r from-[#3B82F6] to-[#1D4ED8] text-white shadow" : "text-fg-2 hover:bg-white"}`}>
+                    <Icon name={t.icon} size={16} color={tab === t.id ? "#fff" : "#475569"} />{t.label}
+                  </button>
+                ))}
+              </ScrollRow>
             </div>
             {tab === "overview" && (
-              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                 <History p={p} compact />
                 <div className="flex min-w-0 flex-col gap-5">
                   <Odometer p={p} />
@@ -216,7 +254,7 @@ function Profile({ plate }: { plate: string }) {
               </div>
             )}
             {tab === "history" && (
-              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+              <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
                 <History p={p} />
                 <Odometer p={p} />
               </div>
@@ -226,7 +264,7 @@ function Profile({ plate }: { plate: string }) {
               <div className="flex flex-col gap-5">
                 {p.photos?.hero && (
                   <Panel title="Photos" action={<Source kind="sample" text="Stock photos · representative of the model" />}>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                       {[p.photos.hero, ...(p.photos.gallery || [])].filter((x: any, i: number, a: any[]) => a.findIndex((y) => y.url === x.url) === i).map((x: any) => (
                         <button key={x.url} onClick={() => setStock(x)} className="group overflow-hidden rounded-2xl border border-white/80 bg-white/70 text-left shadow-glass">
                           <VehicleImage plate={v.plate} vtype={v.vtype} photo={x} size="960" className="aspect-[4/3] w-full transition group-hover:scale-[1.03]" />

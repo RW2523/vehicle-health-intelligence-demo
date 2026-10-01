@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { NextAction, refreshUseCase, useActiveUseCase } from "@/components/Demo";
 import { Icon } from "@/components/icons";
 import { Shell } from "@/components/Shell";
@@ -36,6 +36,9 @@ function ReportView() {
   const kinds = Array.from(new Set(findings.map((f) => provenance(f.source).kind)));
   const nMeasures = Object.keys(d.measurements || {}).length;
   const hs = d.health?.score;
+  // the verification address as seen from here: the public host when the app is opened through it
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
   return (
     <Shell>
       <div className="mb-2"><Link href="/inspection?tab=reports" className="inline-flex items-center gap-1 text-[14px] text-fg-2 hover:text-cyan"><Icon name="back" size={16} />All reports</Link></div>
@@ -82,7 +85,7 @@ function ReportView() {
               <div className="flex min-w-0 flex-col gap-4">
                 <Card>
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 basis-[300px]">
                       <div className="flex flex-wrap items-center gap-2"><span className="label">{r.kind}</span>{d.synthetic && <Source kind="synthetic" text="Seeded demo record" />}</div>
                       <h2 className="mt-1 font-display text-[24px] font-bold leading-tight">{r.plate} · {[d.vehicle?.make, d.vehicle?.model, d.vehicle?.year].filter(Boolean).join(" ")}</h2>
                       <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-2 text-[13px] sm:grid-cols-3">
@@ -94,7 +97,7 @@ function ReportView() {
                         {d.odometer_km != null && <div><dt className="text-[11.5px] text-fg-3">Odometer</dt><dd className="font-semibold">{fmtN(d.odometer_km)} km</dd></div>}
                       </dl>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
+                    <div className="order-first flex shrink-0 items-center gap-3 sm:order-none">
                       {hs != null && <ScoreRing value={hs} size={84} />}
                       <div className="rounded-2xl border-2 px-5 py-3 text-center" style={{ borderColor: VERDICT[r.verdict]?.color, color: VERDICT[r.verdict]?.color }} title={VERDICT[r.verdict]?.help}>
                         <div className="font-display text-[26px] font-bold">{r.verdict}</div>
@@ -162,7 +165,7 @@ function ReportView() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`/api/reports/${r.report_id}/qr.svg`} alt="QR code to verify this report" className="h-44 w-44 rounded-xl bg-white p-2" />
                     <Link href={`/verify/${r.verify_token}`} className="btn w-full">Open public verification (no login)</Link>
-                    <p className="break-all text-center font-mono text-[11px] text-fg-3">{r.verify_url}</p>
+                    <p className="break-all text-center font-mono text-[11px] text-fg-3">{origin ? `${origin}/verify/${r.verify_token}` : r.verify_url}</p>
                   </div>
                 </Card>
                 <Card title="Integrity">

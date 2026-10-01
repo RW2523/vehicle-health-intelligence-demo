@@ -5,7 +5,7 @@ import { Suspense, use, useEffect } from "react";
 import { visitStep } from "@/components/Demo";
 import { Icon } from "@/components/icons";
 import { MobileShell } from "@/components/MobileShell";
-import { MCard, MSkeleton, Plate, Verdict } from "@/components/mobileKit";
+import { BTN2, MCard, MSkeleton, Plate, Verdict } from "@/components/mobileKit";
 import { Source } from "@/components/ui";
 import { dmy, fmtN, pct } from "@/lib/format";
 import { useFetch } from "@/lib/live";
@@ -34,6 +34,7 @@ function Verify({ token }: { token: string }) {
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 ring-1 ring-rose-200"><Icon name="warn" size={26} color="#DC2626" /></span>
             <h2 className="mt-3 text-[18px] font-bold text-rose-700">No report matches this code</h2>
             <p className="mt-1 text-[13px] text-slate-500">Check that the whole QR code was scanned. A code that was edited or copied wrongly does not verify.</p>
+            <a className={`${BTN2} mt-4 w-full`} href="/mobile">Open VehicleSense<Icon name="arrow" size={15} /></a>
           </div>
         </MCard>
       )}
@@ -48,7 +49,7 @@ function Verify({ token }: { token: string }) {
       )}
       {v && (
         <div className="flex flex-col gap-3">
-          <section role="status" className={`m-pop rounded-[26px] bg-gradient-to-br p-5 text-white shadow-lg ${v.valid ? "from-emerald-500 to-emerald-600" : "from-rose-500 to-rose-600"}`}>
+          <section role="status" className={`m-pop rounded-[26px] bg-gradient-to-br p-5 text-white shadow-lg ${v.valid ? "from-emerald-600 to-emerald-700" : "from-rose-600 to-rose-700"}`}>
             <div className="flex items-center gap-3">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/40" aria-hidden>
                 <Icon name={v.valid ? "shield" : "warn"} size={30} color="#fff" width={2} />
@@ -74,7 +75,7 @@ function Verify({ token }: { token: string }) {
           </MCard>
           <div className="grid grid-cols-2 gap-2">
             {v.odometer_km != null && <Metric label="Odometer at inspection" value={`${fmtN(v.odometer_km)} km`} />}
-            <Metric label="Health score" value={v.health_score ?? "–"} note={v.health_score == null ? "not scored for this record" : undefined} />
+            {v.health_score != null && <Metric label="Health score" value={v.health_score} />}
             {v.flood_probability != null && <Metric label="Flood likelihood" value={pct(v.flood_probability)} />}
             {v.ev && <Metric label="Battery health" value={`${v.ev.pack_soh_pct}%`} />}
             {v.ev && <Metric label="Km to 70%" value={fmtN(v.ev.km_to_70)} />}

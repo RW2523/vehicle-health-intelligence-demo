@@ -9,10 +9,10 @@ import { refreshUseCase } from "@/components/Demo";
 import { Panel, StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { LiveMap, MapPoint, keyOf } from "@/components/LiveMap";
-import { OversightShell, ovHref } from "@/components/OversightShell";
+import { OV_TABS, OversightShell, ovHref } from "@/components/OversightShell";
 import { ErrorState, LoadingState, PageHeader, SeverityBadge, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { useUser } from "@/lib/auth";
+import { canOpen, useUser } from "@/lib/auth";
 import { STATUS_LABEL, dmy, fmtN, pct, typeLabel } from "@/lib/format";
 import { useFetch, useLive } from "@/lib/live";
 import { OvStat, THEAD, TROW, TableBox } from "../parts";
@@ -96,20 +96,24 @@ function ExceptionCard({ x, canAct, onDone, first }: { x: any; canAct: boolean; 
   );
 }
 
-const hhmm = (iso: string) => new Date(iso + (/Z|[+-]\d\d:\d\d$/.test(iso) ? "" : "Z")).toLocaleTimeString("en-MY", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit" });
+/** A time this server recorded (UTC), as 24-hour Malaysia time. */
+const hhmm = (iso: string) => new Date(iso + (/Z|[+-]\d\d:\d\d$/.test(iso) ? "" : "Z")).toLocaleTimeString("en-GB", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 function HQ() {
   const router = useRouter();
   const sp = useSearchParams();
   const user = useUser();
-  const exc = useFetch<any>("/api/hq/exceptions");
-  const integ = useFetch<any>("/api/hq/integrity");
-  const eq = useFetch<any>("/api/hq/equipment");
+  // only an account that may open HQ asks for its data (the shell tells the others it is not theirs)
+  const ok = !!user && canOpen(user.role, OV_TABS.find((t) => t.href === "/oversight/hq")!.roles);
+  const hq = (path: string) => (ok ? path : null);
+  const exc = useFetch<any>(hq("/api/hq/exceptions"));
+  const integ = useFetch<any>(hq("/api/hq/integrity"));
+  const eq = useFetch<any>(hq("/api/hq/equipment"));
   const [branch, setBranch] = useState("BR00");
-  const dem = useFetch<any>("/api/hq/demand", { branch_id: branch });
-  const audit = useFetch<any>("/api/hq/audit");
-  const ops = useFetch<any>("/api/hq/ops");
-  const branches = useFetch<any[]>("/api/branches");
+  const dem = useFetch<any>(hq("/api/hq/demand"), { branch_id: branch });
+  const audit = useFetch<any>(hq("/api/hq/audit"));
+  const ops = useFetch<any>(hq("/api/hq/ops"));
+  const branches = useFetch<any[]>(hq("/api/branches"));
   const [devIdx, setDevIdx] = useState(0);
   const [tamper, setTamper] = useState<any>(null);
   const [examinerSel, setExaminerSel] = useState<string | null>(null);
@@ -141,17 +145,19 @@ function HQ() {
   const openN = X ? X.items.filter((i: any) => i.state.status === "open").length : 0;
   // decisions and reports made on other screens add evidence entries: keep the audit and the counts current
   useLive(["inspections"], () => {
+    if (!ok) return;
     audit.reload();
     ops.reload();
   });
   useEffect(() => {
+    if (!ok) return;
     const t = setInterval(() => {
       audit.reload();
       ops.reload();
     }, 8000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ok]);
 
   const I = integ.data;
   const light = (I?.examiners || []).filter((e: any) => e.vehicle_class === "heavy");
@@ -162,6 +168,7 @@ function HQ() {
   const running = lanes.filter((l) => l.status === "in_lane").length;
   const liveTotal = ops.data ? (Object.values(ops.data.inspections_by_status) as number[]).reduce((a, b) => a + b, 0) : null;
   const shownLanes = hub ? lanes.filter((l) => l.branch_id === hub) : lanes;
+  const eqLow = eq.data ? eq.data.devices.filter((d: any) => d.health < 50).length : 0;
 
   // the hubs on the map: size by lanes, colour by what their lanes are doing now
   const hubPoints = useMemo<MapPoint[]>(() => (branches.data || []).filter((b: any) => b.lat != null).map((b: any) => {
@@ -200,15 +207,20 @@ function HQ() {
         sub="Exceptions first: what needs an operations decision across every hub. Below them: lanes, examiner integrity, demand, equipment and the audit log."
         actions={<><Source kind="synthetic" text="History: 80 examiners, 20 hubs" /><a className="btn" href="#lanes"><Icon name="map" size={16} />Lanes and hubs</a></>} />
 
-      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
-        <OvStat icon="flag" tone={openN ? "red" : "green"} alert={!!openN} label="Open exceptions" value={X ? openN : "…"} sub={X ? `of ${X.items.length} raised` : "Checking every hub"} href="#exceptions" />
+      {/* one row of six from xl; every tile names how its number is produced (the panels below carry the detail) */}
+      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <OvStat icon="flag" tone={openN ? "red" : "green"} alert={!!openN} label="Open exceptions" value={X ? openN : "…"} sub={X ? `of ${X.items.length} raised` : "Checking every hub"}
+          source={<Source kind="live_logic" />} href="#exceptions" />
         <OvStat icon="lane" tone="amber" label="Lanes running" value={ops.data ? running : "…"} sub={ops.data ? `${lanes.length} lanes with an inspection today` : ""}
-          source={<Source kind="live_logic" text="Live inspections" />} href="#lanes" />
-        <OvStat icon="examiner" tone="red" alert label="Flagged examiners" value={I ? I.flagged.length : "…"} sub={I ? I.flagged.join(", ") : ""} href="#integrity" />
-        <OvStat icon="wrench" tone="amber" alert label="Equipment below 50% health" value={eq.data ? eq.data.devices.filter((d: any) => d.health < 50).length : "–"} sub="of all lane devices" href="#equipment" />
-        <OvStat icon="calendar" tone="blue" label={`Days over capacity (${D?.branch || ""})`} value={D ? D.summary.days_over_capacity : "–"} sub={D ? `${D.summary.extra_slots_needed} extra slots in 14 days` : ""} href="#demand" />
-        <OvStat icon="shield" tone={audit.data && !audit.data.verify.intact ? "red" : "green"} alert label="Evidence chain" value={audit.data ? (audit.data.verify.intact ? "Intact" : "Broken") : "–"}
-          sub={audit.data ? `${fmtN(audit.data.verify.checked)} entries re-verified` : ""} href="#audit" />
+          source={<Source kind="live_logic" />} href="#lanes" />
+        <OvStat icon="examiner" tone={I?.flagged.length ? "red" : "green"} alert={!!I?.flagged.length} label="Flagged examiners" value={I ? I.flagged.length : "…"} sub={I ? I.flagged.join(", ") || "none" : ""}
+          source={<Source kind="live_model" />} href="#integrity" />
+        <OvStat icon="wrench" tone={eqLow ? "red" : "green"} alert={!!eqLow} label="Equipment below 50% health" value={eq.data ? eqLow : "…"} sub="of all lane devices"
+          source={<Source kind="live_model" />} href="#equipment" />
+        <OvStat icon="calendar" tone={D?.summary.days_over_capacity ? "amber" : "green"} alert={!!D?.summary.days_over_capacity} label="Days over capacity" value={D ? D.summary.days_over_capacity : "…"}
+          sub={D ? `${D.branch} · ${D.summary.extra_slots_needed} extra slots in 14 days` : ""} source={<Source kind="live_model" />} href="#demand" />
+        <OvStat icon="shield" tone={audit.data && !audit.data.verify.intact ? "red" : "green"} alert label="Evidence chain" value={audit.data ? (audit.data.verify.intact ? "Intact" : "Broken") : "…"}
+          sub={audit.data ? `${fmtN(audit.data.verify.checked)} entries re-verified` : ""} source={<Source kind="live_logic" />} href="#audit" />
       </div>
 
       <section id="exceptions" className="mb-5 scroll-mt-24" aria-label="Exceptions">
@@ -227,23 +239,22 @@ function HQ() {
         </Panel>
       </section>
 
-      <div id="lanes" className="mb-5 grid scroll-mt-24 grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div id="lanes" className="mb-5 grid scroll-mt-24 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <Panel title="Lanes across hubs" sub={`${liveTotal ?? "…"} live inspections${ops.data ? ` · ${Object.entries(ops.data.inspections_by_status).map(([k, v]) => `${v} ${STATUS_LABEL[k]?.toLowerCase() || k}`).join(" · ")}` : ""}`}
           action={<>{hub && <button className="chip border-cyan/50 text-cyan" onClick={() => setHub(null)}>{names[hub] || hub} ✕</button>}<Source kind="live_logic" text="Live inspections" /></>}>
           {!ops.data ? <LoadingState label="Loading the lanes…" rows={3} /> : !shownLanes.length ? <p className="text-[13px] text-fg-3">No lane has run yet today. Start a use case from the demo control to see one here.</p> : (
             <TableBox className="max-h-[420px]">
-              <table className="w-full min-w-[680px] whitespace-nowrap text-[13px]">
-                <thead className={THEAD}><tr><th>Hub</th><th>Lane</th><th>Vehicle</th><th>Status</th><th>Health</th><th>Result</th><th>Started</th><th></th></tr></thead>
+              <table className="w-full min-w-[600px] whitespace-nowrap text-[13px]">
+                <thead className={THEAD}><tr><th>Hub and lane</th><th>Vehicle · started</th><th>Status</th><th className="!text-right">Health</th><th>Result</th><th></th></tr></thead>
                 <tbody>
                   {shownLanes.map((l: any) => (
                     <tr key={l.lane_id} className={TROW}>
-                      <td><button className="font-medium hover:text-cyan" onClick={() => setHub(l.branch_id)} title="Show this hub only">{l.branch}</button></td>
-                      <td>Lane {l.lane_id.split("-L")[1]}</td><td><b>{l.plate}</b></td>
+                      <td><button className="block text-left font-medium hover:text-cyan" onClick={() => setHub(l.branch_id)} title="Show this hub only">{l.branch}</button><span className="text-[11.5px] text-fg-3">Lane {l.lane_id.split("-L")[1]}</span></td>
+                      <td><b>{l.plate}</b><span className="block text-[11.5px] tabular-nums text-fg-3">{hhmm(l.started_at)}</span></td>
                       <td><StatusPill tone={LANE_TONE[l.status] || "gray"} dot>{LANE_STATUS[l.status] || STATUS_LABEL[l.status] || l.status}</StatusPill></td>
-                      <td>{l.health ?? "–"}</td>
+                      <td className="text-right tabular-nums">{l.health ?? "–"}</td>
                       <td>{l.verdict ? <StatusPill tone={VERDICT_TONE[l.verdict] || "gray"}>{l.verdict}</StatusPill> : <span className="text-fg-4">–</span>}</td>
-                      <td className="text-fg-3">{hhmm(l.started_at)}</td>
-                      <td><span className="flex gap-2"><Link className="btn btn-sm" href={`/lane?lane=${l.lane_id}`}>Lane</Link><Link className="btn btn-sm" href={`/inspection/${l.inspection_id}`}>Inspection</Link></span></td>
+                      <td><span className="flex gap-1.5"><Link className="btn btn-sm" href={`/lane?lane=${l.lane_id}`}>Lane</Link><Link className="btn btn-sm" href={`/inspection/${l.inspection_id}`}>Inspection</Link></span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -260,7 +271,8 @@ function HQ() {
         </Panel>
       </div>
 
-      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
+      {/* the two panels differ in height: each keeps its own, no stretched blank card */}
+      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2 xl:items-start">
         <Panel className="scroll-mt-24" title={<h2 id="integrity" className="scroll-mt-24 text-[18px] font-bold tracking-tight">Examiner integrity · heavy vehicles</h2>} action={<Source kind="live_model" text="z-score + Isolation Forest" />}>
           {!I ? <LoadingState label="Comparing every examiner with their peers…" rows={4} /> : (
             <>
@@ -269,12 +281,12 @@ function HQ() {
                 points={light.map((e: any) => ({ x: e.pass_rate, y: e.conflict_rate, color: flagged.has(e.examiner_id) ? "#DC2626" : "#3B82F6", r: flagged.has(e.examiner_id) ? 7 : 4.5, label: flagged.has(e.examiner_id) ? e.examiner_id : undefined, title: `${e.examiner_id} ${e.name}: pass ${pct(e.pass_rate)}, z ${e.z_pass}` }))} />
               <TableBox className="mt-3 max-h-[300px]">
                 <table className="w-full whitespace-nowrap text-[13px]">
-                  <thead className={THEAD}><tr><th>Examiner</th><th>Class</th><th>Inspections</th><th>Pass rate</th><th>z</th><th>Conflicts</th><th></th></tr></thead>
+                  <thead className={THEAD}><tr><th>Examiner</th><th>Class</th><th className="!text-right">Inspections</th><th className="!text-right">Pass rate</th><th className="!text-right">z</th><th className="!text-right">Conflicts</th><th></th></tr></thead>
                   <tbody>
                     {I.examiners.filter((e: any) => e.outlier).map((e: any, i: number) => (
                       <tr key={i} className={`${TROW} ${examinerSel === e.examiner_id ? "bg-blue-50/70" : ""}`}>
-                        <td><b>{e.examiner_id}</b> {e.name}</td><td>{e.vehicle_class}</td><td>{e.n}</td><td>{pct(e.pass_rate)}</td>
-                        <td className="font-semibold text-bad">{e.z_pass.toFixed(1)}σ</td><td>{pct(e.conflict_rate, 1)}</td>
+                        <td><b>{e.examiner_id}</b> {e.name}</td><td>{e.vehicle_class}</td><td className="text-right tabular-nums">{e.n}</td><td className="text-right tabular-nums">{pct(e.pass_rate)}</td>
+                        <td className="text-right font-semibold tabular-nums text-bad">{e.z_pass.toFixed(1)}σ</td><td className="text-right tabular-nums">{pct(e.conflict_rate, 1)}</td>
                         <td><button className="btn btn-sm" onClick={() => setExaminerSel(e.examiner_id)}>Evidence</button></td>
                       </tr>
                     ))}
@@ -328,7 +340,7 @@ function HQ() {
               return (
                 <button key={i} onClick={() => setDevIdx(i)} aria-pressed={devIdx === i}
                   className={`flex items-center gap-3 rounded-xl px-3 py-2 text-left text-[12.5px] transition ${devIdx === i ? "bg-white shadow-glass ring-1 ring-blue-200" : "bg-white/50 ring-1 ring-ink-600/70 hover:bg-white"}`}>
-                  <span className="min-w-0 flex-1"><b className="block truncate">{names[d.branch_id] || d.branch_id} · lane {d.lane}</b><span className="block truncate text-fg-3">{d.device.replaceAll("_", " ")}</span></span>
+                  <span className="min-w-0 flex-1"><b className="block sm:truncate">{names[d.branch_id] || d.branch_id} · lane {d.lane}</b><span className="block text-fg-3 sm:truncate">{d.device.replaceAll("_", " ")}</span></span>
                   <span className="h-1.5 w-14 overflow-hidden rounded-full bg-[#E8EEF7]" aria-hidden><span className="block h-1.5 rounded-full" style={{ width: `${d.health}%`, background: c }} /></span>
                   <span style={{ color: c }} className="w-7 text-right font-bold">{d.health}</span>
                 </button>
@@ -366,10 +378,10 @@ function HQ() {
         </div>
         <TableBox className="max-h-80">
           <table className="w-full whitespace-nowrap text-[12.5px]">
-            <thead className={THEAD}><tr><th>#</th><th>Time (UTC)</th><th>Kind</th><th>Inspection</th><th>Actor</th><th>Hash</th></tr></thead>
+            <thead className={THEAD}><tr><th className="!text-right">#</th><th>Time (UTC)</th><th>Kind</th><th>Inspection</th><th>Actor</th><th>Hash</th></tr></thead>
             <tbody>
               {(audit.data?.recent || []).slice().reverse().map((e: any) => (
-                <tr key={e.seq} className={`${TROW} [&>td]:py-1.5`}><td className="font-semibold">{e.seq}</td><td>{e.ts.slice(0, 19).replace("T", " ")}</td><td>{e.kind}</td><td>{e.inspection_id || "–"}</td><td>{e.actor}</td><td className="font-mono text-fg-3">{e.hash.slice(0, 16)}…</td></tr>
+                <tr key={e.seq} className={`${TROW} [&>td]:py-1.5`}><td className="text-right font-semibold tabular-nums">{e.seq}</td><td className="tabular-nums">{e.ts.slice(0, 19).replace("T", " ")}</td><td>{e.kind}</td><td>{e.inspection_id || "–"}</td><td>{e.actor}</td><td className="font-mono text-fg-3">{e.hash.slice(0, 16)}…</td></tr>
               ))}
             </tbody>
           </table>

@@ -82,20 +82,46 @@ export function PhotoCredit({ photo, className = "" }: { photo: Photo; className
   );
 }
 
+/** The photo's credit in a corner over it: the full credit line on a wider screen, the ⓘ button alone on a phone
+ *  (where a line would run into the other labels on the photo). The parent is `relative`. */
+export function PhotoCreditBadge({ photo }: { photo: Photo }) {
+  return (
+    <>
+      <PhotoCredit photo={photo} className="sm:hidden" />
+      <a href={photo.page_url || undefined} target="_blank" rel="noreferrer" title={photo.credit}
+        className="absolute bottom-3 right-3 hidden max-w-[60%] truncate rounded-lg bg-white/85 px-2 py-0.5 text-[10.5px] text-fg-3 backdrop-blur hover:text-cyan sm:block">
+        {photo.credit}
+      </a>
+    </>
+  );
+}
+
+/** Shimmers (the `.skeleton` placeholder) until the image has loaded; an image already in the cache counts at once. */
+function useLoaded(src: string | undefined) {
+  const ref = useRef<HTMLImageElement>(null);
+  const [loaded, setLoaded] = useState<string | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el && src && el.complete && el.naturalWidth) setLoaded(src);
+  }, [src]);
+  return { ref, loaded: !!src && loaded === src, onLoad: () => src && setLoaded(src) };
+}
+
 /** A vehicle's photo, cropped to fill its box (give the size with className). Without a photo - or if it fails to
  *  load - the vehicle illustration is drawn instead. */
 export function VehiclePhoto({ plate, vtype, photo, className = "", size = "960", credit = false, alt }: {
   plate: string; vtype?: string | null; photo?: Photo | null; className?: string; size?: PhotoSize; credit?: boolean; alt?: string;
 }) {
   const [failed, setFailed] = useState<string | null>(null);
+  const img = useLoaded(photo ? SRC[size](photo) : undefined);
   const label = alt || `${plate}${photo ? ` · ${photo.label}` : ""}`;
   if (!photo || failed === photo.url)
     return <VehicleArt vtype={vtype} seed={plate} className={className} title={label} />;
   return (
-    <span className={`relative block overflow-hidden bg-[#E8EEF7] ${className}`}>
+    <span className={`relative block overflow-hidden ${img.loaded ? "bg-[#E8EEF7]" : "skeleton"} ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={SRC[size](photo)} srcSet={SRCSET[size](photo)} alt={label} loading="lazy" decoding="async" draggable={false}
-        onError={() => setFailed(photo.url)} className="absolute inset-0 h-full w-full object-cover" />
+      <img ref={img.ref} src={SRC[size](photo)} srcSet={SRCSET[size](photo)} alt={label} loading="lazy" decoding="async" draggable={false}
+        onLoad={img.onLoad} onError={() => setFailed(photo.url)} className="absolute inset-0 h-full w-full object-cover" />
       {credit && <PhotoCredit photo={photo} />}
     </span>
   );
@@ -119,13 +145,16 @@ export function ScenePhoto({ id, className = "", size = "1600", credit = false, 
   const { data } = useScenes();
   const [failed, setFailed] = useState(false);
   const photo = data?.[id];
+  const img = useLoaded(photo && !failed ? SRC[size](photo) : undefined);
+  // shimmer while the scene list or the photo loads; the soft gradient once there is none (or it is loaded)
+  const waiting = !data || (!!photo && !failed && !img.loaded);
   return (
-    <span className={`relative block overflow-hidden bg-gradient-to-br from-[#DCE7F7] via-[#EEF3FA] to-[#C9D8EE] ${className}`}>
+    <span className={`relative block overflow-hidden ${waiting ? "skeleton" : "bg-gradient-to-br from-[#DCE7F7] via-[#EEF3FA] to-[#C9D8EE]"} ${className}`}>
       {photo && !failed && (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={SRC[size](photo)} srcSet={SRCSET[size](photo)} alt={alt || photo.label} loading="lazy" decoding="async" draggable={false}
-            onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" />
+          <img ref={img.ref} src={SRC[size](photo)} srcSet={SRCSET[size](photo)} alt={alt || photo.label} loading="lazy" decoding="async" draggable={false}
+            onLoad={img.onLoad} onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" />
           {credit && <PhotoCredit photo={photo} />}
         </>
       )}

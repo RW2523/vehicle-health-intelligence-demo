@@ -4,7 +4,7 @@
    desktop too). */
 import Link from "next/link";
 import { ReactNode } from "react";
-import { StatusPill, TONE, Tone } from "./glass";
+import { Ring, StatusPill, TONE, Tone } from "./glass";
 import { Icon } from "./icons";
 
 /** Primary and secondary buttons. */
@@ -19,9 +19,9 @@ export function MCard({ children, className = "", pad = true, as = "section", la
 /** A section title above a card or list, with an optional link on the right. */
 export function MTitle({ children, action, href, id }: { children: ReactNode; action?: ReactNode; href?: string; id?: string }) {
   return (
-    <div className="mb-2 mt-6 flex items-end justify-between gap-3 px-1" id={id}>
+    <div className="mb-2 mt-6 flex flex-wrap items-end justify-between gap-x-3 gap-y-1.5" id={id}>
       <h2 className="min-w-0 text-[16px] font-bold tracking-tight">{children}</h2>
-      {href ? <Link href={href} className="shrink-0 text-[13px] font-semibold text-[#2563EB]">{action || "See all"}</Link> : action}
+      {href ? <Link href={href} className="-my-2.5 shrink-0 py-2.5 pl-3 text-[13px] font-semibold text-[#2563EB]">{action || "See all"}</Link> : action}
     </div>
   );
 }
@@ -37,7 +37,7 @@ export function MRow({ icon, tone = "blue", title, sub, right, href, onClick, ch
         ? <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]" style={{ background: t.bg, boxShadow: `inset 0 0 0 1px ${t.ring}` }}><Icon name={icon} size={19} color={t.solid} width={1.9} /></span>
         : icon)}
       <span className="min-w-0 flex-1 leading-snug">
-        <span className="block truncate text-[14.5px] font-semibold text-slate-900">{title}</span>
+        <span className="line-clamp-2 break-words text-[14.5px] font-semibold text-slate-900">{title}</span>
         {sub && <span className="block text-[12.5px] text-slate-500">{sub}</span>}
         {children}
       </span>
@@ -71,6 +71,34 @@ export function Verdict({ v, className = "" }: { v?: string | null; className?: 
 export const scoreTone = (v?: number | null): Tone => (v == null ? "gray" : v < 50 ? "red" : v < 70 ? "amber" : "green");
 export const scoreCol = (v?: number | null) => TONE[scoreTone(v)].solid;
 
+/** The vehicle's health score in a ring; without a score, the latest inspection's result in a soft ring of its colour
+ *  ("PASS · Latest"); nothing at all when there is neither. */
+export function HealthBadge({ health, latest, size = 62, stroke = 7, track }: {
+  health?: number | null; latest?: { result?: string | null } | null; size?: number; stroke?: number; track?: string;
+}) {
+  if (health != null)
+    return (
+      <Ring value={health} size={size} stroke={stroke} color={scoreCol(health)} track={track}>
+        <span className="font-extrabold leading-none" style={{ color: scoreCol(health), fontSize: Math.round(size * 0.28) }}>{health}</span>
+        <span className="mt-0.5 text-[8.5px] font-semibold uppercase tracking-wide text-slate-400">Health</span>
+      </Ring>
+    );
+  const r = latest?.result;
+  if (!r) return null;
+  const t = TONE[RESULT_TONE[r] || "gray"];
+  const word = r === "PASS_ADVISORY" ? "PASS" : r;
+  return (
+    <span role="img" aria-label={`Latest inspection: ${word}`} title="No health score yet: the latest inspection's result">
+      <Ring value={100} size={size} stroke={stroke} color={t.ring} track={track}>
+        {word.length <= 4
+          ? <span className="font-extrabold leading-none" style={{ color: t.fg, fontSize: Math.round(size * 0.22) }}>{word}</span>
+          : <Icon name={r === "REFERRED" ? "info" : "warn"} size={Math.round(size * 0.3)} color={t.fg} width={2.2} />}
+        <span className="mt-0.5 text-[8.5px] font-semibold uppercase tracking-wide text-slate-400">Latest</span>
+      </Ring>
+    </span>
+  );
+}
+
 /** "today", "tomorrow", "in 17 days", "3 days ago". */
 export function inDays(days: number) {
   if (days === 0) return "today";
@@ -99,7 +127,7 @@ export function Segmented<T extends string>({ value, onChange, items, label, cla
     <div role="group" aria-label={label} className={`grid gap-1 rounded-[14px] bg-slate-200/60 p-1 ${className}`} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((it) => (
         <button key={it.id} aria-pressed={value === it.id} onClick={() => onChange(it.id)}
-          className={`truncate rounded-[11px] px-2 py-[7px] text-[13px] font-semibold transition ${value === it.id ? "bg-white text-slate-900 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.18)]" : "text-slate-500 active:text-slate-800"}`}>
+          className={`truncate rounded-[11px] px-2 py-[10px] text-[13px] font-semibold transition ${value === it.id ? "bg-white text-slate-900 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.18)]" : "text-slate-500 active:text-slate-800"}`}>
           {it.label}
         </button>
       ))}

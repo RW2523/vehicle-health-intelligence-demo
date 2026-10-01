@@ -12,9 +12,15 @@ import { ErrorState, LoadingState, PageHeader, Source, toast } from "@/component
 import { api } from "@/lib/api";
 import { fmtN, pct } from "@/lib/format";
 import { useFetch } from "@/lib/live";
-import { OvStat, THEAD, TROW, TableBox } from "../parts";
+import { OvStat, THEAD, TROW, TableBox, useNarrow } from "../parts";
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "2025-07" -> "Jul '25" */
+const monthLabel = (ym: string) => `${MON[Number(ym.slice(5, 7)) - 1]} '${ym.slice(2, 4)}`;
+/** months since Jan 2000: a month's place on a time axis, so a month with no data leaves its gap */
+const monthIdx = (ym: string) => (Number(ym.slice(0, 4)) - 2000) * 12 + Number(ym.slice(5, 7)) - 1;
+/** "2026-09-23 18:40:00" -> "23 Sep 18:40" (24-hour) */
+const stamp = (ts: string) => `${Number(ts.slice(8, 10))} ${MON[Number(ts.slice(5, 7)) - 1]} ${ts.slice(11, 16)}`;
 const CAT_COL: Record<string, string> = { car: "#2563EB", motorcycle: "#0EA5E9", lorry: "#7C3AED", van: "#059669", trailer: "#D97706", other: "#94A3B8" };
 
 function BranchMap({ branches, sites }: { branches: any[]; sites: any[] }) {
@@ -38,6 +44,7 @@ function BranchMap({ branches, sites }: { branches: any[]; sites: any[] }) {
 
 export default function Regulator() {
   const { data: r, error, reload } = useFetch<any>("/api/regulator");
+  const narrow = useNarrow();
   const [busy, setBusy] = useState(false);
   const refresh = async () => {
     setBusy(true);
@@ -58,6 +65,9 @@ export default function Regulator() {
   const last = r?.defects.monthly.at(-1);
   const prev = r?.defects.monthly.at(-2);
   const failDelta = last && prev ? last.fail_rate - prev.fail_rate : null;
+  // the met office lists "No Advisory" among its warnings: that is the absence of one
+  const warnings: any[] = (r?.web?.weather_warnings?.records || r?.web?.weather_warnings?.data || [])
+    .filter((w: any) => !/^no advisory$/i.test((w.warning_issue?.title_en || w.title_en || "").trim()));
   return (
     <OversightShell>
       <PageHeader eyebrow="Oversight · Regulator" title="Regulator view" sub="Registrations, defect trends, roadside emissions and EV incidents across Malaysia."
@@ -105,8 +115,8 @@ export default function Regulator() {
               </div>
             </Panel>
             <Panel title="Inspection fail rate and top defects" action={<Source kind="synthetic" />}>
-              <LineChart height={150} yFmt={(v) => pct(v)} xLabels={r.defects.monthly.map((m: any, i: number) => ({ x: i, label: m.month.slice(2) }))} xTickEvery={2}
-                series={[{ color: "#DC2626", dots: true, area: true, points: r.defects.monthly.map((m: any, i: number) => ({ x: i, y: m.fail_rate })) }]} />
+              <LineChart height={150} yFmt={(v) => pct(v)} xLabels={r.defects.monthly.map((m: any) => ({ x: monthIdx(m.month), label: monthLabel(m.month) }))} xTickEvery={narrow ? 3 : 2}
+                series={[{ color: "#DC2626", dots: true, area: true, points: r.defects.monthly.map((m: any) => ({ x: monthIdx(m.month), y: m.fail_rate })) }]} />
               <div className="label mb-2 mt-4">Top defects</div>
               <div className="flex flex-col gap-2">
                 {r.defects.top_reasons.map((d: any) => {
@@ -128,12 +138,18 @@ export default function Regulator() {
               <BranchMap branches={r.branches} sites={r.remote_sensing.sites} />
             </Panel>
             <Panel title="High-emitter hits (latest)" action={<Source kind="simulated" />}>
+              {/* the plate first; on a phone the site and time go under it, so the readings stay in view */}
               <TableBox className="max-h-[440px]">
                 <table className="w-full whitespace-nowrap text-[13px]">
-                  <thead className={THEAD}><tr><th>Time</th><th>Site</th><th>Plate</th><th className="text-right">HC ppm</th><th className="text-right">Smoke</th></tr></thead>
+                  <thead className={THEAD}><tr><th>Plate</th><th className="hidden sm:table-cell">Site</th><th className="hidden sm:table-cell">Time</th><th className="!text-right">HC ppm</th><th className="!text-right">Smoke</th></tr></thead>
                   <tbody>
                     {r.remote_sensing.hits.map((h: any, i: number) => (
-                      <tr key={i} className={TROW}><td className="text-fg-3">{String(h.timestamp).slice(5, 16)}</td><td>{h.site}</td><td><b>{h.plate}</b></td><td className="text-right tabular-nums">{h.hc_ppm}</td><td className="text-right tabular-nums">{h.pm_uv_smoke}</td></tr>
+                      <tr key={i} className={TROW}>
+                        <td><b>{h.plate}</b><div className="whitespace-normal text-[11.5px] leading-snug text-fg-3 sm:hidden">{h.site} · {stamp(String(h.timestamp))}</div></td>
+                        <td className="hidden sm:table-cell">{h.site}</td>
+                        <td className="hidden tabular-nums text-fg-3 sm:table-cell">{stamp(String(h.timestamp))}</td>
+                        <td className="text-right tabular-nums">{h.hc_ppm}</td><td className="text-right tabular-nums">{h.pm_uv_smoke}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -141,7 +157,7 @@ export default function Regulator() {
             </Panel>
           </div>
 
-          <Panel title="Live public data" action={<Source kind="real" text={r.web.mode === "live" ? `Live · refreshed ${r.web.refreshed_at}` : "Snapshot (offline) · data.gov.my"} />}>
+          <Panel title="Live public data" action={<Source kind="real" text={r.web.mode === "live" ? `Live · refreshed ${r.web.refreshed_at}` : "Stored snapshot · data.gov.my"} />}>
             <div className="grid grid-cols-1 gap-3 text-[13px] md:grid-cols-3">
               <div className="rounded-2xl bg-[#F4F7FB] p-4 ring-1 ring-ink-600/60">
                 <div className="label mb-1.5 flex items-center gap-1.5"><Icon name="oil" size={14} color="#64748B" />Fuel price (RM/litre)</div>
@@ -149,12 +165,13 @@ export default function Regulator() {
               </div>
               <div className="rounded-2xl bg-[#F4F7FB] p-4 ring-1 ring-ink-600/60">
                 <div className="label mb-1.5 flex items-center gap-1.5"><Icon name="warn" size={14} color="#64748B" />Weather warnings</div>
-                {JSON.stringify(r.web.weather_warnings).length > 30 ? <div className="max-h-24 overflow-auto text-[12px] text-fg-2">{(r.web.weather_warnings.records || r.web.weather_warnings.data || []).slice?.(0, 3).map((w: any, i: number) => <div key={i}>{w.warning_issue?.title_en || w.title_en || JSON.stringify(w).slice(0, 90)}</div>)}</div> : "No active warnings in the snapshot"}
+                {warnings.length ? <div className="max-h-24 overflow-auto text-[12px] text-fg-2">{warnings.slice(0, 3).map((w: any, i: number) => <div key={i}>{w.warning_issue?.title_en || w.title_en || JSON.stringify(w).slice(0, 90)}</div>)}</div> : <span className="text-[12px] text-fg-3">No active warnings in the snapshot</span>}
               </div>
               <div className="rounded-2xl bg-[#F4F7FB] p-4 ring-1 ring-ink-600/60">
                 <div className="label mb-1.5 flex items-center gap-1.5"><Icon name="flood" size={14} color="#64748B" />River-level stations (public data)</div>
                 <div className="text-[12px] text-fg-2">{(r.web.flood_stations.records || r.web.flood_stations.data || []).length || 0} stations in the snapshot (used for flood-risk context).</div>
-                <Link href="/oversight/flood" className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-cyan hover:underline">Flood watch: every state&apos;s river levels and the vehicles to inspect<Icon name="chev" size={14} /></Link>
+                {/* a block link: when the text wraps, the chevron stays with its last word instead of the far edge */}
+                <Link href="/oversight/flood" className="mt-1.5 block text-[12.5px] font-semibold text-cyan hover:underline">Flood watch: every state&apos;s river levels and the vehicles to <span className="whitespace-nowrap">inspect<span className="ml-0.5 inline-block align-[-2px]"><Icon name="chev" size={14} /></span></span></Link>
               </div>
             </div>
           </Panel>

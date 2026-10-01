@@ -92,15 +92,10 @@ export function HealthTrends({ plate }: { plate: string }) {
   if (error) return <p className="card card-pad text-[13.5px] text-fg-3">No health readings for {plate}.</p>;
   return (
     <>
-      {d && (canBook && !d.bookings?.length || uc?.plate === plate) ? (
-        <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-          {canBook && !d.bookings?.length && <button className="btn btn-primary" disabled={busy} onClick={book}>Book an inspection before the fail date<Icon name="arrow" size={15} /></button>}
-          {uc?.plate === plate && (d.bookings?.length || !canBook) ? <NextAction uc={uc} here={`/vehicles/${encodeURIComponent(plate)}`} /> : null}
-        </div>
-      ) : null}
       {!d ? <div className="card card-pad"><LoadingState label={`Loading the history of ${plate}…`} rows={4} /></div> : (
         <>
-          <section className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3 text-[13px]" aria-label="Latest inspection and next action">
+          {/* the latest inspection or the next action, with what to do about it on the same bar */}
+          <section className="card mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 text-[13px]" aria-label="Latest inspection and next action">
             {d.lane_reports?.[0] ? (() => {
               const r = d.lane_reports[0];
               return (
@@ -109,7 +104,7 @@ export function HealthTrends({ plate }: { plate: string }) {
                   <b style={{ color: VERDICT[r.verdict]?.color }}>{r.verdict}</b>
                   <span>{r.kind} · {dmy(r.issued_at || r.created_at)}{r.health != null ? ` · health ${r.health}` : ""}</span>
                   {r.findings?.length > 0 && <span className="text-fg-3">· {r.findings.slice(0, 3).join("; ")}</span>}
-                  <span className="ml-auto flex gap-2"><Link className="btn btn-sm" href={`/report?id=${r.report_id}`}>Report</Link><Link className="btn btn-sm" href={`/verify/${r.verify_token}`}>Verify</Link></span>
+                  <span className="ml-auto flex flex-wrap gap-2"><Link className="btn btn-sm" href={`/report?id=${r.report_id}`}>Report</Link><Link className="btn btn-sm" href={`/verify/${r.verify_token}`}>Verify</Link></span>
                 </>
               );
             })() : d.bookings?.length ? (
@@ -120,15 +115,21 @@ export function HealthTrends({ plate }: { plate: string }) {
                 <span className="text-fg-3">· {d.bookings[0].status === "checked_in" ? "checked in at the lane" : "confirmed"}</span>
               </>
             ) : (
-              <><span className="label">Next action</span><span className="text-fg-3">No inspection booked. The forecast below says how long this vehicle has before it reaches its fail limit.</span></>
+              <><span className="label">Next action</span><span className="min-w-0 flex-1 basis-[260px] text-fg-3">No inspection booked. The forecast below says how long this vehicle has before it reaches its fail limit.</span></>
             )}
+            {(canBook && !d.bookings?.length) || (uc?.plate === plate && (d.bookings?.length || !canBook)) ? (
+              <span className="ml-auto flex flex-wrap items-center gap-2">
+                {canBook && !d.bookings?.length && <button className="btn btn-primary btn-sm" disabled={busy} onClick={book}>Book an inspection before the fail date<Icon name="arrow" size={14} /></button>}
+                {uc?.plate === plate && (d.bookings?.length || !canBook) ? <NextAction uc={uc} here={`/vehicles/${encodeURIComponent(plate)}`} /> : null}
+              </span>
+            ) : null}
           </section>
-          <section className="card mb-3 flex flex-wrap items-center gap-6 p-4 text-[13px]">
+          <section className="card mb-3 flex flex-wrap items-start gap-x-6 gap-y-3 p-4 text-[13px]">
             <div><div className="text-fg-3">Odometer</div><b className="text-[17px]">{fmtN(v.odometer_km)} km</b><div className="text-[11.5px] text-fg-3">~{fmtN(v.km_per_month)} km a month</div></div>
             <div><div className="text-fg-3">Vehicle health</div><b className="text-[17px]" style={{ color: scoreColor(d.health) }}>{d.health}%</b><div className="text-[11.5px] text-fg-3">6 subsystems</div></div>
             <div><div className="text-fg-3">Pattern</div><b className="text-[15px]" style={{ color: col }}>{m?.pattern}</b><div className="max-w-[260px] truncate text-[11.5px] text-fg-3">{m?.ratio_text}</div></div>
             <div><div className="text-fg-3">Operator</div><b className="text-[15px]">{v.operator}</b></div>
-            <span className="chip ml-auto px-4 py-2 text-[14px]" style={{ borderColor: col, color: col, background: col + "1F" }}>{m?.risk} risk</span>
+            <span className="chip ml-auto self-center px-4 py-2 text-[14px]" style={{ borderColor: col, color: col, background: col + "1F" }}>{m?.risk} risk</span>
           </section>
           <div className="mb-3 flex flex-wrap gap-1.5">
             {d.metrics.map((x: any) => (
@@ -191,47 +192,53 @@ export function HealthTrends({ plate }: { plate: string }) {
               </div>
             </section>
           )}
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.15fr)_260px_minmax(0,1fr)]">
-            <section className="card p-4">
-              <h2 className="mb-2 text-[15px] font-semibold">Inspection history</h2>
-              <table className="w-full text-left text-[12.5px]">
-                <thead className="text-fg-3"><tr><th className="pb-1">Date</th><th>Check</th><th>Reading</th><th>Result</th></tr></thead>
-                <tbody>
-                  {d.checks.map((c: any, i: number) => (
-                    <tr key={i} className="border-t border-[#E8EDF4]">
-                      <td className="py-1.5">{dmy(c.date)}</td>
-                      <td><b>{c.kind}</b><div className="text-[11.5px] text-fg-3">{c.photo ? "Photo on file · " : ""}{c.note || "Scheduled"}</div></td>
-                      <td><b>{c.value} {c.unit.length < 5 ? c.unit : ""}</b></td>
-                      <td><span className="chip border-transparent" style={{ color: c.result === "Pass" ? "#047857" : c.result === "Advisory" ? "#B45309" : "#DC2626", background: c.result === "Pass" ? "rgba(5,150,105,.10)" : c.result === "Advisory" ? "rgba(217,119,6,.10)" : "rgba(220,38,38,.10)" }}>{c.result}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="mt-3">
-                <div className="mb-1.5 flex justify-between text-[13px]"><b>{d.photos.length ? "Visual history: same spot over time" : "Evidence photos"}</b>{(d.photos.length > 0 || (v.evidence || []).length > 0) && <span className="text-[11px] text-fg-3">Click to enlarge</span>}</div>
-                <div className="flex gap-2">
-                  {(d.photos.length ? d.photos.map((p: any) => ({ src: `/media/assets/${p.photo}`, l: lab(p.date), v: `${p.value} ${p.unit}` }))
-                    : (v.evidence || []).map((e: string, i: number) => ({ src: `/media/assets/${e}`, l: i === 0 ? "Close-up (AI)" : "Lane camera", v: "" }))).map((p: any, i: number) => (
-                    <button key={i} onClick={() => (d.photos.length && progression >= 0 ? setViewer(progression) : images.length ? setViewer(0) : setZoom(p))}
-                      className="max-w-[140px] flex-1 overflow-hidden rounded-lg border border-ink-500 bg-ink-850 text-left transition hover:border-cyan/70">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.src} alt={p.l} className="h-20 w-full object-cover" />
-                      <span className="flex justify-between px-2 py-1 text-[11.5px]"><b>{p.l}</b><span className="text-[#DC2626]">{p.v}</span></span>
-                    </button>
-                  ))}
-                  {!d.photos.length && !(v.evidence || []).length && <p className="text-[12px] text-fg-3">No photos on file for this vehicle - readings only.</p>}
+          <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+            <div className="flex min-w-0 flex-col gap-3">
+              <section className="card p-4">
+                <h2 className="mb-2 text-[15px] font-semibold">Inspection history</h2>
+                <div className="-mx-2 overflow-x-auto">
+                  <table className="w-full text-left text-[12.5px]">
+                    <thead className="text-fg-3"><tr className="[&>th]:px-2 [&>th]:pb-1.5 [&>th]:font-medium"><th className="hidden sm:table-cell">Date</th><th>Check</th><th>Reading</th><th>Result</th></tr></thead>
+                    <tbody>
+                      {d.checks.map((c: any, i: number) => (
+                        <tr key={i} className="border-t border-[#E8EDF4] align-top [&>td]:px-2 [&>td]:py-2">
+                          <td className="hidden whitespace-nowrap sm:table-cell">{dmy(c.date)}</td>
+                          <td><span className="block text-[11.5px] text-fg-3 sm:hidden">{dmy(c.date)}</span><b>{c.kind}</b><div className="text-[11.5px] text-fg-3">{c.photo ? "Photo on file · " : ""}{c.note || "Scheduled"}</div></td>
+                          <td className="whitespace-nowrap"><b>{c.value} {c.unit.length < 5 ? c.unit : ""}</b></td>
+                          <td><span className="chip whitespace-nowrap border-transparent" style={{ color: c.result === "Pass" ? "#047857" : c.result === "Advisory" ? "#B45309" : "#DC2626", background: c.result === "Pass" ? "rgba(5,150,105,.10)" : c.result === "Advisory" ? "rgba(217,119,6,.10)" : "rgba(220,38,38,.10)" }}>{c.result}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            </section>
-            <section className="card p-4">
-              <h2 className="mb-2 text-[15px] font-semibold">Subsystem health</h2>
-              {Object.entries(d.subsystems).map(([k, val]: any) => (
-                <div key={k} className="mb-2.5">
-                  <div className="flex justify-between text-[12.5px]"><span className={k === m.system ? "font-bold" : ""}>{k}</span><b style={{ color: scoreColor(val) }}>{val}</b></div>
-                  <Bar value={val} color={scoreColor(val)} />
+                <div className="mt-3">
+                  <div className="mb-1.5 flex justify-between text-[13px]"><b>{d.photos.length ? "Visual history: same spot over time" : "Evidence photos"}</b>{(d.photos.length > 0 || (v.evidence || []).length > 0) && <span className="text-[11px] text-fg-3">Click to enlarge</span>}</div>
+                  <div className="flex gap-2">
+                    {(d.photos.length ? d.photos.map((p: any) => ({ src: `/media/assets/${p.photo}`, l: lab(p.date), v: `${p.value} ${p.unit}` }))
+                      : (v.evidence || []).map((e: string, i: number) => ({ src: `/media/assets/${e}`, l: i === 0 ? "Close-up (AI)" : "Lane camera", v: "" }))).map((p: any, i: number) => (
+                      <button key={i} onClick={() => (d.photos.length && progression >= 0 ? setViewer(progression) : images.length ? setViewer(0) : setZoom(p))}
+                        className="max-w-[140px] flex-1 overflow-hidden rounded-lg border border-ink-500 bg-ink-850 text-left transition hover:border-cyan/70">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.src} alt={p.l} className="h-20 w-full object-cover" />
+                        <span className="flex justify-between px-2 py-1 text-[11.5px]"><b>{p.l}</b><span className="text-[#DC2626]">{p.v}</span></span>
+                      </button>
+                    ))}
+                    {!d.photos.length && !(v.evidence || []).length && <p className="text-[12px] text-fg-3">No photos on file for this vehicle: readings only.</p>}
+                  </div>
                 </div>
-              ))}
-            </section>
+              </section>
+              <section className="card p-4">
+                <h2 className="mb-2 text-[15px] font-semibold">Subsystem health</h2>
+                <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                  {Object.entries(d.subsystems).map(([k, val]: any) => (
+                    <div key={k} className="mb-2.5">
+                      <div className="flex justify-between text-[12.5px]"><span className={k === m.system ? "font-bold" : ""}>{k}</span><b style={{ color: scoreColor(val) }}>{val}</b></div>
+                      <Bar value={val} color={scoreColor(val)} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
             <section className="card flex flex-col gap-2 p-4">
               <div className="flex items-center justify-between"><h2 className="text-[15px] font-semibold">Pattern report</h2><span className="text-[11.5px] text-fg-3">Auto-generated</span></div>
               <p className="rounded-lg border border-ink-600 bg-ink-850 p-3 text-[12.5px] leading-relaxed">{d.report.text}</p>
@@ -241,9 +248,9 @@ export function HealthTrends({ plate }: { plate: string }) {
                 ))}
               </div>
               <p className="text-[11.5px] text-fg-3">{d.report.rule}</p>
-              <div className="mt-auto flex gap-2">
-                <button className="btn flex-1" disabled={busy || !canBook} onClick={send}>{d.report.sent_at ? "Report sent ✓ · send again" : "Send report now"}</button>
-                <button className="btn flex-1" disabled={busy || !!v.booked || !canBook} onClick={book}>{v.booked ? `Booked ${dmy(v.booked.date)}` : "Book inspection"}</button>
+              <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                <button className="btn flex-1 whitespace-nowrap" disabled={busy || !canBook} onClick={send}>{d.report.sent_at ? "Report sent ✓ · send again" : "Send report now"}</button>
+                <button className="btn flex-1 whitespace-nowrap" disabled={busy || !!v.booked || !canBook} onClick={book}>{v.booked ? `Booked ${dmy(v.booked.date)}` : "Book inspection"}</button>
               </div>
             </section>
           </div>

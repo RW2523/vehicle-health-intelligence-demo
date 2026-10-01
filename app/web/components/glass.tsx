@@ -36,20 +36,24 @@ export function IconTile({ icon, tone = "blue", size = 52 }: { icon: string; ton
   );
 }
 
-/** A KPI: icon tile, label, the number, its change and a short note. */
+/** A KPI: icon tile, label, the number, its change and a short note. The icon sits beside the text when the card is
+ *  wide enough for a one-line label, else above it (phones, five cards in a row): the label stays on one line, so the
+ *  numbers of a row line up. */
 export function StatCard({ icon, tone, label, value, delta, deltaTone = "green", sub, href }: {
   icon: string; tone: Tone; label: string; value: ReactNode; delta?: ReactNode; deltaTone?: Tone; sub?: ReactNode; href?: string;
 }) {
   const body = (
-    <div className="card flex h-full items-center gap-3.5 p-4 transition hover:-translate-y-0.5 hover:shadow-lg">
-      <IconTile icon={icon} tone={tone} size={50} />
-      <div className="min-w-0">
-        <div className="text-[13px] font-medium leading-snug text-fg-3">{label}</div>
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-[30px] font-bold leading-tight tracking-tight">{value}</span>
-          {delta != null && <span className="whitespace-nowrap text-[13px] font-semibold" style={{ color: TONE[deltaTone].fg }}>{delta}</span>}
+    <div className="card h-full p-3.5 transition [container-type:inline-size] hover:-translate-y-0.5 hover:shadow-lg sm:p-4">
+      <div className="flex flex-col items-start gap-2.5 [@container(min-width:208px)]:flex-row [@container(min-width:208px)]:gap-3.5">
+        <IconTile icon={icon} tone={tone} size={46} />
+        <div className="w-full min-w-0 flex-1">
+          <div className="truncate text-[12.5px] font-medium leading-snug text-fg-3 sm:text-[13px]" title={label}>{label}</div>
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-[28px] font-bold leading-tight tracking-tight sm:text-[30px]">{value}</span>
+            {delta != null && <span className="whitespace-nowrap text-[13px] font-semibold" style={{ color: TONE[deltaTone].fg }}>{delta}</span>}
+          </div>
+          {sub && <div className="text-[12.5px] leading-snug text-fg-4">{sub}</div>}
         </div>
-        {sub && <div className="text-[12.5px] leading-snug text-fg-4">{sub}</div>}
       </div>
     </div>
   );
@@ -112,7 +116,7 @@ export function Panel({ title, action, href, actionLabel = "View all", children,
   return (
     <section className={`card ${pad ? "p-4 lg:p-5" : ""} ${className}`}>
       {(title || action || href) && (
-        <div className={`mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-1 ${pad ? "" : "px-4 pt-4 lg:px-5 lg:pt-5"}`}>
+        <div className={`mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 ${pad ? "" : "px-4 pt-4 lg:px-5 lg:pt-5"}`}>
           <div className="min-w-0">
             {typeof title === "string" ? <h2 className="text-[18px] font-bold tracking-tight">{title}</h2> : title}
             {sub && <p className="text-[13px] text-fg-3">{sub}</p>}

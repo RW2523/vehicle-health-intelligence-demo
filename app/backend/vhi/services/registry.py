@@ -106,7 +106,7 @@ def listing(q: str = "", vtype: str = "", fuel: str = "", state: str = "", resul
         rows = [_row(v, last, reports) for v in vs]
         if main:
             c = hubday.clock()
-            today = {x["plate"]: hubday._state(x, c["minute"]) for x in hubday.schedule("BR00", c["date"], c)}
+            today = {x["plate"]: x for x in hubday.day_states("BR00", c)}
             for r, v in zip(rows, vs):
                 m = showcase.BY_PLATE[v.plate]
                 t = today.get(v.plate)

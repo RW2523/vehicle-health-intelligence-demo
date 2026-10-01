@@ -423,17 +423,38 @@ function ChipThumb({ v }: { v: ChipVehicle }) {
   );
 }
 
-/** The ten main vehicles: picking one scopes the next questions to it. */
+/** The ten main vehicles: picking one scopes the next questions to it. A sideways strip that snaps to a chip and fades
+ *  out at an edge where more chips are hidden. */
 export function VehicleChips({ vehicles, value, onChange, disabled }: { vehicles: ChipVehicle[]; value: string | null; onChange: (p: string | null) => void; disabled?: boolean }) {
+  const strip = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ left: false, right: false });
+  const measure = useCallback(() => {
+    const el = strip.current;
+    if (!el) return;
+    const left = el.scrollLeft > 2, right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setEdge((e) => (e.left === left && e.right === right ? e : { left, right }));
+  }, []);
+  useEffect(() => {
+    const el = strip.current;
+    if (!el) return;
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measure, vehicles.length]);
   if (!vehicles.length) return null;
+  const fade = edge.left || edge.right
+    ? `linear-gradient(to right, ${edge.left ? "transparent, #000 32px" : "#000"}, ${edge.right ? "#000 calc(100% - 40px), transparent" : "#000"})`
+    : undefined;
   return (
-    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]" role="group" aria-label="Ask about a vehicle">
+    <div ref={strip} onScroll={measure} className="-mx-1 flex snap-x snap-mandatory scroll-px-1 gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]"
+      style={{ maskImage: fade, WebkitMaskImage: fade }} role="group" aria-label="Ask about a vehicle">
       {vehicles.map((v) => {
         const on = value === v.plate;
         return (
           <button key={v.plate} type="button" disabled={disabled} onClick={() => onChange(on ? null : v.plate)} aria-pressed={on}
             title={`${v.plate} · ${v.make} ${v.model} (${v.year})`}
-            className={`flex shrink-0 items-center gap-2 rounded-xl border py-1 pl-1 pr-2.5 text-left transition disabled:opacity-50 ${
+            className={`flex shrink-0 snap-start items-center gap-2 rounded-xl border py-1 pl-1 pr-2.5 text-left transition disabled:opacity-50 ${
               on ? "border-cyan bg-blue-50 ring-2 ring-blue-100" : "border-white/90 bg-white/75 hover:border-cyan/40 hover:bg-white"}`}>
             <ChipThumb v={v} />
             <span className="leading-tight">
@@ -700,8 +721,11 @@ export function CopilotChat() {
     <ConversationList items={convs} loading={convLoading} current={cid} onOpen={open} onNew={newChat} onDelete={remove} readOnly={readOnly} />
   );
 
+  // before the first question a phone shows the whole welcome (every suggestion) and the page scrolls; a chat keeps
+  // the fixed height with its own scroller
+  const welcome = !opening && !msgs.length;
   return (
-    <div className="flex h-[calc(100dvh-168px)] min-h-[520px] gap-4 sm:h-[calc(100dvh-112px)] lg:h-[calc(100dvh-146px)] 2xl:h-[calc(100dvh-162px)]">
+    <div className={`flex h-[calc(100dvh-168px)] min-h-[520px] gap-4 sm:h-[calc(100dvh-112px)] lg:h-[calc(100dvh-146px)] 2xl:h-[calc(100dvh-162px)] ${welcome ? "max-sm:h-auto" : ""}`}>
       <aside className="card hidden w-[272px] shrink-0 flex-col p-3 lg:flex" aria-label="Conversations">{list}</aside>
       <Drawer open={drawer} onClose={() => setDrawer(false)}>{list}</Drawer>
 
@@ -719,7 +743,7 @@ export function CopilotChat() {
           </div>
         </header>
 
-        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5" aria-live="polite">
+        <div ref={scroller} className={`min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 ${welcome ? "max-sm:flex-none max-sm:overflow-visible" : ""}`} aria-live="polite">
           {opening ? (
             <div className="flex flex-col gap-3 p-2">{[0, 1, 2].map((i) => <span key={i} className="skeleton h-14 rounded-2xl" style={{ width: `${90 - i * 18}%` }} />)}</div>
           ) : !msgs.length ? (

@@ -3,6 +3,7 @@
    previous / next (arrow keys) with a thumbnail strip, and links to the vehicles and the AI vision case it belongs to. */
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./icons";
 import { Pill, Source } from "./ui";
 
@@ -58,7 +59,8 @@ export function ImageViewer({ items, index, onIndex, onClose, onOpenCase }: {
   if (!open) return null;
   const e = items[i];
   const findings = Array.isArray(e.findings) ? e.findings : [];
-  return (
+  // rendered into <body>: inside a blurred glass frame (backdrop-filter) a fixed overlay would be confined to the frame
+  return createPortal(
     <div role="dialog" aria-modal="true" aria-label={`Image ${e.id} · ${e.title}`} className="fixed inset-0 z-50 flex flex-col bg-ink-950/95 backdrop-blur-sm">
       <header className="flex items-center gap-3 border-b border-ink-600 px-4 py-2.5">
         <span className="chip shrink-0 border-ink-500 text-fg-3">{i + 1} / {items.length}</span>
@@ -134,7 +136,8 @@ export function ImageViewer({ items, index, onIndex, onClose, onOpenCase }: {
           ))}
         </nav>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -144,9 +147,12 @@ export function ImageCard({ e, onOpen, compact = false }: { e: LibImage; onOpen:
   return (
     <button onClick={onOpen} aria-label={`Library image ${e.id}`}
       className="group flex flex-col overflow-hidden rounded-xl border border-ink-600 bg-ink-850 text-left transition hover:border-cyan/70">
-      <span className={`block w-full overflow-hidden bg-ink-950 ${e.kind === "progression" ? "aspect-[3/1]" : "aspect-[4/3]"}`}>
+      {/* every card has the same 4:3 picture box, so the captions of a row line up; a wide strip (a progression) is
+          shown whole on a soft background */}
+      <span className={`block aspect-[4/3] w-full overflow-hidden ${e.kind === "progression" ? "bg-gradient-to-b from-[#EEF3FA] to-[#E2E9F3] p-2" : "bg-ink-950"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={e.web_url} alt={e.title} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+        <img src={e.web_url} alt={e.title} loading="lazy"
+          className={`h-full w-full transition duration-300 group-hover:scale-[1.03] ${e.kind === "progression" ? "object-contain" : "object-cover"}`} />
       </span>
       <span className={`flex flex-col gap-1.5 ${compact ? "p-2.5" : "p-3"}`}>
         <span className="text-[12.5px] font-semibold leading-snug">{e.id} · {e.title}</span>

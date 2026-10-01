@@ -143,12 +143,12 @@ function DemoBarInner() {
   const guided = user?.role === "presenter" || user?.role === "viewer";
   if (!guided) return null;
   if (!active)
-    return <Link href="/demo#usecases" className="chip hidden border-ink-500 text-fg-2 hover:border-cyan/60 md:inline-flex">Guided demo</Link>;
+    return <Link href="/demo#usecases" className="chip hidden h-11 border-white/80 bg-white/80 px-4 text-[12.5px] text-fg-2 shadow-glass hover:border-cyan/60 hover:bg-white md:inline-flex">Guided demo</Link>;
   const n = active.next;
   return (
     <Link href={active.complete ? "/demo#usecases" : n?.href || "/"} title={`${active.id} ${active.title}${n ? ` · next: ${n.label}` : ""}`}
       aria-current={n && n.href.split("#")[0] === path ? "step" : undefined}
-      className="chip max-w-[46vw] border-cyan/60 bg-cyan/10 text-fg hover:bg-cyan/20">
+      className="chip h-11 max-w-[46vw] border-cyan/60 bg-cyan/10 text-fg shadow-glass hover:bg-cyan/20 sm:px-3.5 sm:text-[12.5px]">
       <b className="text-cyan">{active.id}</b>
       <span className="hidden text-fg-3 sm:inline">{active.complete ? "complete" : `step ${Math.min(active.done + 1, active.steps.length)}/${active.steps.length}`}</span>
       <span className="hidden truncate lg:inline">{active.complete ? "· back to the use cases" : `· ${n?.stage}`}</span>

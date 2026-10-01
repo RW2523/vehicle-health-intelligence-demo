@@ -55,11 +55,12 @@ export function Logo({ size = 28 }: { size?: number }) {
   );
 }
 
-export function Brand({ home = "/", compact = false, app = "Inspection" }: { home?: string; compact?: boolean; app?: string }) {
+/** The logo and the app's name; `compact` is the logo alone, `small` a smaller one that fits the phone drawer. */
+export function Brand({ home = "/", compact = false, small = false, app = "Inspection" }: { home?: string; compact?: boolean; small?: boolean; app?: string }) {
   return (
-    <Link href={home} className="flex items-center gap-2.5" aria-label={`VehicleSense ${app} - home`}>
-      <Logo size={compact ? 30 : 34} />
-      {!compact && <span className="whitespace-nowrap text-[18px] font-extrabold tracking-tight text-fg">VehicleSense <span className="font-medium text-fg-2">{app}</span></span>}
+    <Link href={home} className={`flex min-w-0 items-center ${small ? "gap-2" : "gap-2.5"}`} aria-label={`VehicleSense ${app} - home`}>
+      <Logo size={compact || small ? 30 : 34} />
+      {!compact && <span className={`min-w-0 truncate whitespace-nowrap font-extrabold tracking-tight text-fg ${small ? "text-[16px]" : "text-[18px]"}`}>VehicleSense <span className="font-medium text-fg-2">{app}</span></span>}
     </Link>
   );
 }
@@ -101,6 +102,17 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ref = useOutside(open, () => setOpen(false));
+  // a placeholder that fits the box: the full hint on a wide header, shorter ones on a phone
+  const input = useRef<HTMLInputElement>(null);
+  const [room, setRoom] = useState(400);
+  useEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    const ro = new ResizeObserver((e) => setRoom(e[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const hint = room >= 300 ? "Search vehicle no., owner, or inspection no…" : room >= 190 ? "Search vehicles, inspections…" : "Search…";
   useEffect(() => {
     if (q.trim().length < 2) {
       setRes(null);
@@ -121,7 +133,7 @@ export function GlobalSearch() {
       <form role="search" onSubmit={(e) => { e.preventDefault(); if (first) go(first.href); else if (q.trim()) go(`/vehicles?q=${encodeURIComponent(q.trim())}`); }}>
         <label className="flex items-center gap-2.5 rounded-full border border-white/80 bg-white/80 px-4 py-2.5 shadow-glass focus-within:ring-4 focus-within:ring-blue-100">
           <Icon name="search" size={18} color="#64748B" />
-          <input className="w-full bg-transparent text-[14px] text-fg placeholder:text-fg-4 focus:outline-none" placeholder="Search vehicle no., owner, or inspection no…"
+          <input ref={input} className="w-full min-w-0 bg-transparent text-[14px] text-fg placeholder:text-fg-4 focus:outline-none" placeholder={hint}
             aria-label="Search vehicles, owners and inspections" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => res && setOpen(true)} />
           {busy && <span className="h-3 w-3 animate-spin rounded-full border-2 border-cyan border-t-transparent" aria-hidden />}
         </label>
@@ -176,7 +188,7 @@ export function Notifications() {
         {unseen > 0 && <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan ring-2 ring-white" aria-hidden />}
       </button>
       {open && (
-        <div className="fade-in absolute right-0 top-[calc(100%+8px)] z-50 w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-white/80 bg-white/95 p-2 shadow-float backdrop-blur-xl">
+        <div className="fade-in fixed inset-x-4 top-[64px] z-50 w-auto rounded-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] border border-white/80 bg-white/95 p-2 shadow-float backdrop-blur-xl">
           <div className="px-3 pb-1 pt-2 text-[13px] font-bold">Notifications</div>
           {!items.length && <p className="px-3 py-4 text-[13px] text-fg-3">Nothing new.</p>}
           <ul className="max-h-[60vh] overflow-auto">
@@ -203,6 +215,8 @@ export function UserMenu({ user }: { user: User }) {
   useEffect(() => {
     if (open) api.get("/api/system/status").then(setStatus).catch(() => setStatus(null));
   }, [open]);
+  const role = ROLE_LABEL[user.role] || user.role;
+  const second = role === user.name ? user.title : role;
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={`Account: ${user.name}`}
@@ -210,7 +224,8 @@ export function UserMenu({ user }: { user: User }) {
         <Avatar name={user.name} />
         <span className="hidden min-w-0 flex-col text-left leading-tight md:flex">
           <b className="max-w-[160px] truncate text-[14px]">{user.name}</b>
-          <span className="text-[12px] text-fg-3">{ROLE_LABEL[user.role] || user.role}</span>
+          {/* the role under the name, or the account's title where the role is the name ("Demo presenter") */}
+          {second && <span className="max-w-[160px] truncate text-[12px] text-fg-3" title={second}>{second}</span>}
         </span>
         <span className="hidden sm:inline"><Icon name="down" size={16} color="#64748B" /></span>
       </button>
@@ -257,7 +272,7 @@ export function AppSwitcher({ current }: { current: AppId }) {
         <Icon name="apps" size={19} color="#334155" />
       </button>
       {open && (
-        <div className="fade-in absolute right-0 top-[calc(100%+8px)] z-50 w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-white/80 bg-white/95 p-2 shadow-float backdrop-blur-xl" role="menu" aria-label="Apps">
+        <div className="fade-in fixed inset-x-4 top-[64px] z-50 w-auto rounded-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[340px] border border-white/80 bg-white/95 p-2 shadow-float backdrop-blur-xl" role="menu" aria-label="Apps">
           <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-4">VehicleSense apps</div>
           {apps.map((a) => (
             <Link key={a.id} href={a.href} role="menuitem" onClick={() => setOpen(false)} aria-current={a.id === current ? "true" : undefined}
@@ -335,7 +350,7 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
   const searchable = user && user.role !== "owner";
   return (
     <div className="min-h-screen lg:p-4 2xl:p-6">
-      <div className="flex min-h-screen flex-col lg:min-h-[calc(100vh-2rem)] lg:rounded-[30px] lg:border lg:border-white/70 lg:bg-white/35 lg:shadow-float lg:backdrop-blur-xl 2xl:min-h-[calc(100vh-3rem)]">
+      <div className="flex min-h-screen flex-col lg:min-h-[calc(100vh-2rem)] lg:rounded-[30px] lg:border lg:border-white/60 lg:bg-white/[0.18] lg:shadow-float lg:backdrop-blur-[6px] 2xl:min-h-[calc(100vh-3rem)]">
         <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-white/60 bg-white/60 px-4 py-3 backdrop-blur-xl md:flex-nowrap lg:static lg:rounded-t-[30px] lg:border-0 lg:bg-transparent lg:px-6 lg:py-5">
           <button className="btn btn-sm lg:hidden" aria-label="Open menu" onClick={() => setOpen(true)}><Icon name="menu" size={18} /></button>
           <div className="shrink-0 lg:w-[256px]"><span className="hidden sm:block"><Brand home={home} /></span><span className="sm:hidden"><Brand home={home} compact /></span></div>
@@ -352,15 +367,15 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
         {open && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
             <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setOpen(false)} />
-            <div className="drawer-in absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] flex-col gap-4 overflow-y-auto border-r border-white/70 bg-white/90 p-4 backdrop-blur-xl">
-              <div className="flex items-center justify-between"><Brand home={home} /><button className="btn btn-sm" aria-label="Close menu" onClick={() => setOpen(false)}><Icon name="close" size={16} /></button></div>
+            <div className="drawer-in absolute inset-y-0 left-0 flex w-[316px] max-w-[88vw] flex-col gap-4 overflow-y-auto border-r border-white/70 bg-white/90 p-4 backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-2"><Brand home={home} small /><button className="btn btn-sm shrink-0" aria-label="Close menu" onClick={() => setOpen(false)}><Icon name="close" size={16} /></button></div>
               <NavLinks role={user?.role} onNavigate={() => setOpen(false)} />
               <OtherApps role={user?.role} />
             </div>
           </div>
         )}
         <div className="flex min-w-0 flex-1 gap-2 lg:px-4 lg:pb-4">
-          <aside className="hidden w-[264px] shrink-0 flex-col justify-between rounded-[24px] border border-white/70 bg-white/50 p-3 backdrop-blur-xl lg:flex">
+          <aside className="hidden w-[264px] shrink-0 flex-col justify-between rounded-[24px] border border-white/60 bg-white/[0.42] p-3 shadow-glass backdrop-blur-2xl lg:flex">
             <NavLinks role={user?.role} />
             <div className="flex flex-col gap-3 px-1 pb-1 pt-6">
               <OtherApps role={user?.role} />

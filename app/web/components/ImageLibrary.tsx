@@ -185,54 +185,67 @@ function SlotCard({ s, canEdit, onView, onCopy, onChanged }: {
           <Icon name="pin" size={14} className="mt-[1px] shrink-0" /><span className="min-w-0">{s.where}</span>
         </p>
         <p className="break-words text-[12px] leading-snug text-fg-3"><CreditLine s={s} /></p>
-        <div className="mt-auto flex flex-wrap gap-1.5 pt-1.5">
-          <button type="button" className="btn btn-sm" onClick={onCopy}><Icon name="copy" size={14} />Copy prompt</button>
-          <button type="button" className="btn btn-sm" onClick={onView}><Icon name="eye" size={14} />View prompt</button>
+        {/* the three actions on one row; going back to the stock photo (after an upload) under it */}
+        <div className="mt-auto flex items-center gap-1.5 pt-1.5">
+          <button type="button" className="btn btn-sm min-w-0 flex-1 gap-1.5 px-2" onClick={onCopy}><Icon name="copy" size={14} className="shrink-0" /><span className="truncate">Copy prompt</span></button>
+          <button type="button" className="btn btn-sm shrink-0 px-2" onClick={onView} aria-label="View prompt" title="View prompt"><Icon name="eye" size={14} /></button>
           {canEdit && (
             <>
-              <button type="button" className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => input.current?.click()}>
-                <Icon name="upload" size={14} />{busy === "upload" ? "Uploading…" : s.uploaded ? "Replace" : "Upload image"}
+              <button type="button" className="btn btn-sm btn-primary shrink-0 gap-1.5 px-2.5" disabled={!!busy} onClick={() => input.current?.click()}
+                title={s.uploaded ? "Replace your upload" : "Upload an image for this slot"}>
+                <Icon name="upload" size={14} />{busy === "upload" ? "Uploading…" : s.uploaded ? "Replace" : "Upload"}
               </button>
               <input ref={input} type="file" accept={TYPES.join(",")} className="sr-only" tabIndex={-1} aria-hidden onChange={pick} />
-              {s.uploaded && (
-                <button type="button" className="btn btn-sm btn-danger" disabled={!!busy} onClick={revert}>
-                  <Icon name="refresh" size={14} />{busy === "revert" ? "Removing…" : s.stock ? "Revert to stock" : "Remove upload"}
-                </button>
-              )}
             </>
           )}
         </div>
+        {canEdit && s.uploaded && (
+          <button type="button" className="inline-flex w-fit items-center gap-1.5 rounded-lg px-1 py-0.5 text-[12px] font-semibold text-bad hover:bg-red-50 disabled:opacity-60" disabled={!!busy} onClick={revert}>
+            <Icon name="refresh" size={13} />{busy === "revert" ? "Removing…" : s.stock ? "Revert to stock" : "Remove upload"}
+          </button>
+        )}
       </div>
     </article>
   );
 }
 
-function GroupHead({ g, items }: { g: Group; items: Slot[] }) {
+/** A vehicle's (or the scenes') row: its photo, name and paint, how many slots have a photo; opens its slots. */
+function GroupHead({ g, items, open, onToggle, id }: { g: Group; items: Slot[]; open: boolean; onToggle: () => void; id: string }) {
   const hero = items.find((s) => s.view === "hero")?.current ?? null;
   const filled = items.filter((s) => s.current).length;
   const ups = items.filter((s) => s.uploaded).length;
   const missing = items.length - filled;
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-      {g.plate ? (
-        <VehiclePhoto plate={g.plate} vtype={g.vtype} photo={hero} size="480" className="h-14 w-20 shrink-0 rounded-xl ring-1 ring-white" />
-      ) : <IconTile icon="image" tone="purple" size={56} />}
-      <div className="min-w-[170px] flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <h3 className="text-[17px] font-bold tracking-tight">{g.plate || "Scenes"}</h3>
-          <span className="text-[14px] text-fg-2">{g.plate ? `${g.year ?? ""} ${g.make ?? ""} ${g.model ?? ""}`.trim() : "Hub, lane, pit, flood, tyre and the login background"}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-2 text-[12.5px] text-fg-3">
-          {g.paint && (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full ring-1 ring-[#94A3B8]/60" style={{ background: g.paint_hex || "#CBD5E1" }} aria-hidden />{g.paint}
+    <h3>
+      <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={id}
+        className="flex w-full items-center gap-3 rounded-xl text-left transition hover:bg-white/50">
+        {g.plate ? (
+          <VehiclePhoto plate={g.plate} vtype={g.vtype} photo={hero} size="480" className="h-12 w-[68px] shrink-0 rounded-xl ring-1 ring-white sm:h-14 sm:w-20" />
+        ) : <IconTile icon="image" tone="purple" size={52} />}
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-[16px] font-bold tracking-tight sm:text-[17px]">{g.plate || "Scenes"}</span>
+            <span className="min-w-0 truncate text-[13px] text-fg-2 sm:text-[14px]">{g.plate ? `${g.year ?? ""} ${g.make ?? ""} ${g.model ?? ""}`.trim() : "Hub, lane, pit, flood, tyre and the login background"}</span>
+          </span>
+          <span className="flex flex-wrap items-center gap-x-2 text-[12.5px] text-fg-3">
+            {g.paint && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-full ring-1 ring-[#94A3B8]/60" style={{ background: g.paint_hex || "#CBD5E1" }} aria-hidden />{g.paint} ·
+              </span>
+            )}
+            <span>
+              {filled} photo{filled === 1 ? "" : "s"}{ups ? ` · ${ups} upload${ups === 1 ? "" : "s"}` : ""}
+              {/* on a wider screen the pill beside says how many are missing */}
+              {missing > 0 && <span className="sm:hidden"> · {missing} missing</span>}
             </span>
-          )}
-          <span>{g.paint ? "· " : ""}{filled} of {items.length} with a photo{ups ? ` · ${ups} upload${ups === 1 ? "" : "s"}` : ""}</span>
-        </div>
-      </div>
-      {missing ? <StatusPill tone="amber">{missing} missing</StatusPill> : <StatusPill tone="green" dot>Complete</StatusPill>}
-    </div>
+          </span>
+        </span>
+        <span className="hidden shrink-0 sm:block">{missing ? <StatusPill tone="amber">{missing} missing</StatusPill> : <StatusPill tone="green" dot>Complete</StatusPill>}</span>
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/80 ring-1 ring-ink-600 transition ${open ? "rotate-180" : ""}`} aria-hidden>
+          <Icon name="down" size={16} color="#475569" />
+        </span>
+      </button>
+    </h3>
   );
 }
 
@@ -245,6 +258,8 @@ export function ImageLibrary() {
   const [group, setGroup] = useState("all");
   const [status, setStatus] = useState<Status>("all");
   const [viewing, setViewing] = useState<Slot | null>(null);
+  // one vehicle open at a time by default (the first); a filtered view opens every group it shows
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
 
   const all = slots.data || [];
   const counts = useMemo(() => {
@@ -322,16 +337,24 @@ export function ImageLibrary() {
           <button type="button" className="btn btn-sm mt-1" onClick={() => (setStatus("all"), setGroup("all"))}>Show all slots</button>
         </div>
       ) : (
-        shown.map(({ g, items, every }) => (
-          <section key={g.group} className="card min-w-0 p-4 lg:p-5" aria-label={g.plate || "Scenes"}>
-            <GroupHead g={g} items={every} />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {items.map((s) => (
-                <SlotCard key={s.id} s={s} canEdit={canEdit} onView={() => setViewing(s)} onCopy={() => copy(s)} onChanged={changed} />
-              ))}
-            </div>
-          </section>
-        ))
+        <div className="flex min-w-0 flex-col gap-3">
+          {shown.map(({ g, items, every }, k) => {
+            const open = opened[g.group] ?? (k === 0 || shown.length === 1 || status !== "all");
+            const id = `slots-${g.group}`;
+            return (
+              <section key={g.group} className="card min-w-0 p-3 sm:p-4 lg:p-5" aria-label={g.plate || "Scenes"}>
+                <GroupHead g={g} items={every} open={open} id={id} onToggle={() => setOpened((o) => ({ ...o, [g.group]: !open }))} />
+                {open && (
+                  <div id={id} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {items.map((s) => (
+                      <SlotCard key={s.id} s={s} canEdit={canEdit} onView={() => setViewing(s)} onCopy={() => copy(s)} onChanged={changed} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
       )}
 
       <Modal open={!!v} onClose={() => setViewing(null)} title={v ? `${v.plate || "Scene"} · ${v.label}` : ""}>

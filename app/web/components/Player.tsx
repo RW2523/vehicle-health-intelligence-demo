@@ -26,7 +26,9 @@ export const playerProgress = (p: any) => {
   return { t: Math.min(Math.round(p?.t || 0), dur), dur, pct: Math.min(100, (100 * (p?.t || 0)) / dur) };
 };
 
-export function PlayerControls({ s, onState, compact = false, onFastDone, quiet = false }: { s: any; onState: (p: any) => void; compact?: boolean; onFastDone?: () => void; quiet?: boolean }) {
+export function PlayerControls({ s, onState, compact = false, onFastDone, quiet = false, center = false }: {
+  s: any; onState: (p: any) => void; compact?: boolean; onFastDone?: () => void; quiet?: boolean; center?: boolean;
+}) {
   const p = s.player;
   const sid = s.session_id;
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function PlayerControls({ s, onState, compact = false, onFastDone, quiet 
   const speed = (
     <label className="flex items-center gap-2 text-[12.5px] text-fg-3">
       Speed
-      <select aria-label="Speed" className="input py-1.5" value={p?.speed || 1} onChange={(e) => call("speed", { speed: Number(e.target.value) })}>
+      <select aria-label="Speed" className="input h-[38px] py-0" value={p?.speed || 1} onChange={(e) => call("speed", { speed: Number(e.target.value) })}>
         {[0.5, 1, 2, 4, 8, 16].map((x) => <option key={x} value={x}>{x}×</option>)}
       </select>
     </label>
@@ -75,7 +77,7 @@ export function PlayerControls({ s, onState, compact = false, onFastDone, quiet 
   );
   if (compact)
     return (
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={`flex flex-wrap items-center gap-2 ${center ? "justify-center" : ""}`}>
         {buttons}
         {speed}
       </div>
@@ -87,7 +89,7 @@ export function PlayerControls({ s, onState, compact = false, onFastDone, quiet 
         {speed}
         <label className="flex items-center gap-2 text-[12.5px] text-fg-3">
           Jump to
-          <select aria-label="Jump to step" className="input py-1.5" value="" onChange={(e) => e.target.value && call("seek", { step: e.target.value })}>
+          <select aria-label="Jump to step" className="input h-[38px] max-w-[180px] py-0" value="" onChange={(e) => e.target.value && call("seek", { step: e.target.value })}>
             <option value="">step…</option>
             {(p?.timeline || []).map((st: any) => <option key={st.step} value={st.step}>{STEP_LABEL[st.step] || st.step}</option>)}
           </select>

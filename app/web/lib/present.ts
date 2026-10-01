@@ -42,7 +42,8 @@ export function provenance(kind: string, text?: string): { kind: Provenance; det
     detail = detail.replace(new RegExp(`^${esc}(\\s*[·:,–-]\\s*|\\s+|$)`, "i"), "").replace(new RegExp(`(\\s*[·:,–-]\\s*|\\s+)${esc}$`, "i"), "");
   }
   detail = detail.trim();
-  return { kind: k, detail: detail ? detail[0].toUpperCase() + detail.slice(1) : "" };
+  // capitalise a sentence, not a domain name or code ("data.gov.my" stays as it is)
+  return { kind: k, detail: detail && !/^[a-z0-9-]+\.[a-z]/.test(detail) ? detail[0].toUpperCase() + detail.slice(1) : detail || "" };
 }
 
 /** Severity: Normal / Attention / Critical everywhere. A high alert is Critical (it must be decided before the report). */

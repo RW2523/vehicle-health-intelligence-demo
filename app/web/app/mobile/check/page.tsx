@@ -20,11 +20,13 @@ const EXTRA_TYRES = ["images/tyre/perfect/tyre_helath_qualit_00001.jpg", "images
 const WORN_TYRE = "images/tyre/defective/tyre_helath_qualit_00231.jpg";
 const KNOCK = "audio/engine_knocking/car_engine_sou_00000.wav";
 
-const VERDICT_STYLE: Record<string, { bg: string; fg: string; icon: string; ring: string }> = {
-  "Ready for inspection": { bg: "from-emerald-500 to-emerald-600", fg: "text-emerald-50", icon: "check", ring: "#A7F3D0" },
-  "Fix these first": { bg: "from-amber-400 to-amber-500", fg: "text-amber-50", icon: "wrench", ring: "#FDE68A" },
-  "Needs a professional check": { bg: "from-rose-500 to-rose-600", fg: "text-rose-50", icon: "warn", ring: "#FECACA" },
+// the verdict card: white on the deeper greens and reds, dark ink on amber (white on amber cannot be read)
+const VERDICT_STYLE: Record<string, { bg: string; ink: string; fg: string; icon: string; iconCol: string; tile: string }> = {
+  "Ready for inspection": { bg: "from-emerald-600 to-emerald-700", ink: "text-white", fg: "text-white", icon: "check", iconCol: "#fff", tile: "bg-white/20 ring-white/40" },
+  "Fix these first": { bg: "from-amber-300 to-amber-400", ink: "text-amber-950", fg: "text-amber-900", icon: "wrench", iconCol: "#78350F", tile: "bg-white/50 ring-amber-900/15" },
+  "Needs a professional check": { bg: "from-rose-600 to-rose-700", ink: "text-white", fg: "text-white", icon: "warn", iconCol: "#fff", tile: "bg-white/20 ring-white/40" },
 };
+const OTHER_VERDICT = { bg: "from-slate-500 to-slate-600", ink: "text-white", fg: "text-white", icon: "info", iconCol: "#fff", tile: "bg-white/20 ring-white/40" };
 const VERDICT_TEXT: Record<string, string> = {
   "Ready for inspection": "Nothing the phone can check stops this car passing. You can book now.",
   "Fix these first": "These are quick fixes you can do yourself before booking.",
@@ -35,13 +37,13 @@ const VERDICT_TEXT: Record<string, string> = {
 
 function Viewfinder({ children, hint, flash, scanning, dark = true }: { children: React.ReactNode; hint: string; flash: boolean; scanning?: boolean; dark?: boolean }) {
   return (
-    <div className={`relative aspect-[5/6] w-full overflow-hidden rounded-[26px] ${dark ? "bg-[#0B1220]" : "bg-slate-200"} shadow-[0_24px_40px_-24px_rgba(15,23,42,0.8)]`}>
+    <div className={`relative aspect-[5/6] max-h-[400px] w-full overflow-hidden rounded-[26px] ${dark ? "bg-[#0B1220]" : "bg-slate-200"} shadow-[0_24px_40px_-24px_rgba(15,23,42,0.8)]`}>
       {children}
       {/* corner guides */}
-      {["left-4 top-4 border-l-[3px] border-t-[3px] rounded-tl-xl", "right-4 top-4 border-r-[3px] border-t-[3px] rounded-tr-xl", "bottom-4 left-4 border-b-[3px] border-l-[3px] rounded-bl-xl", "bottom-4 right-4 border-b-[3px] border-r-[3px] rounded-br-xl"]
+      {["left-4 top-4 border-l-[3px] border-t-[3px] rounded-tl-xl", "right-4 top-4 border-r-[3px] border-t-[3px] rounded-tr-xl", "bottom-[108px] left-4 border-b-[3px] border-l-[3px] rounded-bl-xl", "bottom-[108px] right-4 border-b-[3px] border-r-[3px] rounded-br-xl"]
         .map((c) => <span key={c} className={`pointer-events-none absolute h-7 w-7 border-white/85 ${c}`} aria-hidden />)}
       {scanning && <span className="m-scan pointer-events-none absolute inset-x-6 h-[2px] rounded-full bg-cyan-300 shadow-[0_0_14px_3px_rgba(103,232,249,0.8)]" aria-hidden />}
-      <span className="absolute left-1/2 top-4 max-w-[78%] -translate-x-1/2 rounded-full bg-black/55 px-3 py-1.5 text-center text-[12px] font-medium text-white backdrop-blur">{hint}</span>
+      <span className="absolute left-1/2 top-4 w-max max-w-[calc(100%-112px)] -translate-x-1/2 rounded-2xl bg-black/55 px-3 py-1.5 text-center text-[12px] font-medium leading-snug text-white backdrop-blur">{hint}</span>
       {flash && <span className="m-fade pointer-events-none absolute inset-0 bg-white" style={{ animationDirection: "reverse", animationDuration: ".35s" }} aria-hidden />}
     </div>
   );
@@ -61,7 +63,7 @@ function Shutter({ onClick, disabled, label, done }: { onClick: () => void; disa
 function TintScene({ vlt, measured }: { vlt: number; measured: boolean }) {
   const dark = Math.max(0.05, Math.min(0.92, (100 - vlt) / 100));
   return (
-    <svg viewBox="0 0 300 360" className="absolute inset-0 h-full w-full" aria-hidden>
+    <svg viewBox="0 0 300 360" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
       <defs>
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#334155" /><stop offset="1" stopColor="#0F172A" /></linearGradient>
         <linearGradient id="door" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#CBD5E1" /><stop offset="1" stopColor="#64748B" /></linearGradient>
@@ -93,7 +95,7 @@ function LampScene({ left, right }: { left: boolean; right: boolean }) {
     </g>
   );
   return (
-    <svg viewBox="0 0 300 360" className="absolute inset-0 h-full w-full" aria-hidden>
+    <svg viewBox="0 0 300 360" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
       <defs>
         <radialGradient id="lit"><stop offset="0" stopColor="#FFFFFF" /><stop offset=".6" stopColor="#FEF9C3" /><stop offset="1" stopColor="#FDE68A" /></radialGradient>
         <radialGradient id="beam"><stop offset="0" stopColor="#FEF9C3" stopOpacity=".75" /><stop offset="1" stopColor="#FEF9C3" stopOpacity="0" /></radialGradient>
@@ -106,9 +108,6 @@ function LampScene({ left, right }: { left: boolean; right: boolean }) {
       {[0, 1, 2, 3].map((i) => <line key={i} x1="118" x2="182" y1={206 + i * 5} y2={206 + i * 5} stroke="#64748B" />)}
       {lamp(80, left)}{lamp(220, right)}
       <rect x="118" y="236" width="64" height="12" rx="2" fill="#0F172A" />
-      <path d="M30 300 L270 300" stroke="#334155" />
-      <text x="80" y="290" textAnchor="middle" fontSize="12" fill="#CBD5E1">Left</text>
-      <text x="220" y="290" textAnchor="middle" fontSize="12" fill="#CBD5E1">Right</text>
     </svg>
   );
 }
@@ -145,7 +144,7 @@ function Progress({ stage }: { stage: Stage }) {
 function DemoControls({ children, kind = "simulated", text = "Phone check" }: { children: React.ReactNode; kind?: string; text?: string }) {
   return (
     <div className="mt-3 rounded-[18px] border border-dashed border-slate-300 bg-white/60 px-1 py-1">
-      <div className="flex items-center justify-between px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Demo controls<Source kind={kind} text={text} /></div>
+      <div className="flex items-center justify-between gap-2 px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Demo controls<span className="normal-case tracking-normal"><Source kind={kind} text={text} /></span></div>
       {children}
     </div>
   );
@@ -245,9 +244,28 @@ function CheckScreen() {
   const title = stage === "intro" ? "Self-check" : stage === "result" ? "Your result" : stage === "analysing" ? "Checking" : "Guided self-check";
   const stepIdx = STEPS.findIndex((s) => s.id === stage);
   const back = stepIdx > 0 ? () => setStage(STEPS[stepIdx - 1].id) : stage === "review" ? () => setStage("engine") : null;
+  const vs = (res && VERDICT_STYLE[res.verdict]) || OTHER_VERDICT;
+  // the step's button, in the footer above the tab bar (with Back from the second step on)
+  const step: { label: React.ReactNode; disabled: boolean; go: () => void } | null =
+    stage === "tint" ? { label: "Next: headlamps", disabled: !tintDone, go: () => setStage("lamps") }
+    : stage === "lamps" ? { label: "Next: tyres", disabled: !lampsDone, go: () => setStage("tyres") }
+    : stage === "tyres" ? { label: "Next: engine sound", disabled: tyres < 4, go: () => setStage("engine") }
+    : stage === "engine" ? { label: "Review captures", disabled: rec !== "done", go: () => setStage("review") }
+    : stage === "review" ? { label: <><Icon name="bolt" size={18} color="#fff" />Analyse captures</>, disabled: busy || readOnly, go: () => run(guided()) }
+    : null;
 
   return (
     <MobileShell tab="check" title={title} scrollKey={stage}
+      footer={script.data && step ? (
+        <div className="flex gap-2 border-t border-slate-200/70 bg-white/90 px-4 pb-2 pt-2.5 backdrop-blur-xl">
+          {back && (
+            <button className={`${BTN2} shrink-0 !py-3.5 !pl-3 !pr-4`} onClick={back}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>Back
+            </button>
+          )}
+          <button disabled={step.disabled} className={`${BTN} min-w-0 flex-1`} onClick={step.go}>{step.label}</button>
+        </div>
+      ) : undefined}
       actions={stage !== "intro" && stage !== "analysing" ? <button onClick={restart} className="rounded-full px-3 py-2 text-[14px] font-semibold text-[#2563EB] active:bg-blue-50">{stage === "result" ? "Done" : "Cancel"}</button> : undefined}>
       {!script.data ? <MSkeleton rows={3} h={120} /> : (
         <>
@@ -257,7 +275,7 @@ function CheckScreen() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-indigo-200">Before you book</div>
-                    <h2 className="mt-1 text-[22px] font-extrabold leading-tight">Pre-inspection self-check</h2>
+                    <h2 className="mt-1 text-balance text-[22px] font-extrabold leading-tight">{"Pre\u2011inspection self\u2011check"}</h2>
                     <p className="mt-1.5 text-[13.5px] leading-snug text-indigo-100">Take photos of the tint, both headlamps and all 4 tyres, and record 20 seconds of engine sound. The app tells you what to fix before you book.</p>
                   </div>
                   <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30">
@@ -282,9 +300,9 @@ function CheckScreen() {
               <MTitle action={<Source kind="sample" text="Demo car's captures" />}>Quick run</MTitle>
               <MCard>
                 <p className="text-[13px] leading-snug text-slate-600">Run the check on the demo car&apos;s captures (tint at 38%, the left headlamp out), then again once they are fixed.</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button disabled={busy || readOnly} className={BTN2} onClick={() => run({ ...base, tint_vlt_pct: tint, headlamp_left: lampL })}>{busy ? "Checking…" : "Run self-check"}</button>
-                  <button disabled={busy || readOnly} className={BTN2} onClick={runAgain}>Run again after fixing</button>
+                <div className="mt-3 flex flex-col gap-2">
+                  <button disabled={busy || readOnly} className={`${BTN2} w-full`} onClick={() => run({ ...base, tint_vlt_pct: tint, headlamp_left: lampL })}>{busy ? "Checking…" : "Run self-check"}</button>
+                  <button disabled={busy || readOnly} className={`${BTN2} w-full`} onClick={runAgain}>Run again after fixing</button>
                 </div>
                 {readOnly && <p className="mt-2 text-[12px] text-slate-500">Read-only account: the checks cannot be run.</p>}
               </MCard>
@@ -308,7 +326,6 @@ function CheckScreen() {
                   <input aria-label="Tint VLT" type="range" min={20} max={85} value={tint} onChange={(e) => { setTint(+e.target.value); setTintDone(false); }} className="mt-1 w-full accent-[#2563EB]" />
                 </label>
               </DemoControls>
-              <button disabled={!tintDone} className={`${BTN} mt-4 w-full`} onClick={() => setStage("lamps")}>Next: headlamps</button>
             </>
           )}
 
@@ -335,7 +352,6 @@ function CheckScreen() {
                   </select>
                 </label>
               </DemoControls>
-              <button disabled={!lampsDone} className={`${BTN} mt-4 w-full`} onClick={() => setStage("tyres")}>Next: tyres</button>
             </>
           )}
 
@@ -366,7 +382,6 @@ function CheckScreen() {
               <DemoControls kind="sample" text="Sample tyre photos">
                 <Switch checked={worn} onChange={(w) => { setWorn(w); if (tyres > 3) setTyres(3); }} label="Rear right tyre is worn" sub="Use a worn tyre's photo: the Tyre AI should catch it" />
               </DemoControls>
-              <button disabled={tyres < 4} className={`${BTN} mt-4 w-full`} onClick={() => setStage("engine")}>Next: engine sound</button>
             </>
           )}
 
@@ -397,15 +412,14 @@ function CheckScreen() {
               <DemoControls kind="sample" text="Sample engine clips">
                 <Switch checked={knock} onChange={(v) => { setKnock(v); setRec(""); setPlaying(false); }} label="The engine knocks" sub="Use a knocking engine's clip: the acoustic model should hear it" />
               </DemoControls>
-              <button disabled={rec !== "done"} className={`${BTN} mt-4 w-full`} onClick={() => setStage("review")}>Review captures</button>
             </>
           )}
 
           {stage === "review" && (
             <>
               <Progress stage={stage} />
-              <h2 className="px-1 text-[20px] font-extrabold tracking-tight">Ready to check</h2>
-              <p className="px-1 text-[13px] text-slate-500">The tyre photos go to the Tyre AI and the clip to the acoustic model.</p>
+              <h2 className="text-[20px] font-extrabold tracking-tight">Ready to check</h2>
+              <p className="text-[13px] text-slate-500">The tyre photos go to the Tyre AI and the clip to the acoustic model.</p>
               <MList className="mt-3" label="Captures">
                 <MRow icon="eye" tone="sky" title="Window tint" sub={`VLT ${tint}% measured`} onClick={() => setStage("tint")} label="Retake the tint reading" />
                 <MRow icon="lamp" tone="amber" title="Headlamps" sub={`Left ${lampL === "ok" ? "working" : "not working"} · right working`} onClick={() => setStage("lamps")} label="Retake the headlamp photo" />
@@ -416,7 +430,6 @@ function CheckScreen() {
                   ))}</span>} />
                 <MRow icon="vib" tone="green" title="Engine sound" sub="20 s clip at idle" onClick={() => setStage("engine")} label="Record the engine again" />
               </MList>
-              <button disabled={busy || readOnly} className={`${BTN} mt-4 w-full`} onClick={() => run(guided())}><Icon name="bolt" size={18} color="#fff" />Analyse captures</button>
             </>
           )}
 
@@ -438,11 +451,11 @@ function CheckScreen() {
 
           {stage === "result" && res && (
             <div className="flex flex-col gap-3" role="status">
-              <section className={`m-pop rounded-[26px] bg-gradient-to-br p-5 text-white shadow-lg ${VERDICT_STYLE[res.verdict]?.bg || "from-slate-500 to-slate-600"}`}>
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/40"><Icon name={VERDICT_STYLE[res.verdict]?.icon || "info"} size={26} color="#fff" width={2.2} /></span>
+              <section className={`m-pop rounded-[26px] bg-gradient-to-br p-5 shadow-lg ${vs.bg} ${vs.ink}`}>
+                <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ring-1 ${vs.tile}`}><Icon name={vs.icon} size={26} color={vs.iconCol} width={2.2} /></span>
                 <div className="mt-3 text-[24px] font-extrabold leading-tight">{res.verdict}</div>
-                <div className={`mt-1 text-[13.5px] ${VERDICT_STYLE[res.verdict]?.fg || ""}`}>{VERDICT_TEXT[res.verdict]}</div>
-                <div className="mt-3 text-[12px] font-semibold opacity-90">{res.items.filter((i: any) => i.ok).length} of {res.items.length} checks fine</div>
+                <div className={`mt-1 text-[13.5px] ${vs.fg}`}>{VERDICT_TEXT[res.verdict]}</div>
+                <div className={`mt-3 text-[12px] font-semibold ${vs.fg}`}>{res.items.filter((i: any) => i.ok).length} of {res.items.length} checks fine</div>
               </section>
               <MCard pad={false} className="divide-y divide-slate-100" label="Self-check items">
                 {[...res.items].sort((a: any, b: any) => Number(a.ok) - Number(b.ok)).map((it: any, i: number) => (
@@ -474,7 +487,6 @@ function CheckScreen() {
             </div>
           )}
 
-          {back && <button className="mt-3 w-full py-2 text-[13.5px] font-semibold text-slate-500" onClick={back}>Back</button>}
         </>
       )}
     </MobileShell>

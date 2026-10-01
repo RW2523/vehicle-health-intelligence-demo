@@ -4,10 +4,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { Ring } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { AccountSheet, MobileSheet, MobileShell, TAB_SCREEN, useMobileHref, useMobilePlate } from "@/components/MobileShell";
-import { BarButton, MCard, MError, MList, MRow, MSkeleton, MTitle, Plate, Verdict, dayLabel, greeting, inDays, scoreCol } from "@/components/mobileKit";
+import { BarButton, HealthBadge, MCard, MError, MList, MRow, MSkeleton, MTitle, Plate, Verdict, dayLabel, greeting, inDays } from "@/components/mobileKit";
 import { Booking, BOOKING_STATUS, NEWS, Update, openBookings, ownerUpdates, useBookings, usePassport, useProfile } from "@/components/mobileData";
 import { MobileVehiclePhoto, useMobilePhotos } from "@/components/mobilePhoto";
 import { StatusPill } from "@/components/glass";
@@ -19,7 +18,6 @@ function VehicleCard({ p, href }: { p: any; href: (path: string, q?: Record<stri
   const photos = useMobilePhotos(v.plate);
   const road = (p.reminders || []).find((r: any) => r.kind === "road_tax");
   const due = p.next_due;
-  const score = p.health as number | null;
   return (
     <Link href={href("/mobile/vehicle")} aria-label={`${v.plate} ${v.make} ${v.model}: open the health passport`}
       className="m-pop block overflow-hidden rounded-[26px] bg-white shadow-[0_24px_50px_-28px_rgba(30,58,138,0.55)] ring-1 ring-white transition active:scale-[.99]">
@@ -39,10 +37,7 @@ function VehicleCard({ p, href }: { p: any; href: (path: string, q?: Record<stri
           <div className="truncate text-[19px] font-extrabold tracking-tight">{v.make} {v.model}</div>
           <div className="text-[12.5px] text-slate-500">{v.year} · {fmtN(v.odometer_km)} km · {v.state}</div>
         </div>
-        <Ring value={score ?? 0} size={62} stroke={7} color={scoreCol(score)}>
-          <span className="text-[17px] font-extrabold" style={{ color: scoreCol(score) }}>{score ?? "–"}</span>
-          <span className="text-[8.5px] font-semibold uppercase tracking-wide text-slate-400">Health</span>
-        </Ring>
+        <HealthBadge health={p.health} latest={p.latest} size={62} stroke={7} />
       </div>
       <div className="grid grid-cols-2 gap-2 px-3 pb-3">
         <div className="rounded-2xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
@@ -67,13 +62,13 @@ function Ticket({ b, href }: { b: Booking; href: (path: string, q?: Record<strin
   return (
     <Link href={href("/mobile/book", { ticket: b.booking_id })} aria-label={`Your booking ${b.booking_id}: open the ticket`}
       className="relative flex overflow-hidden rounded-[22px] bg-gradient-to-br from-[#1E3A8A] via-[#1D4ED8] to-[#3B82F6] text-white shadow-[0_20px_40px_-24px_rgba(30,58,138,0.9)] active:scale-[.99]">
-      <div className="min-w-0 flex-1 p-4">
-        <div className="flex items-center gap-2"><span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-100">Your booking</span><StatusPill tone={st?.tone || "gray"} className="!py-0.5 !text-[10.5px]">{st?.label || b.status}</StatusPill></div>
-        <div className="mt-1.5 text-[22px] font-extrabold leading-tight">{dayLabel(b.date)} · {b.slot}</div>
+      <div className="min-w-0 flex-1 py-4 pl-4 pr-3">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100">Your booking</span><StatusPill tone={st?.tone || "gray"} className="!py-0.5 !text-[10.5px]">{st?.label || b.status}</StatusPill></div>
+        <div className="mt-1.5 whitespace-nowrap text-[19px] font-extrabold leading-tight min-[380px]:text-[22px]">{dayLabel(b.date)} · {b.slot}</div>
         <div className="truncate text-[13px] text-blue-100">{b.type_label}{b.gear ? " · Express" : ""}</div>
         <div className="mt-1 flex items-center gap-1.5 truncate text-[12.5px] text-blue-50"><Icon name="pin" size={14} color="#BFDBFE" />{b.branch_name}</div>
       </div>
-      <div className="relative flex w-[92px] shrink-0 flex-col items-center justify-center gap-1 border-l border-dashed border-white/40 px-2">
+      <div className="relative flex w-[84px] shrink-0 flex-col items-center justify-center gap-1 border-l border-dashed border-white/40 px-2">
         <span className="absolute -left-[9px] -top-[9px] h-[18px] w-[18px] rounded-full bg-[#EEF3FA]" aria-hidden />
         <span className="absolute -bottom-[9px] -left-[9px] h-[18px] w-[18px] rounded-full bg-[#EEF3FA]" aria-hidden />
         <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white"><Icon name="qr" size={30} color="#1E3A8A" width={1.8} /></span>
@@ -133,7 +128,7 @@ function Home() {
       )}>
       {tab ? <MSkeleton rows={3} h={120} /> : (
         <>
-          <div className="mb-4 mt-1 px-1">
+          <div className="mb-4 mt-1">
             <div className="text-[14px] font-medium text-slate-500">{greeting()}{first ? "," : ""}</div>
             <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">{first || "Welcome"}</h1>
           </div>
@@ -158,7 +153,7 @@ function Home() {
             <MCard>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="truncate text-[15px] font-bold">{rep.kind}</div>
+                  <div className="line-clamp-2 text-[15px] font-bold leading-snug">{rep.kind}</div>
                   <div className="text-[12.5px] text-slate-500">{dayLabel(rep.created_at, true)}{rep.health != null ? ` · health ${rep.health}/100` : ""}</div>
                 </div>
                 <Verdict v={rep.verdict} />
@@ -172,28 +167,28 @@ function Home() {
               ) : <p className="mt-2 text-[13px] text-slate-600">No findings: every check was within its limit.</p>}
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
                 <Source kind="live_model" text="Lane report" />
-                <a href={`/verify/${rep.verify_token}`} className="flex items-center gap-1 text-[13px] font-semibold text-[#2563EB]"><Icon name="shield" size={15} />Verify report</a>
+                <a href={`/verify/${rep.verify_token}`} className="-my-2.5 flex shrink-0 items-center gap-1 whitespace-nowrap py-2.5 pl-3 text-[13px] font-semibold text-[#2563EB]"><Icon name="shield" size={15} />Verify report</a>
               </div>
             </MCard>
           ) : cert ? (
             <MCard>
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0"><div className="truncate text-[15px] font-bold">{cert.kind}</div><div className="text-[12.5px] text-slate-500">{dayLabel(cert.date, true)}{cert.odometer_km != null ? ` · ${fmtN(cert.odometer_km)} km` : ""}</div></div>
+                <div className="min-w-0"><div className="line-clamp-2 text-[15px] font-bold leading-snug">{cert.kind}</div><div className="text-[12.5px] text-slate-500">{dayLabel(cert.date, true)}{cert.odometer_km != null ? ` · ${fmtN(cert.odometer_km)} km` : ""}</div></div>
                 <Verdict v={cert.result} />
               </div>
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
                 <Source kind="synthetic" text="Inspection history" />
-                {cert.verify_token && <a href={`/verify/${cert.verify_token}`} className="text-[13px] font-semibold text-[#2563EB]">Verify report</a>}
+                {cert.verify_token && <a href={`/verify/${cert.verify_token}`} className="-my-2.5 shrink-0 whitespace-nowrap py-2.5 pl-3 text-[13px] font-semibold text-[#2563EB]">Verify report</a>}
               </div>
             </MCard>
           ) : <MCard><p className="text-[13.5px] text-slate-600">No inspection on record yet. Book one to get a health certificate buyers can verify.</p></MCard>}
 
-          <MTitle action={updates.length > 3 ? <button className="text-[13px] font-semibold text-[#2563EB]" onClick={() => setSheet("updates")}>See all</button> : undefined}>Updates</MTitle>
+          <MTitle action={updates.length > 3 ? <button className="-my-2.5 py-2.5 pl-3 text-[13px] font-semibold text-[#2563EB]" onClick={() => setSheet("updates")}>See all</button> : undefined}>Updates</MTitle>
           {!p ? <MSkeleton rows={2} /> : updates.length ? <MList label="Updates">{updates.slice(0, 3).map((u) => <UpdateRow key={u.id} u={u} />)}</MList>
             : <MCard><p className="text-[13.5px] text-slate-600">Nothing needs your attention.</p></MCard>}
 
           <MTitle action={<Source kind="sample" text="Owner news" />}>News</MTitle>
-          <div className="m-noscroll -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
+          <div className="m-noscroll -mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1">
             {NEWS.map((n) => (
               <Link key={n.id} href={href(n.href || "/mobile/assistant")} className="w-[240px] shrink-0 snap-start rounded-[22px] bg-white/85 p-4 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] ring-1 ring-white active:scale-[.99]">
                 <Icon name={n.icon} size={22} color="#2563EB" />
@@ -212,7 +207,7 @@ function Home() {
         {updates.length ? <div className="-mx-4 divide-y divide-slate-100">{updates.map((u) => <UpdateRow key={u.id} u={u} />)}</div>
           : <p className="text-[13.5px] text-slate-600">Nothing needs your attention.</p>}
         <div className="mb-1 mt-4 text-[12px] font-semibold uppercase tracking-wide text-slate-500">News</div>
-        <div className="-mx-4 divide-y divide-slate-100">{NEWS.map((u) => <UpdateRow key={u.id} u={{ ...u, href: u.href ? href(u.href) : undefined }} />)}</div>
+        <div className="-mx-4 divide-y divide-slate-100">{NEWS.map((u) => <UpdateRow key={u.id} u={{ ...u, href: href(u.href || "/mobile/assistant") }} />)}</div>
       </MobileSheet>
       {user && <AccountSheet open={sheet === "account"} onClose={() => setSheet("")} user={user} plate={plate} />}
     </MobileShell>

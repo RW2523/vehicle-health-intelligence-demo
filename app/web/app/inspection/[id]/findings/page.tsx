@@ -1,11 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, use, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, Suspense, use, useEffect, useMemo, useRef, useState } from "react";
 import { NextAction, refreshUseCase, useActiveUseCase } from "@/components/Demo";
 import { IconTile, Panel, StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
-import { Evidence, InspectionAssistant, NoInspection, PageLoading, StepNav, checklistOf, itemOf, measureOf, ruleFor, useInspectionParam } from "@/components/insp";
+import { Evidence, InspectionAssistant, NoInspection, PageLoading, StepNav, checklistOf, itemLabel, itemOf, measureOf, ruleFor, useInspectionParam } from "@/components/insp";
 import { ucFor } from "@/components/insp";
 import { Shell } from "@/components/Shell";
 import { Modal, PageHeader, Source, toast } from "@/components/ui";
@@ -38,6 +38,32 @@ const RULES: Record<string, string> = {
   "dtc:": "Stored OBD fault codes are recorded and explained; emission-related codes count against the emissions check.",
 };
 const ruleText = (code: string) => Object.entries(RULES).find(([k]) => code.startsWith(k))?.[1] || "This finding comes from an AI module or a rule of the inspection pipeline; the examiner decides it.";
+
+/** The finding categories in one row that scrolls sideways when it does not fit: a fade at an edge says there is more,
+ *  and the selected one is brought into view (only the row scrolls, never the page). */
+function FadeRow({ children, label, active }: { children: ReactNode; label: string; active: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const measure = () => {
+    const el = ref.current;
+    if (el) setEdge({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
+  };
+  useEffect(() => {
+    const el = ref.current;
+    const cur = el?.querySelector<HTMLElement>("[aria-selected='true']");
+    if (el && cur && el.scrollWidth > el.clientWidth) el.scrollLeft = cur.offsetLeft - (el.clientWidth - cur.offsetWidth) / 2;
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [active]);  // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="card relative min-w-0 flex-1 overflow-hidden p-0">
+      <div ref={ref} onScroll={measure} role="tablist" aria-label={label} className="relative flex flex-nowrap items-center gap-1 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{children}</div>
+      {edge.l && <span className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white via-white/80 to-white/0" aria-hidden />}
+      {edge.r && <span className="pointer-events-none absolute inset-y-0 right-0 w-14 bg-gradient-to-l from-white via-white/80 to-white/0" aria-hidden />}
+    </div>
+  );
+}
 
 function Findings({ id }: { id: string }) {
   const sp = useSearchParams();
@@ -164,13 +190,13 @@ function Findings({ id }: { id: string }) {
       <div className="mb-2"><Link href={`/inspection/${sid}`} className="inline-flex items-center gap-1 text-[14px] text-fg-2 hover:text-cyan"><Icon name="back" size={16} />Back to Inspection</Link></div>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <PageHeader eyebrow="Inspection" title="Defect Review and Findings" sub="Review captured images, decide each defect, and record findings for this vehicle." />
-        <div className="card mb-6 flex items-center gap-4 p-3 pr-5">
-          <div className="flex h-[78px] w-[130px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-b from-[#F1F5FB] to-[#E3EAF5]">{insp.photo ? <VehicleImage plate={insp.plate} vtype={insp.owner?.vtype} photo={insp.photo} size="480" className="h-full w-full" /> : <VehicleArt vtype={insp.owner?.vtype} seed={insp.plate} className="h-[70px] w-[124px]" />}</div>
-          <dl className="grid grid-cols-[auto_auto] gap-x-5 gap-y-0.5 text-[13px]">
+        <div className="card mb-6 flex w-full min-w-0 items-center gap-3 p-3 sm:w-auto sm:gap-4 sm:pr-5">
+          <div className="flex h-[64px] w-[96px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-b from-[#F1F5FB] to-[#E3EAF5] sm:h-[78px] sm:w-[130px]">{insp.photo ? <VehicleImage plate={insp.plate} vtype={insp.owner?.vtype} photo={insp.photo} size="480" className="h-full w-full" /> : <VehicleArt vtype={insp.owner?.vtype} seed={insp.plate} className="h-[56px] w-[90px] sm:h-[70px] sm:w-[124px]" />}</div>
+          <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-0.5 text-[13px] sm:gap-x-5 [&>dd]:truncate [&>dt]:whitespace-nowrap">
             <dt className="text-fg-3">Vehicle No.</dt><dd className="font-bold">{insp.plate}</dd>
-            <dt className="text-fg-3">Make / Model</dt><dd>{v.make} {v.model}</dd>
+            <dt className="text-fg-3">Make / Model</dt><dd title={`${v.make} ${v.model}`}>{v.make} {v.model}</dd>
             <dt className="text-fg-3">Year</dt><dd>{v.year || insp.owner?.year}</dd>
-            <dt className="text-fg-3">Inspection</dt><dd className="max-w-[200px] truncate">{insp.inspection_type}</dd>
+            <dt className="text-fg-3">Inspection</dt><dd className="sm:max-w-[220px]" title={insp.inspection_type}>{insp.inspection_type}</dd>
           </dl>
         </div>
       </div>
@@ -198,18 +224,21 @@ function Findings({ id }: { id: string }) {
         </div>
       ) : (
         <>
-          <div className="card mb-4 flex flex-wrap items-center gap-2 p-2" role="tablist" aria-label="Finding categories">
-            <button role="tab" aria-selected={tab === "all"} onClick={() => { setTab("all"); setSel(null); }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-semibold transition ${tab === "all" ? "bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white shadow" : "text-fg-2 hover:bg-white"}`}>
-              <Icon name="layers" size={17} />All Findings<span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] ${tab === "all" ? "bg-white text-[#1D4ED8]" : "bg-ink-700"}`}>{L.alerts.length}</span>
-            </button>
-            {tabs.map((t) => (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => { setTab(t.id); setSel(null); }}
-                className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[14px] font-medium transition ${tab === t.id ? "bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white shadow" : "text-fg-2 hover:bg-white"}`}>
-                <Icon name={t.icon} size={17} />{t.label}<span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold ${tab === t.id ? "bg-white text-[#1D4ED8]" : t.open ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>{t.findings}</span>
+          <div className="mb-4 flex flex-col gap-2 2xl:flex-row 2xl:items-center">
+            {/* one row of categories, named like the checklist items; it scrolls sideways when it does not fit */}
+            <FadeRow label="Finding categories" active={tab}>
+              <button role="tab" aria-selected={tab === "all"} onClick={() => { setTab("all"); setSel(null); }}
+                className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-[14px] font-semibold transition ${tab === "all" ? "bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white shadow" : "text-fg-2 hover:bg-white"}`}>
+                <Icon name="layers" size={17} />All Findings<span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] ${tab === "all" ? "bg-white text-[#1D4ED8]" : "bg-ink-700"}`}>{L.alerts.length}</span>
               </button>
-            ))}
-            {open.length > 1 && !readOnly && <button className="btn btn-sm ml-auto" disabled={busy} onClick={confirmRest}>Decide the {open.length} remaining as the rules recommend</button>}
+              {tabs.map((t) => (
+                <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => { setTab(t.id); setSel(null); }}
+                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-[14px] font-medium transition ${tab === t.id ? "bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white shadow" : "text-fg-2 hover:bg-white"}`}>
+                  <span className="hidden 2xl:inline-flex"><Icon name={t.icon} size={17} /></span>{t.label}<span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold ${tab === t.id ? "bg-white text-[#1D4ED8]" : t.open ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>{t.findings}</span>
+                </button>
+              ))}
+            </FadeRow>
+            {open.length > 1 && !readOnly && <button className="btn shrink-0 self-end 2xl:self-auto" disabled={busy} onClick={confirmRest}>Decide the {open.length} remaining as the rules recommend</button>}
           </div>
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)_330px]">
             <div className="flex max-h-[80vh] flex-col gap-3 overflow-y-auto pr-1" role="listbox" aria-label="Findings">
@@ -226,7 +255,7 @@ function Findings({ id }: { id: string }) {
                     ) : <span className="flex h-[84px] w-[92px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-[#F1F5FB] to-[#E3EAF5]"><Icon name={a.system?.includes("Brake") ? "brake" : a.system?.includes("Tyre") ? "tyre" : a.system?.includes("emission") ? "smoke" : a.system?.includes("EV") ? "batt" : a.system?.includes("Identity") ? "user" : "warn"} size={32} color="#64748B" /></span>}
                     <span className="min-w-0 flex-1 leading-tight">
                       <b className="block text-[14.5px] leading-snug">{a.title}</b>
-                      <span className="mt-0.5 block truncate text-[12.5px] text-fg-3">{a.system}</span>
+                      <span className="mt-0.5 block truncate text-[12.5px] text-fg-3">{itemLabel(a.code || "", ev)}</span>
                       <span className="mt-1.5 flex flex-wrap gap-1.5"><StatusPill tone={s.tone}>{s.label}</StatusPill>{a.status !== "open" && <StatusPill tone={STATUS_PILL[a.status]?.tone || "gray"}>{STATUS_PILL[a.status]?.label || a.status}</StatusPill>}</span>
                     </span>
                     <Icon name="chev" size={16} color="#94A3B8" />
@@ -237,23 +266,25 @@ function Findings({ id }: { id: string }) {
             </div>
             {cur && (
               <section className="card min-w-0 p-4 lg:p-5" aria-label="Finding in focus">
-                <div className="mb-3 flex flex-wrap items-center gap-3">
-                  <IconTile icon={cur.system?.includes("Tyre") ? "tyre" : cur.system?.includes("Brake") ? "brake" : "warn"} tone="gray" size={44} />
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-[21px] font-bold leading-tight tracking-tight">{cur.title}</h2>
-                    <div className="flex flex-wrap items-center gap-2 text-[13px] text-fg-3">{cur.system}<StatusPill tone={SEV_PILL[alertSeverity(cur)].tone}>{SEV_PILL[alertSeverity(cur)].label}</StatusPill>{cur.fail_item && <StatusPill tone="red">Fail item</StatusPill>}<Source kind={cur.source} /></div>
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="hidden sm:block"><IconTile icon={cur.system?.includes("Tyre") ? "tyre" : cur.system?.includes("Brake") ? "brake" : "warn"} tone="gray" size={44} /></span>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-[21px] font-bold leading-tight tracking-tight">{cur.title}</h2>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-fg-3">{itemLabel(cur.code || "", ev)}<StatusPill tone={SEV_PILL[alertSeverity(cur)].tone}>{SEV_PILL[alertSeverity(cur)].label}</StatusPill>{cur.fail_item && <StatusPill tone="red">Fail item</StatusPill>}<Source kind={cur.source} /></div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-auto">
                     <button className="btn btn-sm" aria-label="Previous finding" disabled={idx <= 0} onClick={() => setSel(shown[idx - 1].alert_id)}><Icon name="back" size={15} /></button>
-                    <span className="px-1 text-[13px] text-fg-2">{idx + 1} of {shown.length}</span>
+                    <span className="whitespace-nowrap px-1 text-[13px] text-fg-2">{idx + 1} of {shown.length}</span>
                     <button className="btn btn-sm" aria-label="Next finding" disabled={idx >= shown.length - 1} onClick={() => setSel(shown[idx + 1].alert_id)}><Icon name="chev" size={15} /></button>
                   </div>
                 </div>
                 {imgs.length > 0 && (
-                  <div className="mb-4 grid grid-cols-[minmax(0,1fr)_150px] gap-2">
+                  <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_150px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imgs[0]} alt={`AI result: ${cur.title}`} className="h-[260px] w-full rounded-2xl bg-ink-950 object-cover" />
-                    <div className="flex flex-col gap-2">
+                    <img src={imgs[0]} alt={`AI result: ${cur.title}`} className="h-[220px] w-full rounded-2xl bg-ink-950 object-cover sm:h-[260px]" />
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">
                       {imgs[1] && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={imgs[1]} alt="Original capture" className="h-[126px] w-full rounded-xl object-cover" />
@@ -273,9 +304,9 @@ function Findings({ id }: { id: string }) {
                   <div className="mb-4">
                     <div className="mb-2 flex items-center gap-2 text-[15px] font-bold"><Icon name="sliders" size={17} />Measurement Details</div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600"><div className="text-[12px] text-fg-3">Measured</div><div className="text-[20px] font-bold">{m.observed}</div><StatusPill tone="red">{cur.fail_item ? "Below the rule" : "Outside the limit"}</StatusPill></div>
+                      <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600"><div className="text-[12px] text-fg-3">Measured</div><div className="text-[20px] font-bold">{m.observed}</div><StatusPill tone={cur.fail_item ? "red" : "amber"}>{m.status}</StatusPill></div>
                       <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600"><div className="text-[12px] text-fg-3">Limit</div><div className="text-[15px] font-semibold leading-snug">{m.limit}</div><span className="text-[11.5px] text-fg-4">Demo reference</span></div>
-                      <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600"><div className="text-[12px] text-fg-3">Difference</div><div className="text-[17px] font-bold text-bad">{m.delta || "–"}</div>{rule && <span className="text-[11.5px] text-fg-3">Health score −{rule.points}</span>}</div>
+                      <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600"><div className="text-[12px] text-fg-3">Difference</div><div className={`text-[17px] font-bold ${cur.fail_item ? "text-bad" : "text-[#B45309]"}`}>{m.delta || "–"}</div>{rule && <span className="text-[11.5px] text-fg-3">Health score −{rule.points}</span>}</div>
                     </div>
                   </div>
                 )}
@@ -302,7 +333,7 @@ function Findings({ id }: { id: string }) {
               </section>
             )}
             {cur && (
-              <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:col-span-2 xl:grid-cols-3 2xl:col-span-1 2xl:flex 2xl:flex-col">
+              <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:grid-cols-2 lg:col-span-2 2xl:col-span-1 2xl:flex 2xl:flex-col">
                 <Panel title="Inspection Item Status">
                   <div className="flex flex-col gap-2.5">
                     {statusBtn("pass", "Mark as Pass", "Item meets the requirements", "check", "green")}
@@ -311,33 +342,35 @@ function Findings({ id }: { id: string }) {
                   </div>
                   {cur.status !== "open" && <p className="mt-2 text-[12px] text-fg-3">Decided: <b style={{ color: DECISION[cur.status]?.color }}>{STATUS_PILL[cur.status]?.label}</b> by {cur.decided_by}{cur.reason ? ` · “${cur.reason}”` : ""}</p>}
                 </Panel>
-                <Panel title="Capture & Media">
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button className="flex flex-col items-center gap-1 rounded-2xl bg-white/70 p-3 text-center ring-1 ring-ink-600 hover:bg-white" disabled={readOnly} onClick={() => photo.current?.click()}>
-                      <Icon name="camera" size={22} color="#2563EB" /><b className="text-[13px]">Retake Photo</b><span className="text-[11px] text-fg-3">Runs the AI module again</span>
-                    </button>
-                    <button className="flex flex-col items-center gap-1 rounded-2xl bg-white/70 p-3 text-center ring-1 ring-ink-600 hover:bg-white" disabled={readOnly} onClick={() => photo.current?.click()}>
-                      <Icon name="image" size={22} color="#2563EB" /><b className="text-[13px]">Add Photo</b><span className="text-[11px] text-fg-3">From device or library</span>
-                    </button>
-                    <input ref={photo} type="file" accept="image/*" className="hidden" aria-label="Photo for this finding" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} />
-                  </div>
-                </Panel>
-                <Panel title="Quick Actions">
-                  <div className="flex flex-col">
-                    {[["Add Remark", "doc", () => setModal("remark")], ["Link to Regulation", "link", () => setModal("rule")], ["Ask about this finding", "chat", () => setModal("ask")]].map(([l, ic, f]) => (
-                      <button key={l as string} onClick={f as () => void} disabled={l === "Add Remark" && readOnly} className="flex items-center gap-3 border-b border-ink-600/60 px-1 py-2.5 text-left text-[14px] last:border-0 hover:text-cyan">
-                        <Icon name={ic as string} size={18} color="#475569" /><span className="flex-1">{l as string}</span><Icon name="chev" size={15} color="#94A3B8" />
+                <div className="flex min-w-0 flex-col gap-4">
+                  <Panel title="Capture & Media">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button className="flex flex-col items-center gap-1 rounded-2xl bg-white/70 p-3 text-center ring-1 ring-ink-600 hover:bg-white" disabled={readOnly} onClick={() => photo.current?.click()}>
+                        <Icon name="camera" size={22} color="#2563EB" /><b className="text-[13px]">Retake Photo</b><span className="text-[11px] text-fg-3">Runs the AI module again</span>
                       </button>
-                    ))}
-                  </div>
-                </Panel>
+                      <button className="flex flex-col items-center gap-1 rounded-2xl bg-white/70 p-3 text-center ring-1 ring-ink-600 hover:bg-white" disabled={readOnly} onClick={() => photo.current?.click()}>
+                        <Icon name="image" size={22} color="#2563EB" /><b className="text-[13px]">Add Photo</b><span className="text-[11px] text-fg-3">From device or library</span>
+                      </button>
+                      <input ref={photo} type="file" accept="image/*" className="hidden" aria-label="Photo for this finding" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} />
+                    </div>
+                  </Panel>
+                  <Panel title="Quick Actions">
+                    <div className="flex flex-col">
+                      {[["Add Remark", "doc", () => setModal("remark")], ["Link to Regulation", "link", () => setModal("rule")], ["Ask about this finding", "chat", () => setModal("ask")]].map(([l, ic, f]) => (
+                        <button key={l as string} onClick={f as () => void} disabled={l === "Add Remark" && readOnly} className="flex items-center gap-3 border-b border-ink-600/60 px-1 py-2.5 text-left text-[14px] last:border-0 hover:text-cyan">
+                          <Icon name={ic as string} size={18} color="#475569" /><span className="flex-1">{l as string}</span><Icon name="chev" size={15} color="#94A3B8" />
+                        </button>
+                      ))}
+                    </div>
+                  </Panel>
+                </div>
                 {!readOnly && (
-                  <div className="grid grid-cols-2 gap-2.5 md:col-span-2 xl:col-span-3 2xl:col-span-1">
+                  <div className="grid grid-cols-2 gap-2.5 md:col-span-2 2xl:col-span-1">
                     <button className="btn btn-lg" onClick={() => { setAction(null); setNotes(cur.status !== "open" ? cur.reason || "" : ""); }}>Cancel</button>
                     <button className="btn btn-primary btn-lg" disabled={!chosen || busy || (!action && cur.status !== "open")} onClick={save}><Icon name="doc" size={16} />{busy ? "Saving…" : "Save Finding"}</button>
                   </div>
                 )}
-                {!open.length && <Link className="btn btn-primary btn-lg md:col-span-2 xl:col-span-3 2xl:col-span-1" href={`/inspection/${sid}/review`}>All decided · final review<Icon name="arrow" size={15} /></Link>}
+                {!open.length && <Link className="btn btn-primary btn-lg md:col-span-2 2xl:col-span-1" href={`/inspection/${sid}/review`}>All decided · final review<Icon name="arrow" size={15} /></Link>}
               </div>
             )}
           </div>
