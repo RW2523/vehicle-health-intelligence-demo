@@ -4,7 +4,9 @@ import { useSearchParams } from "next/navigation";
 import { ReactNode, Suspense, use, useEffect, useMemo, useRef, useState } from "react";
 import { NextAction, refreshUseCase, useActiveUseCase } from "@/components/Demo";
 import { IconTile, Panel, StatusPill, Tone } from "@/components/glass";
+import { DamageMap } from "@/components/DamageMap";
 import { Icon } from "@/components/icons";
+import { useVehiclePhotos } from "@/components/Photo";
 import { Evidence, InspectionAssistant, NoInspection, PageLoading, StepNav, checklistOf, itemLabel, itemOf, measureOf, ruleFor, useInspectionParam } from "@/components/insp";
 import { ucFor } from "@/components/insp";
 import { Shell } from "@/components/Shell";
@@ -14,6 +16,7 @@ import { VehicleImage } from "@/components/VehicleImage";
 import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
 import { DECISION, alertSeverity, hasModelConfidence, isRequired } from "@/lib/present";
+import { alertFinding } from "@/lib/zones";
 
 const SEV_PILL: Record<string, { label: string; tone: Tone }> = { critical: { label: "Critical", tone: "red" }, attention: { label: "Attention", tone: "amber" }, normal: { label: "Minor", tone: "gray" } };
 const RECS = ["Repair", "Replace part(s)", "Adjust / re-aim", "Re-test after repair", "Clean and re-measure", "Monitor", "No action needed"];
@@ -81,6 +84,7 @@ function Findings({ id }: { id: string }) {
   const [picked, setExaminer] = useState("VE011");
   const photo = useRef<HTMLInputElement>(null);
   const insp = L.insp;
+  const photos = useVehiclePhotos(insp?.plate);
   const examiner = user?.examiner_id || picked;
   const isSenior = user?.examiner_id ? !!user.senior : examiner === "VE001";
   const readOnly = user?.role === "viewer" || user?.role === "hq" || !!insp?.report;
@@ -224,6 +228,15 @@ function Findings({ id }: { id: string }) {
         </div>
       ) : (
         <>
+          <div className="mb-4">
+            <DamageMap plate={insp.plate} vtype={insp.owner?.vtype || insp.vehicle?.vtype} photos={photos.data} maxHeight={340}
+              findings={L.alerts.map((a) => alertFinding(a))} selected={cur?.alert_id}
+              onSelect={(f) => {
+                setTab("all");
+                setSel(f.id);
+                setTimeout(() => document.querySelector("[aria-label='Finding in focus']")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+              }} />
+          </div>
           <div className="mb-4 flex flex-col gap-2 2xl:flex-row 2xl:items-center">
             {/* one row of categories, named like the checklist items; it scrolls sideways when it does not fit */}
             <FadeRow label="Finding categories" active={tab}>

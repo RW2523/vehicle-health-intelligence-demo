@@ -1,0 +1,1076 @@
+{
+ "about": "Where each part of the vehicle is on its stock photos (x, y as fractions of the image), for the damage pins. Measured by hand on the picks in picks.json; an uploaded photo replacing a stock one has no anchors.",
+ "vehicles": {
+  "dmo-9001": {
+   "hero": {
+    "side": "left",
+    "points": {
+     "front_bumper": [
+      0.22,
+      0.7
+     ],
+     "headlamp_l": [
+      0.29,
+      0.67
+     ],
+     "headlamp_r": [
+      0.13,
+      0.67
+     ],
+     "windscreen": [
+      0.2,
+      0.47
+     ],
+     "roof": [
+      0.22,
+      0.39
+     ],
+     "bonnet": [
+      0.28,
+      0.6
+     ],
+     "wheel_fl": [
+      0.39,
+      0.72
+     ],
+     "wheel_rl": [
+      0.57,
+      0.7
+     ],
+     "side_l": [
+      0.38,
+      0.5
+     ],
+     "cabin": [
+      0.36,
+      0.43
+     ],
+     "underbody": [
+      0.5,
+      0.66
+     ],
+     "exhaust": [
+      0.47,
+      0.62
+     ],
+     "plate_front": [
+      0.17,
+      0.75
+     ]
+    }
+   }
+  },
+  "dmo-9002": {
+   "hero": {
+    "side": "left",
+    "points": {
+     "front_bumper": [
+      0.15,
+      0.78
+     ],
+     "headlamp_l": [
+      0.3,
+      0.55
+     ],
+     "headlamp_r": [
+      0.09,
+      0.55
+     ],
+     "bonnet": [
+      0.25,
+      0.47
+     ],
+     "windscreen": [
+      0.42,
+      0.33
+     ],
+     "roof": [
+      0.7,
+      0.24
+     ],
+     "wheel_fl": [
+      0.49,
+      0.77
+     ],
+     "wheel_rl": [
+      0.9,
+      0.62
+     ],
+     "side_l": [
+      0.7,
+      0.52
+     ],
+     "cabin": [
+      0.68,
+      0.32
+     ],
+     "underbody": [
+      0.68,
+      0.72
+     ],
+     "plate_front": [
+      0.12,
+      0.72
+     ]
+    }
+   },
+   "rear": {
+    "side": "left",
+    "points": {
+     "rear_bumper": [
+      0.8,
+      0.74
+     ],
+     "tail_lamp_l": [
+      0.62,
+      0.46
+     ],
+     "tail_lamp_r": [
+      0.92,
+      0.42
+     ],
+     "boot": [
+      0.8,
+      0.55
+     ],
+     "rear_window": [
+      0.76,
+      0.3
+     ],
+     "roof": [
+      0.45,
+      0.18
+     ],
+     "wheel_rl": [
+      0.49,
+      0.75
+     ],
+     "wheel_fl": [
+      0.1,
+      0.55
+     ],
+     "side_l": [
+      0.3,
+      0.45
+     ],
+     "cabin": [
+      0.35,
+      0.28
+     ],
+     "underbody": [
+      0.28,
+      0.66
+     ],
+     "exhaust": [
+      0.7,
+      0.8
+     ],
+     "plate_rear": [
+      0.88,
+      0.63
+     ]
+    }
+   }
+  },
+  "dmo-9003": {
+   "hero": {
+    "side": "left",
+    "points": {
+     "front_bumper": [
+      0.28,
+      0.77
+     ],
+     "headlamp_l": [
+      0.45,
+      0.56
+     ],
+     "headlamp_r": [
+      0.09,
+      0.47
+     ],
+     "bonnet": [
+      0.35,
+      0.37
+     ],
+     "windscreen": [
+      0.52,
+      0.17
+     ],
+     "roof": [
+      0.65,
+      0.08
+     ],
+     "wheel_fl": [
+      0.68,
+      0.7
+     ],
+     "wheel_rl": [
+      0.93,
+      0.4
+     ],
+     "side_l": [
+      0.82,
+      0.35
+     ],
+     "cabin": [
+      0.78,
+      0.17
+     ],
+     "underbody": [
+      0.78,
+      0.62
+     ],
+     "plate_front": [
+      0.12,
+      0.68
+     ]
+    }
+   },
+   "rear": {
+    "side": "left",
+    "points": {
+     "rear_bumper": [
+      0.66,
+      0.7
+     ],
+     "tail_lamp_l": [
+      0.5,
+      0.5
+     ],
+     "tail_lamp_r": [
+      0.89,
+      0.43
+     ],
+     "boot": [
+      0.62,
+      0.38
+     ],
+     "rear_window": [
+      0.62,
+      0.22
+     ],
+     "roof": [
+      0.4,
+      0.12
+     ],
+     "wheel_rl": [
+      0.28,
+      0.67
+     ],
+     "wheel_fl": [
+      0.09,
+      0.37
+     ],
+     "side_l": [
+      0.22,
+      0.4
+     ],
+     "cabin": [
+      0.22,
+      0.2
+     ],
+     "underbody": [
+      0.18,
+      0.55
+     ],
+     "exhaust": [
+      0.55,
+      0.82
+     ],
+     "plate_rear": [
+      0.8,
+      0.52
+     ]
+    }
+   }
+  },
+  "dmo-9006": {
+   "hero": {
+    "side": "right",
+    "points": {
+     "front_bumper": [
+      0.8,
+      0.78
+     ],
+     "headlamp_r": [
+      0.62,
+      0.57
+     ],
+     "headlamp_l": [
+      0.96,
+      0.56
+     ],
+     "bonnet": [
+      0.68,
+      0.38
+     ],
+     "windscreen": [
+      0.52,
+      0.2
+     ],
+     "roof": [
+      0.35,
+      0.07
+     ],
+     "wheel_fr": [
+      0.43,
+      0.75
+     ],
+     "wheel_rr": [
+      0.14,
+      0.43
+     ],
+     "side_r": [
+      0.27,
+      0.38
+     ],
+     "cabin": [
+      0.42,
+      0.18
+     ],
+     "underbody": [
+      0.27,
+      0.66
+     ],
+     "plate_front": [
+      0.88,
+      0.7
+     ]
+    }
+   },
+   "rear": {
+    "side": "left",
+    "points": {
+     "rear_bumper": [
+      0.75,
+      0.8
+     ],
+     "tail_lamp_l": [
+      0.58,
+      0.48
+     ],
+     "tail_lamp_r": [
+      0.88,
+      0.4
+     ],
+     "boot": [
+      0.75,
+      0.55
+     ],
+     "rear_window": [
+      0.68,
+      0.27
+     ],
+     "roof": [
+      0.4,
+      0.13
+     ],
+     "wheel_rl": [
+      0.4,
+      0.78
+     ],
+     "wheel_fl": [
+      0.1,
+      0.45
+     ],
+     "side_l": [
+      0.28,
+      0.45
+     ],
+     "cabin": [
+      0.3,
+      0.25
+     ],
+     "underbody": [
+      0.25,
+      0.64
+     ],
+     "exhaust": [
+      0.66,
+      0.84
+     ],
+     "plate_rear": [
+      0.78,
+      0.68
+     ]
+    }
+   }
+  },
+  "vjm-7412": {
+   "hero": {
+    "side": "right",
+    "points": {
+     "front_bumper": [
+      0.75,
+      0.82
+     ],
+     "headlamp_r": [
+      0.58,
+      0.6
+     ],
+     "headlamp_l": [
+      0.9,
+      0.55
+     ],
+     "bonnet": [
+      0.65,
+      0.4
+     ],
+     "windscreen": [
+      0.5,
+      0.2
+     ],
+     "roof": [
+      0.4,
+      0.05
+     ],
+     "wheel_fr": [
+      0.4,
+      0.75
+     ],
+     "wheel_rr": [
+      0.15,
+      0.42
+     ],
+     "side_r": [
+      0.25,
+      0.42
+     ],
+     "cabin": [
+      0.4,
+      0.18
+     ],
+     "underbody": [
+      0.28,
+      0.66
+     ],
+     "plate_front": [
+      0.85,
+      0.72
+     ]
+    }
+   },
+   "rear": {
+    "side": "right",
+    "points": {
+     "rear_bumper": [
+      0.3,
+      0.72
+     ],
+     "tail_lamp_r": [
+      0.42,
+      0.43
+     ],
+     "tail_lamp_l": [
+      0.11,
+      0.38
+     ],
+     "boot": [
+      0.25,
+      0.35
+     ],
+     "rear_window": [
+      0.4,
+      0.17
+     ],
+     "roof": [
+      0.55,
+      0.08
+     ],
+     "wheel_rr": [
+      0.65,
+      0.68
+     ],
+     "wheel_fr": [
+      0.93,
+      0.4
+     ],
+     "side_r": [
+      0.75,
+      0.35
+     ],
+     "cabin": [
+      0.72,
+      0.2
+     ],
+     "underbody": [
+      0.72,
+      0.58
+     ],
+     "exhaust": [
+      0.33,
+      0.8
+     ],
+     "plate_rear": [
+      0.18,
+      0.44
+     ]
+    }
+   }
+  },
+  "wxd-2291": {
+   "hero": {
+    "side": "left",
+    "points": {
+     "front_bumper": [
+      0.22,
+      0.73
+     ],
+     "headlamp_l": [
+      0.4,
+      0.47
+     ],
+     "headlamp_r": [
+      0.07,
+      0.45
+     ],
+     "bonnet": [
+      0.3,
+      0.33
+     ],
+     "windscreen": [
+      0.45,
+      0.2
+     ],
+     "roof": [
+      0.58,
+      0.08
+     ],
+     "wheel_fl": [
+      0.54,
+      0.72
+     ],
+     "wheel_rl": [
+      0.89,
+      0.58
+     ],
+     "side_l": [
+      0.72,
+      0.38
+     ],
+     "cabin": [
+      0.7,
+      0.2
+     ],
+     "underbody": [
+      0.75,
+      0.68
+     ],
+     "boot": [
+      0.9,
+      0.25
+     ],
+     "plate_front": [
+      0.15,
+      0.63
+     ]
+    }
+   },
+   "rear": {
+    "side": "left",
+    "points": {
+     "rear_bumper": [
+      0.7,
+      0.68
+     ],
+     "tail_lamp_l": [
+      0.57,
+      0.48
+     ],
+     "tail_lamp_r": [
+      0.94,
+      0.45
+     ],
+     "boot": [
+      0.77,
+      0.47
+     ],
+     "rear_window": [
+      0.52,
+      0.2
+     ],
+     "roof": [
+      0.3,
+      0.13
+     ],
+     "wheel_rl": [
+      0.4,
+      0.75
+     ],
+     "wheel_fl": [
+      0.08,
+      0.63
+     ],
+     "side_l": [
+      0.25,
+      0.48
+     ],
+     "cabin": [
+      0.25,
+      0.22
+     ],
+     "underbody": [
+      0.2,
+      0.72
+     ],
+     "exhaust": [
+      0.6,
+      0.78
+     ],
+     "plate_rear": [
+      0.75,
+      0.66
+     ]
+    }
+   }
+  },
+  "bhy-7783": {
+   "hero": {
+    "side": "right",
+    "points": {
+     "front_bumper": [
+      0.8,
+      0.78
+     ],
+     "headlamp_r": [
+      0.66,
+      0.56
+     ],
+     "headlamp_l": [
+      0.92,
+      0.55
+     ],
+     "bonnet": [
+      0.82,
+      0.48
+     ],
+     "windscreen": [
+      0.72,
+      0.25
+     ],
+     "roof": [
+      0.35,
+      0.1
+     ],
+     "wheel_fr": [
+      0.45,
+      0.78
+     ],
+     "wheel_rr": [
+      0.12,
+      0.66
+     ],
+     "side_r": [
+      0.25,
+      0.4
+     ],
+     "cabin": [
+      0.48,
+      0.22
+     ],
+     "underbody": [
+      0.3,
+      0.78
+     ],
+     "plate_front": [
+      0.83,
+      0.79
+     ]
+    }
+   },
+   "rear": {
+    "side": "right",
+    "points": {
+     "rear_bumper": [
+      0.28,
+      0.8
+     ],
+     "tail_lamp_r": [
+      0.46,
+      0.55
+     ],
+     "tail_lamp_l": [
+      0.05,
+      0.55
+     ],
+     "boot": [
+      0.25,
+      0.52
+     ],
+     "rear_window": [
+      0.25,
+      0.28
+     ],
+     "roof": [
+      0.55,
+      0.11
+     ],
+     "wheel_rr": [
+      0.62,
+      0.8
+     ],
+     "wheel_fr": [
+      0.89,
+      0.7
+     ],
+     "side_r": [
+      0.65,
+      0.45
+     ],
+     "cabin": [
+      0.88,
+      0.28
+     ],
+     "underbody": [
+      0.76,
+      0.79
+     ],
+     "exhaust": [
+      0.4,
+      0.84
+     ],
+     "plate_rear": [
+      0.24,
+      0.61
+     ]
+    }
+   }
+  },
+  "vkr-3128": {
+   "hero": {
+    "side": "right",
+    "points": {
+     "front_bumper": [
+      0.68,
+      0.75
+     ],
+     "headlamp_r": [
+      0.55,
+      0.45
+     ],
+     "headlamp_l": [
+      0.93,
+      0.42
+     ],
+     "bonnet": [
+      0.6,
+      0.3
+     ],
+     "windscreen": [
+      0.48,
+      0.18
+     ],
+     "roof": [
+      0.35,
+      0.1
+     ],
+     "wheel_fr": [
+      0.34,
+      0.66
+     ],
+     "wheel_rr": [
+      0.15,
+      0.45
+     ],
+     "side_r": [
+      0.22,
+      0.38
+     ],
+     "cabin": [
+      0.25,
+      0.2
+     ],
+     "underbody": [
+      0.22,
+      0.58
+     ],
+     "plate_front": [
+      0.88,
+      0.62
+     ]
+    }
+   },
+   "rear": {
+    "side": "left",
+    "points": {
+     "rear_bumper": [
+      0.6,
+      0.78
+     ],
+     "tail_lamp_l": [
+      0.43,
+      0.44
+     ],
+     "tail_lamp_r": [
+      0.92,
+      0.37
+     ],
+     "boot": [
+      0.66,
+      0.36
+     ],
+     "rear_window": [
+      0.55,
+      0.18
+     ],
+     "roof": [
+      0.35,
+      0.07
+     ],
+     "wheel_rl": [
+      0.27,
+      0.72
+     ],
+     "wheel_fl": [
+      0.08,
+      0.42
+     ],
+     "side_l": [
+      0.2,
+      0.38
+     ],
+     "cabin": [
+      0.22,
+      0.2
+     ],
+     "underbody": [
+      0.15,
+      0.6
+     ],
+     "exhaust": [
+      0.5,
+      0.88
+     ],
+     "plate_rear": [
+      0.78,
+      0.5
+     ]
+    }
+   }
+  },
+  "pke-4410": {
+   "hero": {
+    "side": "right",
+    "points": {
+     "front_bumper": [
+      0.8,
+      0.78
+     ],
+     "headlamp_r": [
+      0.62,
+      0.51
+     ],
+     "headlamp_l": [
+      0.96,
+      0.52
+     ],
+     "bonnet": [
+      0.65,
+      0.35
+     ],
+     "windscreen": [
+      0.55,
+      0.18
+     ],
+     "roof": [
+      0.3,
+      0.07
+     ],
+     "wheel_fr": [
+      0.46,
+      0.78
+     ],
+     "wheel_rr": [
+      0.1,
+      0.63
+     ],
+     "side_r": [
+      0.25,
+      0.42
+     ],
+     "cabin": [
+      0.28,
+      0.18
+     ],
+     "underbody": [
+      0.28,
+      0.75
+     ],
+     "plate_front": [
+      0.88,
+      0.75
+     ]
+    }
+   },
+   "rear": {
+    "side": "right",
+    "points": {
+     "rear_bumper": [
+      0.2,
+      0.68
+     ],
+     "tail_lamp_r": [
+      0.3,
+      0.35
+     ],
+     "tail_lamp_l": [
+      0.07,
+      0.34
+     ],
+     "boot": [
+      0.18,
+      0.45
+     ],
+     "rear_window": [
+      0.2,
+      0.22
+     ],
+     "roof": [
+      0.45,
+      0.08
+     ],
+     "wheel_rr": [
+      0.51,
+      0.8
+     ],
+     "wheel_fr": [
+      0.9,
+      0.68
+     ],
+     "side_r": [
+      0.65,
+      0.45
+     ],
+     "cabin": [
+      0.62,
+      0.25
+     ],
+     "underbody": [
+      0.7,
+      0.78
+     ],
+     "exhaust": [
+      0.28,
+      0.8
+     ],
+     "plate_rear": [
+      0.15,
+      0.43
+     ]
+    }
+   }
+  },
+  "jtr-5510": {
+   "hero": {
+    "side": "right",
+    "points": {
+     "front_bumper": [
+      0.75,
+      0.72
+     ],
+     "headlamp_r": [
+      0.6,
+      0.58
+     ],
+     "headlamp_l": [
+      0.89,
+      0.52
+     ],
+     "bonnet": [
+      0.65,
+      0.48
+     ],
+     "windscreen": [
+      0.62,
+      0.28
+     ],
+     "roof": [
+      0.4,
+      0.14
+     ],
+     "wheel_fr": [
+      0.4,
+      0.72
+     ],
+     "wheel_rr": [
+      0.04,
+      0.55
+     ],
+     "side_r": [
+      0.2,
+      0.45
+     ],
+     "cabin": [
+      0.38,
+      0.3
+     ],
+     "underbody": [
+      0.2,
+      0.68
+     ],
+     "plate_front": [
+      0.83,
+      0.66
+     ]
+    }
+   },
+   "rear": {
+    "side": "right",
+    "points": {
+     "rear_bumper": [
+      0.27,
+      0.8
+     ],
+     "tail_lamp_r": [
+      0.48,
+      0.55
+     ],
+     "tail_lamp_l": [
+      0.03,
+      0.5
+     ],
+     "boot": [
+      0.2,
+      0.55
+     ],
+     "rear_window": [
+      0.25,
+      0.25
+     ],
+     "roof": [
+      0.55,
+      0.08
+     ],
+     "wheel_rr": [
+      0.65,
+      0.78
+     ],
+     "wheel_fr": [
+      0.93,
+      0.62
+     ],
+     "side_r": [
+      0.65,
+      0.5
+     ],
+     "cabin": [
+      0.7,
+      0.25
+     ],
+     "underbody": [
+      0.8,
+      0.78
+     ],
+     "exhaust": [
+      0.4,
+      0.88
+     ],
+     "plate_rear": [
+      0.22,
+      0.58
+     ]
+    }
+   }
+  }
+ }
+}

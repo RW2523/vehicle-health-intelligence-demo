@@ -151,6 +151,16 @@ def profile(plate: str) -> dict:
                  "started_at": li.started_at.isoformat(), "health": li.health_score, "verdict": li.verdict}
                 for li in s.execute(select(LiveInspection).where(LiveInspection.plate == plate)
                                     .order_by(LiveInspection.started_at.desc()).limit(10)).scalars()]
+        # the findings of the latest lane inspection, for the damage map
+        findings = []
+        if live:
+            for a in s.execute(select(Alert).where(Alert.inspection_id == live[0]["inspection_id"])
+                               .order_by(Alert.rank, Alert.created_at)).scalars():
+                img = (a.evidence or {}).get("image") or {}
+                findings.append({"alert_id": a.alert_id, "inspection_id": a.inspection_id, "code": a.code, "title": a.title,
+                                 "detail": a.detail, "severity": a.severity, "status": a.status, "system": a.system,
+                                 "source": a.source, "confidence": a.confidence, "fail_item": a.fail_item,
+                                 "evidence": {"image": {k: img.get(k) for k in ("annotated", "source_image", "camera")}} if img else {}})
     hist = pd.read_sql(text("select * from hist_inspections where vehicle_id = :v order by date"), engine(), params={"v": v.vehicle_id})
     claims = pd.read_sql(text("select claim_date, claim_type, amount_rm, ber_total_loss from hist_claims where vehicle_id = :v "
                               "order by claim_date"), engine(), params={"v": v.vehicle_id})
@@ -170,6 +180,7 @@ def profile(plate: str) -> dict:
         "odometer": {"points": odo, "rollback": rollback, "max": top},
         "today": hubday.item(plate),
         "main": showcase.BY_PLATE.get(plate), "fleet_health": bool(v.fleet_id), "photos": _photos(plate), "library": _library(plate),
+        "findings": findings,
         "links": {"health": f"/vehicles/{quote(plate)}?tab=health",
                   "sale": f"/oversight/sales?id={listing_row.listing_id}" if listing_row else None,
                   "flood": f"/oversight/flood?vehicle={quote(plate)}",

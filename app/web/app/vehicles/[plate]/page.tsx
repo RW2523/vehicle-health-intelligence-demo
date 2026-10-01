@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ReactNode, Suspense, use, useEffect, useRef, useState } from "react";
 import { LineChart } from "@/components/charts";
 import { IconTile, Panel, StatusPill, Tone } from "@/components/glass";
+import { DamageMap } from "@/components/DamageMap";
 import { HealthTrends } from "@/components/HealthTrends";
 import { Icon } from "@/components/icons";
 import { ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
@@ -13,6 +14,7 @@ import { ErrorState, LoadingState, Modal, Source } from "@/components/ui";
 import { VehicleImage } from "@/components/VehicleImage";
 import { dmy, fmtN } from "@/lib/format";
 import { useFetch } from "@/lib/live";
+import { alertFinding, libraryFinding } from "@/lib/zones";
 
 const RES: Record<string, Tone> = { PASS: "green", FAIL: "red", CONDITIONAL: "amber", REFERRED: "blue", PASS_ADVISORY: "amber" };
 /** A result in the words the rest of the app uses ("Pass", "Fail", "Pass · advisory"). */
@@ -238,6 +240,20 @@ function Profile({ plate }: { plate: string }) {
                 ))}
               </ScrollRow>
             </div>
+            {tab === "overview" && (p.findings?.length > 0 || library.some((e: any) => Array.isArray(e.findings) && e.findings.length)) && (
+              <div className="mb-5">
+                <DamageMap plate={v.plate} vtype={v.vtype} photos={p.photos} maxHeight={380}
+                  title="Damage map" action={<span className="hidden text-[12px] text-fg-3 md:inline">{p.findings?.length ? "Latest lane inspection" : ""}{p.findings?.length && library.length ? " + " : ""}{library.length ? "sample inspection images" : ""}</span>}
+                  findings={[
+                    ...(p.findings || []).map((a: any) => alertFinding(a, `/inspection/${a.inspection_id}/findings?finding=${a.alert_id}`)),
+                    ...library.flatMap((e: any) => (Array.isArray(e.findings) ? e.findings : []).map((f: any, k: number) => libraryFinding(e, f, k))),
+                  ]}
+                  onSelect={(f) => {
+                    if (f.href) router.push(f.href);
+                    else if (f.libraryIndex) setViewer(Math.max(0, library.findIndex((e) => e.id === f.libraryIndex)));
+                  }} />
+              </div>
+            )}
             {tab === "overview" && (
               <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                 <History p={p} compact />

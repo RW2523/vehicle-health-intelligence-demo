@@ -115,7 +115,13 @@ def _stock_photo(slot: dict) -> dict | None:
         "credit": _credit(im.get("author"), im.get("license")), "author": im.get("author"), "license": im.get("license"),
         "license_url": im.get("license_url"), "page_url": im.get("page_url"), "kind": "stock", "view": slot["view"],
         "label": slot["label"], "representative": True, "width": im.get("width"), "height": im.get("height"),
+        # where the vehicle's parts are on this photo (the damage pins); only the stock picks are measured
+        "anchors": _anchors().get(slot["group"], {}).get(slot["view"]),
     }
+
+
+def _anchors() -> dict:
+    return _json(stock_dir() / "anchors.json").get("vehicles", {})
 
 
 def _paths(slot: dict) -> dict[int, Path]:
