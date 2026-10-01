@@ -7,12 +7,14 @@ import { VehicleHealthSummary } from "@/components/Health";
 import { InspectionContextBar } from "@/components/InspectionContextBar";
 import { Icon } from "@/components/icons";
 import { AlertMini, BrakeChart, ENoseChart, Frames, Instruments, OBDChart, PNChart, Timeline } from "@/components/lanebits";
+import { LiveLaneView } from "@/components/LiveLaneView";
+import { useVehiclePhotos } from "@/components/Photo";
 import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
 import { VisionPanel } from "@/components/VisionPanel";
-import { Card, Empty, LoadingState, Modal, PageHeader, Pill, Source, Tabs } from "@/components/ui";
+import { Card, LoadingState, Modal, PageHeader, Pill, Source, Tabs } from "@/components/ui";
 import { useUser } from "@/lib/auth";
-import { LANE_SESSIONS, STEP_LABEL, SYSTEM_NAME, fmtN } from "@/lib/format";
+import { LANE_SESSIONS, SYSTEM_NAME, fmtN } from "@/lib/format";
 import { useInspection } from "@/lib/inspection";
 
 const LANES = LANE_SESSIONS.map((l) => ({ id: l.lane, label: l.label, session: l.session, plate: l.plate, car: l.car }));
@@ -22,6 +24,8 @@ const STORY: Record<string, string> = {
   S3: "an Ownership Transfer Inspection: plate, chassis number, odometer and engine sound are checked against its history",
   S7: "a Voluntary Inspection: every lane step, for a car in good condition",
 };
+/** The body type of each replay vehicle (its illustration while its photo loads). */
+const VTYPE: Record<string, string> = { S1: "Prime mover", S2: "SUV", S3: "Sedan", S7: "Hatchback" };
 
 function LaneConsole() {
   const sp = useSearchParams();
@@ -38,13 +42,14 @@ function LaneConsole() {
   const insp = L.insp;
   const r = L.results;
   const presenter = user?.role === "presenter" || user?.role === "examiner";
-  const controls = (center = false) => sess && presenter ? <PlayerControls s={sess} onState={setPlayer} compact center={center} onFastDone={L.reload} quiet={!!L.insp} /> : null;
+  const controls = sess && presenter ? <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} quiet={!!L.insp} /> : null;
   const loading = !insp && !L.notFound;
   const running = insp?.status === "in_lane";
   const timeline = insp?.timeline || L.player?.timeline || [];
-  const stepIdx = timeline.findIndex((x: any) => x.step === L.step);
   const lastStep = L.step === "done" || (!running && !!insp);
-  const high = L.alerts.filter((a) => a.severity === "high").length;
+  // the replay clock: the lane channel's player, else the session list's (it keeps the last state after a reload)
+  const sessPlayer = sess?.player && insp && sess.player.inspection_id === insp.inspection_id ? sess.player : null;
+  const refs = useVehiclePhotos(!vision && L.notFound ? laneInfo.plate : null);
 
   let cta = null;
   if (insp?.report) cta = <Link className="btn btn-primary" href={`/report?id=${insp.report.report_id}`}>View the report ({insp.report.verdict})<Icon name="arrow" size={15} /></Link>;
@@ -57,8 +62,7 @@ function LaneConsole() {
     <Shell context={<Pill color={L.connected ? "#059669" : "#64748B"}>{L.connected ? "Live" : "Connecting…"}</Pill>}>
       <PageHeader eyebrow="Live Lane" title={vision ? "AI vision" : "Lane console"}
         sub={vision ? "The platform's AI inspection modules (undercarriage, above-carriage and tyre) on inspection captures and the image library. Run the live models on any capture, a curated photo or your own upload."
-          : "What the lane sees as it happens: what it has found first, then the evidence, then the raw readings."}
-        actions={!vision && insp ? controls() : null}>
+          : "What the lane sees as it happens: what it has found first, then the evidence, then the raw readings."}>
         <div className="mt-3 flex max-w-full flex-wrap items-center gap-3">
           <div className="flex shrink-0 gap-1 rounded-full border border-white/80 bg-white/70 p-1 shadow-glass" role="tablist" aria-label="Live Lane view">
             {[{ id: "lane", label: "Sensors & lane", icon: "lane" }, { id: "vision", label: "AI vision", icon: "vision" }].map((x) => {
@@ -76,30 +80,17 @@ function LaneConsole() {
       </PageHeader>
       {vision ? <VisionPanel /> : loading ? (
         <div className="card card-pad"><LoadingState label="Loading the latest inspection on this lane…" rows={4} /></div>
-      ) : !insp ? (
-        <Empty title={`${laneInfo.plate} has not entered ${laneInfo.label.toLowerCase()} yet`} actions={controls(true)}>
-          {laneInfo.plate} ({laneInfo.car}) comes in for {STORY[laneInfo.session]}. {presenter ? "Start the replay to watch the sensors and AI live, or fast-forward to the finished result." : "The presenter starts the replay."}
-        </Empty>
       ) : (
         <>
-          <InspectionContextBar insp={insp} alerts={L.alerts} uc={uc} here="/lane" cta={cta} />
-          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-ink-600 bg-ink-850 px-4 py-2.5 text-[13px]" aria-live="polite">
-            {running ? (
-              <>
-                <span className="flex items-center gap-2 font-semibold">
-                  {L.player?.status === "playing" && <span className="h-2 w-2 rounded-full bg-ok pulse-dot" aria-hidden />}
-                  {stepIdx >= 0 ? `Lane step ${stepIdx + 1} of ${timeline.length}: ${STEP_LABEL[L.step] || L.step}` : "Waiting for the vehicle"}
-                </span>
-                <div className="h-1.5 min-w-[120px] flex-1 rounded bg-ink-600"><div className="h-1.5 rounded bg-cyan transition-all" style={{ width: `${stepIdx >= 0 ? (100 * (stepIdx + 1)) / timeline.length : 3}%` }} /></div>
-                {L.player && <span className="text-fg-3">{L.player.status} · {L.player.speed}×</span>}
-              </>
-            ) : insp.report ? (
-              <span><b>Inspection complete.</b> <span className="text-fg-3">The report is issued: {insp.report.verdict}.</span></span>
-            ) : (
-              <span><b>The lane has finished.</b> <span className="text-fg-3">{L.alerts.length ? `${L.alerts.length} finding${L.alerts.length === 1 ? "" : "s"} wait for the examiner${high ? `, ${high} critical` : ""}.` : "Nothing needs a decision: the examiner can issue the report."}</span></span>
-            )}
-          </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+          {/* the vehicle moving through the lane's stations, the readings of the one it is at, and new findings */}
+          <LiveLaneView L={L} player={L.player || sessPlayer} sessionControls={controls}
+            idle={insp ? undefined : {
+              plate: laneInfo.plate, vtype: VTYPE[laneInfo.session], photo: refs.data?.hero || null,
+              title: `${laneInfo.plate} has not entered ${laneInfo.label.toLowerCase()} yet`,
+              note: <>{laneInfo.plate} ({laneInfo.car}) comes in for {STORY[laneInfo.session]}. {presenter ? "Start the replay to watch the sensors and AI live, or fast-forward to the finished result." : "The presenter starts the replay."}</>,
+            }} />
+          {insp && <InspectionContextBar insp={insp} alerts={L.alerts} uc={uc} here="/lane" cta={cta} />}
+          {insp && <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="flex min-w-0 flex-col gap-4">
               <Card title="What the lane has found" right={<Source kind="live_model" text="Models + rules, live" />}>
                 {L.fusion && <div className="mb-4"><VehicleHealthSummary fusion={L.fusion} fuel={insp.vehicle?.fuel} compact /></div>}
@@ -211,7 +202,7 @@ function LaneConsole() {
                 </div>
               </Card>
             </div>
-          </div>
+          </div>}
         </>
       )}
       <Modal open={!!zoom} onClose={() => setZoom(null)} title={zoom ? `${SYSTEM_NAME[zoom.system] || zoom.kind} · ${zoom.camera}` : ""}>

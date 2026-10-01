@@ -67,7 +67,7 @@ export function useInspection(opts: { lane?: string; session?: string; id?: stri
       const brake: Record<string, any[]> = {};
       br.forEach((r: any) => (brake[r.wheel] ||= []).push({ t: r.t_s, f: r.force_kn }));
       setS((prev) => ({
-        insp: d, step: d.step, player: null,
+        insp: d, step: d.step, player: prev.insp?.inspection_id === d.inspection_id ? prev.player : null,  // a reload keeps the replay clock
         enose: en.map((r: any) => ({ t: r.t_s, ch: r.ch })),
         obd: obd.map((r: any) => ({ t: r.t_s, rpm: r.engine_rpm, coolant: r.coolant_temp_c })),
         pn: pn.map((r: any) => ({ t: r.t_s, v: r.pn_per_cm3 })),

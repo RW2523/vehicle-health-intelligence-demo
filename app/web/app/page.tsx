@@ -3,10 +3,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { IconTile, Panel, ProgressBar, SegmentRing, StatCard, StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
+import { LiveLaneStrip } from "@/components/LiveLaneView";
 import { Shell } from "@/components/Shell";
 import { ErrorState, LoadingState, Source } from "@/components/ui";
 import { VehicleImage } from "@/components/VehicleImage";
 import { useUser } from "@/lib/auth";
+import { laneOf } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 const LANE_STATE: Record<string, { label: string; tone: Tone }> = {
@@ -57,6 +59,8 @@ function LaneCard({ ln, canRun }: { ln: any; canRun: boolean }) {
   const st = ready ? { label: "Ready", tone: "amber" as Tone } : LANE_STATE[ln.state] || LANE_STATE.idle;
   const start = ready && canRun;
   const href = ln.live ? `/inspection/${v.inspection_id}` : start ? `/inspection/${ln.replay}` : `/vehicles/${encodeURIComponent(v.plate)}`;
+  // a replay lane follows its vehicle through the stations live (the hub is BR00: "BR00-L3")
+  const laneId = ln.live || ready ? laneOf(ln.live ? v.session_id : ln.replay) || `BR00-L${ln.lane}` : null;
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/80 bg-white/70 shadow-glass">
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-b from-[#F1F5FB] to-[#DEE6F2]">
@@ -71,7 +75,9 @@ function LaneCard({ ln, canRun }: { ln: any; canRun: boolean }) {
         <div className="truncate text-[13px] text-fg-2">{v.make} {v.model}</div>
         <div className="truncate text-[12.5px] text-fg-3">{v.inspection_type}</div>
         <div className="mt-auto pt-3">
-          {ln.state === "operation" ? (
+          {laneId ? (
+            <LiveLaneStrip lane={laneId} seed={ln.live ? { inspection_id: v.inspection_id, step: v.step, status: v.status } : null} />
+          ) : ln.state === "operation" ? (
             <div className="flex items-center gap-2"><ProgressBar value={ln.progress} /><span className="w-10 text-right text-[12.5px] font-semibold text-fg-2">{ln.progress}%</span></div>
           ) : <ProgressBar value={2} tone={ready ? "amber" : "gray"} />}
           <div className="mt-1.5 text-[12.5px] text-fg-3">{ln.note}</div>

@@ -73,7 +73,8 @@ test.describe("Inspector dashboard, search and the vehicle register", () => {
     await expect(page.getByText(/^Lane [1-4]/)).toHaveCount(4);
     await expect(page.getByText("Lane Utilization")).toBeVisible();
     await expect(page.getByText(/^Current Queue \(\d+\)$/)).toBeVisible();
-    await expect(page.getByText("Upcoming Vehicles")).toBeVisible();
+    // the vehicles still to come, or (late in the day, nothing left to come) today's finished inspections
+    await expect(page.getByText(/^(Upcoming Vehicles|Today's Inspections)$/).first()).toBeVisible();
     await expect(page.getByText("Recent Activity")).toBeVisible();
     await expect(page.getByText("SYNTHETIC").first()).toBeVisible();
     await page.getByRole("link", { name: /View all \(\d+\)/ }).click();

@@ -3,7 +3,9 @@ import Link from "next/link";
 import { use, useRef, useState } from "react";
 import { NextAction, useActiveUseCase } from "@/components/Demo";
 import { IconTile, Panel, ProgressBar, Ring, StatusPill } from "@/components/glass";
+import { DamageMap } from "@/components/DamageMap";
 import { Icon } from "@/components/icons";
+import { LiveLaneView } from "@/components/LiveLaneView";
 import { ITEM_STATUS, NoInspection, PageLoading, StepNav, VIEWS, VehicleStrip, atTime, capturesOf, checklistOf, itemLabel, useInspectionParam } from "@/components/insp";
 import { ucFor } from "@/components/insp";
 import { useVehiclePhotos } from "@/components/Photo";
@@ -12,8 +14,8 @@ import { Shell } from "@/components/Shell";
 import { Modal, PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
-import { STEP_LABEL } from "@/lib/format";
 import { alertSeverity, isRequired } from "@/lib/present";
+import { alertFinding } from "@/lib/zones";
 
 /** The model's reference photo for a camera view the lane has not captured (front ← hero, sides ← side view). */
 const SHOW_ISSUES = 5;
@@ -83,8 +85,6 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
   const locked = !!insp.report;
   const open = L.alerts.filter((a) => a.status === "open");
   const issues = [...L.alerts].sort((x, y) => Number(y.status === "open") - Number(x.status === "open") || Number(isRequired(y)) - Number(isRequired(x)));
-  const timeline = insp.timeline || L.player?.timeline || [];
-  const stepIdx = timeline.findIndex((x: any) => x.step === L.step);
   const sess = sessions.find((s) => s.session_id === (insp.session_id || insp.session));
   const sid = session || iid;
   const ev = insp.vehicle?.fuel === "ev";
@@ -130,12 +130,9 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
       <StepNav id={sid} at="capture" findings={L.alerts.length} open={open.length} />
       <VehicleStrip insp={insp} />
       {running && (
-        <div className="card mb-5 flex flex-wrap items-center gap-4 px-4 py-3" aria-live="polite">
-          <span className="flex items-center gap-2 text-[14px] font-semibold">
-            {L.player?.status === "playing" && <span className="h-2.5 w-2.5 rounded-full bg-ok pulse-dot" aria-hidden />}
-            {stepIdx >= 0 ? `Lane step ${stepIdx + 1} of ${timeline.length}: ${STEP_LABEL[L.step] || L.step}` : "Waiting for the vehicle"}
-          </span>
-          <div className="min-w-[160px] flex-1"><ProgressBar value={stepIdx >= 0 ? (100 * (stepIdx + 1)) / timeline.length : 3} /></div>
+        <div className="card mb-5 flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
+          {/* the lane progress strip: the vehicle through the lane's stations, on the replay clock */}
+          <div className="min-w-[240px] flex-1"><LiveLaneView L={L} player={L.player || (sess?.player?.inspection_id === iid ? sess.player : null)} compact /></div>
           {sess && canAct && <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} quiet />}
         </div>
       )}
@@ -232,6 +229,12 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
           </div>
         </Panel>
       </div>
+      {L.alerts.length > 0 && (
+        <div className="mt-5">
+          <DamageMap plate={insp.plate} vtype={insp.owner?.vtype || insp.vehicle?.vtype} photos={refs.data} maxHeight={360}
+            findings={L.alerts.map((a) => alertFinding(a, `/inspection/${sid}/findings?finding=${a.alert_id}`))} />
+        </div>
+      )}
       <Modal open={remarkOpen} onClose={() => setRemarkOpen(false)} title="Add a remark">
         <div className="flex w-[min(520px,calc(100vw-5rem))] flex-col gap-3">
           <textarea className="input min-h-[110px]" maxLength={500} value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="What should the record say? e.g. Owner asked for the brake test to be repeated." aria-label="Remark" />

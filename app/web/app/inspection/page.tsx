@@ -2,15 +2,16 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { Panel, ProgressBar, StatusPill, Tone } from "@/components/glass";
+import { Panel, StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
+import { LiveLaneStrip } from "@/components/LiveLaneView";
 import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
 import { Empty, LoadingState, PageHeader, Source } from "@/components/ui";
 import { VehicleArt } from "@/components/VehicleArt";
 import { VehicleImage } from "@/components/VehicleImage";
 import { useUser } from "@/lib/auth";
-import { LANE_SESSIONS, STATUS_LABEL, STEP_LABEL, laneLabel } from "@/lib/format";
+import { LANE_SESSIONS, STATUS_LABEL, laneLabel } from "@/lib/format";
 import { useFetch, useLive } from "@/lib/live";
 
 const SCHED: Record<string, { label: string; tone: Tone }> = {
@@ -33,7 +34,6 @@ function LiveStatus({ i }: { i: any }) {
   return v ? <StatusPill tone={v.tone}>{v.label}</StatusPill> : <StatusPill tone={LIVE[i.status] || "gray"}>{STATUS_LABEL[i.status] || i.status}</StatusPill>;
 }
 const LIVE: Record<string, Tone> = { in_lane: "amber", review: "purple", decided: "purple", reported: "green" };
-const STEPS = ["check_in_anpr", "identity_ocr", "emission_idle_rev", "brake_roller", "suspension", "side_slip", "headlamp_tint", "undercarriage_ai", "above_carriage_ai", "examiner_review", "report"];
 
 function LiveInspections() {
   const user = useUser();
@@ -53,7 +53,6 @@ function LiveInspections() {
         {LANE_SESSIONS.map((l) => {
           const i = latest[l.lane];
           const s = sessions.find((x) => x.session_id === l.session);
-          const step = i && i.status === "in_lane" ? Math.max(0, STEPS.indexOf(i.step)) + 1 : STEPS.length;
           return (
             <div key={l.lane} className="card flex flex-col p-4">
               <div className="flex items-center justify-between gap-2">
@@ -64,7 +63,8 @@ function LiveInspections() {
               <div className="text-[18px] font-bold">{l.plate}</div>
               <div className="text-[13px] text-fg-2">{l.car}</div>
               <div className="truncate text-[12.5px] text-fg-3">{i ? i.inspection_type : s?.title?.split(" · ")[1] || "Lane replay"}</div>
-              {i && i.status === "in_lane" && <div className="mt-2 flex items-center gap-2"><ProgressBar value={(100 * step) / STEPS.length} /><span className="w-24 truncate text-right text-[12px] text-fg-3">{STEP_LABEL[i.step] || "starting"}</span></div>}
+              {/* the vehicle through the lane's stations, live */}
+              <div className="mt-2"><LiveLaneStrip lane={l.lane} seed={i ? { inspection_id: i.inspection_id, step: i.step, status: i.status, verdict: i.verdict } : null} /></div>
               <div className="mt-auto flex flex-wrap gap-2 pt-3">
                 {i ? <Link className="btn btn-primary btn-sm" href={`/inspection/${i.inspection_id}`}>Open inspection<Icon name="chev" size={14} /></Link> : null}
                 {s && canRun && <PlayerControls s={s} onState={setPlayer} compact quiet={!!i} />}
