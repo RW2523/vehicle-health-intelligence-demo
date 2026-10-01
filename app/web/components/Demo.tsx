@@ -124,12 +124,13 @@ export function JourneyStepper({ steps, compact = false, onPick }: { steps: Step
 }
 
 /** The one dominant next action of the running use case (a link to its screen), or the page's own action. */
-export function NextAction({ uc, here, children }: { uc: UseCase | null; here?: string; children?: ReactNode }) {
+export function NextAction({ uc, here, children }: { uc: UseCase | null; here?: string | string[]; children?: ReactNode }) {
   if (children) return <>{children}</>;
   if (!uc) return null;
-  if (uc.complete) return <Link className="btn btn-primary" href="/#usecases"><Icon name="check" size={15} />Use case complete · back to demo control</Link>;
+  if (uc.complete) return <Link className="btn btn-primary" href="/demo#usecases"><Icon name="check" size={15} />Use case complete · back to demo control</Link>;
   const n = uc.next;
-  if (!n || (here && n.href.split("#")[0] === here)) return null;
+  const at = Array.isArray(here) ? here : here ? [here] : [];
+  if (!n || at.includes(n.href.split("#")[0].split("?")[0])) return null;
   return <Link className="btn btn-primary" href={n.href}>{n.cta}<Icon name="arrow" size={15} /></Link>;
 }
 
@@ -142,10 +143,10 @@ function DemoBarInner() {
   const guided = user?.role === "presenter" || user?.role === "viewer";
   if (!guided) return null;
   if (!active)
-    return <Link href="/#usecases" className="chip hidden border-ink-500 text-fg-2 hover:border-cyan/60 md:inline-flex">Guided demo</Link>;
+    return <Link href="/demo#usecases" className="chip hidden border-ink-500 text-fg-2 hover:border-cyan/60 md:inline-flex">Guided demo</Link>;
   const n = active.next;
   return (
-    <Link href={active.complete ? "/#usecases" : n?.href || "/"} title={`${active.id} ${active.title}${n ? ` · next: ${n.label}` : ""}`}
+    <Link href={active.complete ? "/demo#usecases" : n?.href || "/"} title={`${active.id} ${active.title}${n ? ` · next: ${n.label}` : ""}`}
       aria-current={n && n.href.split("#")[0] === path ? "step" : undefined}
       className="chip max-w-[46vw] border-cyan/60 bg-cyan/10 text-fg hover:bg-cyan/20">
       <b className="text-cyan">{active.id}</b>
@@ -169,7 +170,7 @@ export function DemoBar() {
 export function UseCaseCard({ uc, active, onStart, busy }: { uc: UseCase; active: boolean; onStart: () => void; busy: boolean }) {
   const pct = uc.steps.length ? (100 * uc.done) / uc.steps.length : 0;
   return (
-    <article className={`card card-pad flex flex-col gap-2.5 ${active ? "border-cyan/70 shadow-[0_0_0_1px_rgba(34,211,238,0.35)]" : ""}`} aria-label={`${uc.id} ${uc.title}`}>
+    <article className={`card card-pad flex flex-col gap-2.5 ${active ? "border-cyan/70 shadow-[0_0_0_1px_rgba(37,99,235,0.35)]" : ""}`} aria-label={`${uc.id} ${uc.title}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-[11.5px] font-semibold uppercase tracking-wide text-fg-3">

@@ -38,8 +38,9 @@ function ReportView() {
   const hs = d.health?.score;
   return (
     <Shell>
-      <PageHeader title="Inspection report" sub="The decision in plain words, every finding with the examiner's decision, the evidence behind it, and the QR code anyone can scan to check it."
-        actions={r && !d.synthetic && r.inspection ? <Link className="btn" href={`/examiner?id=${r.inspection_id}`}>Open in the examiner workspace</Link> : null}>
+      <div className="mb-2"><Link href="/inspection?tab=reports" className="inline-flex items-center gap-1 text-[14px] text-fg-2 hover:text-cyan"><Icon name="back" size={16} />All reports</Link></div>
+      <PageHeader eyebrow="Inspection Management" title="Inspection report" sub="The decision in plain words, every finding with the examiner's decision, the evidence behind it, and the QR code anyone can scan to check it."
+        actions={r && !d.synthetic && r.inspection ? <Link className="btn" href={`/inspection/${r.inspection_id}/review`}>Open the inspection</Link> : null}>
         {(list.data || []).length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2" aria-label="Issued reports">
             {(list.data || []).slice(0, 10).map((x) => (
@@ -54,7 +55,7 @@ function ReportView() {
       {loading ? <div className="card card-pad"><LoadingState label="Loading the report…" rows={5} /></div>
         : rep.error ? <ErrorState title="This report could not be loaded" onRetry={rep.reload}>{rep.error}</ErrorState>
         : !r ? (
-          <Empty title="No reports yet" actions={<><Link className="btn btn-primary" href="/#usecases">Start a use case<Icon name="arrow" size={15} /></Link><Link className="btn" href="/examiner">Examiner workspace</Link></>}>
+          <Empty title="No reports yet" actions={<><Link className="btn btn-primary" href="/demo#usecases">Start a use case<Icon name="arrow" size={15} /></Link><Link className="btn" href="/inspection">Inspections</Link></>}>
             A report is issued from the examiner workspace once the lane has finished and every critical finding has a decision.
           </Empty>
         ) : (
@@ -118,7 +119,7 @@ function ReportView() {
                       {findings.map((f, i) => (
                         <li key={i} className="flex flex-wrap items-start justify-between gap-2 py-2.5">
                           <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2"><b className="text-[13.5px]">{f.title}</b>{f.fail_item && <Pill color="#F87171">Fail item</Pill>}</div>
+                            <div className="flex flex-wrap items-center gap-2"><b className="text-[13.5px]">{f.title}</b>{f.fail_item && <Pill color="#DC2626">Fail item</Pill>}</div>
                             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-fg-3">
                               <SeverityBadge s={alertSeverity(f)} /><Source kind={f.source} />
                               <span>{f.system}{hasModelConfidence(f) ? ` · model confidence ${Math.round(f.confidence * 100)}%` : ""}</span>
@@ -167,12 +168,12 @@ function ReportView() {
                 <Card title="Integrity">
                   <div className="flex flex-col gap-1.5 text-[12.5px]">
                     <div className="flex flex-wrap items-center gap-2">
-                      {chain.data ? <Pill color={chain.data.intact ? "#34D399" : "#F87171"}>{chain.data.intact ? "Evidence chain intact" : "Evidence chain broken"}</Pill> : <span className="text-fg-3">Checking the chain…</span>}
+                      {chain.data ? <Pill color={chain.data.intact ? "#059669" : "#DC2626"}>{chain.data.intact ? "Evidence chain intact" : "Evidence chain broken"}</Pill> : <span className="text-fg-3">Checking the chain…</span>}
                       {chain.data && <span className="text-fg-3">{fmtN(chain.data.checked)} entries re-verified now</span>}
                     </div>
                     <div className="mt-1 text-fg-3">Report anchor (SHA-256)</div>
                     <div className="break-all font-mono text-[11px]">{r.chain_hash}</div>
-                    <Link href="/hq#audit" className="mt-1 text-cyan hover:underline">Open the audit log →</Link>
+                    <Link href="/oversight/hq#audit" className="mt-1 text-cyan hover:underline">Open the audit log →</Link>
                   </div>
                 </Card>
                 {hs != null && (

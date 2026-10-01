@@ -21,8 +21,8 @@ def seeded() -> bool:
 
 def reset_runtime() -> dict:
     """Delete everything the demo creates at run time (lane inspections, alerts, readings, evidence, reports, bookings,
-    self-checks, chats, pattern reports, flood-inspection invitations, the running use case and the HQ exception
-    decisions) and keep the seeded world. Stop the API first."""
+    self-checks, chats, pattern reports, flood-inspection invitations, the running use case, the HQ exception
+    decisions and the demo hub's day) and keep the seeded world. Stop the API first."""
     import shutil
 
     from sqlalchemy import delete
@@ -38,7 +38,7 @@ def reset_runtime() -> dict:
                   FloodInvitation):
             counts[t.__tablename__] = s.execute(delete(t)).rowcount
         # the guided demo's state: the running use case and the HQ exception decisions (they point into the chain)
-        counts["demo_state"] = s.execute(delete(Setting).where(Setting.key.in_(("usecase:active", "hq_exceptions")))).rowcount
+        counts["demo_state"] = s.execute(delete(Setting).where(Setting.key.in_(("usecase:active", "hq_exceptions", "hubday:anchor")))).rowcount
     shutil.rmtree(get_settings().evidence_dir, ignore_errors=True)
     log.info("runtime state cleared: %s", counts)
     return counts
@@ -50,6 +50,8 @@ def run(force: bool = False) -> bool:
     from .demo import seed_session_vehicles
     from .fleet import seed_showcase_fleets
     from .floodwatch import seed_vehicle_locations
+    from .main_vehicles import seed_main_vehicles
+    from ..services.appointments import seed_appointments
     from .reports import seed_demo_reports
     from .sales import seed_sales
 
@@ -59,7 +61,9 @@ def run(force: bool = False) -> bool:
         # and after a runtime reset (the synthetic demo report lives in the evidence chain)
         seed_sales()
         seed_vehicle_locations()
+        seed_main_vehicles()
         seed_demo_reports()
+        seed_appointments()
         return False
     t = time.time()
     seed_reference()
@@ -70,7 +74,9 @@ def run(force: bool = False) -> bool:
     seed_showcase_fleets()
     seed_sales()
     seed_vehicle_locations()
+    seed_main_vehicles()
     seed_demo_reports()
+    seed_appointments()
     with session_scope() as s:
         s.merge(Setting(key="seed_version", value={"v": SEED_VERSION, "at": time.time()}))
     log.info("seeded in %.1fs", time.time() - t)

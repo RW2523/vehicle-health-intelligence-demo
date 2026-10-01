@@ -68,8 +68,8 @@ export function LineChart({
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img">
       {ticks.map((t) => (
         <g key={t}>
-          <line x1={L} x2={W - R} y1={sy(t)} y2={sy(t)} stroke="#1F2B44" />
-          <text x={L - 8} y={sy(t) + 4} textAnchor="end" fontSize="11" fill="#8EA3C2">{yFmt(t)}</text>
+          <line x1={L} x2={W - R} y1={sy(t)} y2={sy(t)} stroke="#E2E8F0" />
+          <text x={L - 8} y={sy(t) + 4} textAnchor="end" fontSize="11" fill="#64748B">{yFmt(t)}</text>
         </g>
       ))}
       {bands.map((b, i) => (
@@ -84,7 +84,7 @@ export function LineChart({
       {vlines.map((v, i) => (
         <g key={i}>
           <line x1={sx(v.x)} x2={sx(v.x)} y1={T} y2={H - B} stroke={v.color} strokeDasharray="3 4" />
-          {v.label && <text x={sx(v.x) + 4} y={T + 10} fontSize="11" fill="#8EA3C2">{v.label}</text>}
+          {v.label && <text x={sx(v.x) + 4} y={T + 10} fontSize="11" fill="#64748B">{v.label}</text>}
         </g>
       ))}
       {series.map((s, i) => (
@@ -112,7 +112,7 @@ export function LineChart({
         ),
       )}
       {(xLabels || []).filter((_, i) => i % xTickEvery === 0).map((l, i) => (
-        <text key={i} x={sx(l.x)} y={H - 8} textAnchor="middle" fontSize="11" fill={l.color || "#8EA3C2"}>{l.label}</text>
+        <text key={i} x={sx(l.x)} y={H - 8} textAnchor="middle" fontSize="11" fill={l.color || "#64748B"}>{l.label}</text>
       ))}
       {children}
     </svg>
@@ -120,7 +120,7 @@ export function LineChart({
   );
 }
 
-export function Bars({ values, labels, height = 160, color = "#60A5FA", highlight, fmt = (v: number) => String(v), secondary, secondaryColor = "#EF4444" }: {
+export function Bars({ values, labels, height = 160, color = "#3B82F6", highlight, fmt = (v: number) => String(v), secondary, secondaryColor = "#DC2626" }: {
   values: number[]; labels?: string[]; height?: number; color?: string; highlight?: number; fmt?: (v: number) => string;
   secondary?: number[]; secondaryColor?: string;
 }) {
@@ -136,9 +136,9 @@ export function Bars({ values, labels, height = 160, color = "#60A5FA", highligh
         const h = ((H - B - T) * v) / mx;
         return (
           <g key={i}>
-            <rect x={i * bw + bw * 0.18} y={H - B - h} width={bw * 0.64} height={h} rx="3" fill={highlight === i ? "#22D3EE" : color} opacity={highlight === undefined || highlight === i ? 1 : 0.75} />
+            <rect x={i * bw + bw * 0.18} y={H - B - h} width={bw * 0.64} height={h} rx="3" fill={highlight === i ? "#2563EB" : color} opacity={highlight === undefined || highlight === i ? 1 : 0.75} />
             {secondary && <line x1={i * bw + bw * 0.1} x2={i * bw + bw * 0.9} y1={H - B - ((H - B - T) * secondary[i]) / mx} y2={H - B - ((H - B - T) * secondary[i]) / mx} stroke={secondaryColor} strokeWidth="3" />}
-            {labels && i % every === 0 && <text x={i * bw + bw / 2} y={H - 6} textAnchor="middle" fontSize="11" fill="#8EA3C2">{labels[i]}</text>}
+            {labels && i % every === 0 && <text x={i * bw + bw / 2} y={H - 6} textAnchor="middle" fontSize="11" fill="#64748B">{labels[i]}</text>}
             <title>{`${labels ? labels[i] + ": " : ""}${fmt(v)}`}</title>
           </g>
         );
@@ -148,7 +148,7 @@ export function Bars({ values, labels, height = 160, color = "#60A5FA", highligh
   );
 }
 
-export function Spark({ values, color = "#22D3EE", width = 70, height = 26 }: { values: number[]; color?: string; width?: number; height?: number }) {
+export function Spark({ values, color = "#2563EB", width = 70, height = 26 }: { values: number[]; color?: string; width?: number; height?: number }) {
   if (!values?.length) return null;
   const lo = Math.min(...values), hi = Math.max(...values);
   const sx = scale(0, values.length - 1, 2, width - 2), sy = scale(lo, hi === lo ? lo + 1 : hi, height - 3, 3);
@@ -166,7 +166,7 @@ export function Donut({ parts, size = 150, center }: { parts: { value: number; c
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1F2B44" strokeWidth="22" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E2E8F0" strokeWidth="22" />
         {parts.map((p, i) => {
           const d = (p.value / total) * c;
           const el = <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={p.color} strokeWidth="22" strokeDasharray={`${d} ${c}`} strokeDashoffset={-acc} />;
@@ -195,15 +195,15 @@ export function Scatter({ points, height = 240, xLabel, yLabel, xFmt = (v: numbe
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img">
       {niceTicks(y0 - py, y1 + py).map((t) => (
         <g key={t}>
-          <line x1={L} x2={W - R} y1={sy(t)} y2={sy(t)} stroke="#1F2B44" />
-          <text x={L - 8} y={sy(t) + 4} textAnchor="end" fontSize="11" fill="#8EA3C2">{yFmt(t)}</text>
+          <line x1={L} x2={W - R} y1={sy(t)} y2={sy(t)} stroke="#E2E8F0" />
+          <text x={L - 8} y={sy(t) + 4} textAnchor="end" fontSize="11" fill="#64748B">{yFmt(t)}</text>
         </g>
       ))}
       {niceTicks(x0 - px, x1 + px, 6).map((t) => (
-        <text key={t} x={sx(t)} y={H - 18} textAnchor="middle" fontSize="11" fill="#8EA3C2">{xFmt(t)}</text>
+        <text key={t} x={sx(t)} y={H - 18} textAnchor="middle" fontSize="11" fill="#64748B">{xFmt(t)}</text>
       ))}
-      {vline !== undefined && <line x1={sx(vline)} x2={sx(vline)} y1={T} y2={H - B} stroke="#EF4444" strokeDasharray="5 5" />}
-      {hline !== undefined && <line x1={L} x2={W - R} y1={sy(hline)} y2={sy(hline)} stroke="#EF4444" strokeDasharray="5 5" />}
+      {vline !== undefined && <line x1={sx(vline)} x2={sx(vline)} y1={T} y2={H - B} stroke="#DC2626" strokeDasharray="5 5" />}
+      {hline !== undefined && <line x1={L} x2={W - R} y1={sy(hline)} y2={sy(hline)} stroke="#DC2626" strokeDasharray="5 5" />}
       {points.map((p, i) => (
         <g key={i}>
           <circle cx={sx(p.x)} cy={sy(p.y)} r={p.r ?? 5} fill={p.color} opacity="0.9"><title>{p.title}</title></circle>
@@ -212,8 +212,8 @@ export function Scatter({ points, height = 240, xLabel, yLabel, xFmt = (v: numbe
             : <text x={sx(p.x) + 9} y={sy(p.y) + 4} fontSize="12" fontWeight="700" fill={p.color}>{p.label}</text>)}
         </g>
       ))}
-      {xLabel && <text x={(L + W - R) / 2} y={H - 3} textAnchor="middle" fontSize="11" fill="#6F7E98">{xLabel}</text>}
-      {yLabel && <text x={L} y={13} fontSize="11" fill="#6F7E98">{yLabel}</text>}
+      {xLabel && <text x={(L + W - R) / 2} y={H - 3} textAnchor="middle" fontSize="11" fill="#94A3B8">{xLabel}</text>}
+      {yLabel && <text x={L} y={13} fontSize="11" fill="#94A3B8">{yLabel}</text>}
     </svg>
     </div>
   );

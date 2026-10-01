@@ -1,0 +1,66 @@
+{
+ "about": "The stock photos chosen from Wikimedia Commons for each image slot (slot id = <slug>.<view> or scene.<id>). Re-download them with: python data/curated/scripts/fetch_stock_images.py --picks. crop = [left, top, right, bottom] as fractions of the original; blur = boxes (same units) made unreadable, for number plates. Representative photos of the model, not of the fictional vehicles.",
+ "vehicles": {
+  "dmo-9001": {"vtype": "Prime mover", "plate": "DMO 9001", "make": "Scania", "model": "P-Series Prime Mover", "year": 2022, "generation": "new-generation P-series tractor unit (2016+)", "paint": "white", "paint_hex": "#F1EFE8"},
+  "dmo-9002": {"vtype": "SUV", "plate": "DMO 9002", "make": "BYD", "model": "Atto 3", "year": 2022, "generation": "Atto 3 (2022+)", "paint": "Surf Blue", "paint_hex": "#1F7FB4"},
+  "dmo-9003": {"vtype": "Sedan", "plate": "DMO 9003", "make": "Honda", "model": "Civic", "year": 2016, "generation": "10th generation Civic sedan (FC, 2016-2021)", "paint": "red", "paint_hex": "#B4141E"},
+  "dmo-9006": {"vtype": "Hatchback", "plate": "DMO 9006", "make": "Perodua", "model": "Myvi", "year": 2019, "generation": "3rd generation Myvi (2018+)", "paint": "silver", "paint_hex": "#B8BCC1"},
+  "vjm-7412": {"vtype": "Sedan", "plate": "VJM 7412", "make": "Perodua", "model": "Bezza 1.0", "year": 2021, "generation": "Bezza (2016+, 2020 facelift)", "paint": "silver", "paint_hex": "#BCC0C4"},
+  "wxd-2291": {"vtype": "Pickup", "plate": "WXD 2291", "make": "Ford", "model": "Ranger XLT", "year": 2020, "generation": "Ranger T6 (PX facelift, 2018-2022)", "paint": "white", "paint_hex": "#F2F3F1"},
+  "bhy-7783": {"vtype": "Van", "plate": "BHY 7783", "make": "Toyota", "model": "Hiace 2.8D", "year": 2019, "generation": "HiAce H200 panel van", "paint": "white", "paint_hex": "#F3F3EF"},
+  "vkr-3128": {"vtype": "Sedan", "plate": "VKR 3128", "make": "Toyota", "model": "Vios 1.5", "year": 2021, "generation": "Vios XP150", "paint": "white", "paint_hex": "#F4F4F2"},
+  "pke-4410": {"vtype": "MPV", "plate": "PKE 4410", "make": "Toyota", "model": "Innova 2.0", "year": 2021, "generation": "Innova AN140 (2016+, 2020 facelift)", "paint": "white", "paint_hex": "#F2F2EE"},
+  "jtr-5510": {"vtype": "Van", "plate": "JTR 5510", "make": "Nissan", "model": "NV350 Urvan", "year": 2020, "generation": "NV350 Urvan (E26)", "paint": "white", "paint_hex": "#F3F4F4"}
+ },
+ "picks": [
+  {"slot": "dmo-9001.hero", "title": "File:SCANIA XT P410 Series (Infiniti Marine) 0225.jpg",
+   "blur": [[0.16, 0.695, 0.215, 0.727], [0.15, 0.395, 0.255, 0.43], [0.315, 0.56, 0.375, 0.6], [0.47, 0.575, 0.53, 0.6], [0.39, 0.553, 0.427, 0.584]]},
+
+  {"slot": "dmo-9002.hero", "title": "File:BYD ATTO 3 in Brisbane, Australia, 2022, 03.jpg", "blur": [[0.045, 0.6, 0.105, 0.69]]},
+  {"slot": "dmo-9002.rear", "title": "File:BYD ATTO 3 in Brisbane, Australia, 2022, 04.jpg", "blur": [[0.825, 0.6, 0.92, 0.685]]},
+  {"slot": "dmo-9002.interior", "title": "File:BYD Atto 3, 2023, Japan, interior.jpg"},
+
+  {"slot": "dmo-9003.hero", "title": "File:Honda CIVIC SEDAN (DBA-FC1) front.jpg"},
+  {"slot": "dmo-9003.rear", "title": "File:Honda CIVIC SEDAN (DBA-FC1) rear.jpg"},
+  {"slot": "dmo-9003.interior", "title": "File:Honda CIVIC SEDAN (DBA-FC1) interior.jpg"},
+  {"slot": "dmo-9003.tyre", "title": "File:The tire wheel of Honda CIVIC SEDAN (DBA-FC1).jpg"},
+  {"slot": "dmo-9003.engine", "title": "File:2016 Honda Civic 1.5 ES FC1 L15B7 engine (20160409).jpg"},
+
+  {"slot": "dmo-9006.hero", "title": "File:2021 Perodua Myvi 1.3G silver front view in Brunei.jpg"},
+  {"slot": "dmo-9006.rear", "title": "File:2021 Perodua Myvi 1.3G silver rear view in Brunei.jpg"},
+  {"slot": "dmo-9006.interior", "title": "File:2021 Perodua Myvi 1.3G silver interior view in Brunei.jpg"},
+
+  {"slot": "vjm-7412.hero", "title": "File:2021 Perodua Bezza 1.0 GXtra silver bodykit front view in Brunei.jpg"},
+  {"slot": "vjm-7412.rear", "title": "File:2021 Perodua Bezza 1.0 GXtra silver bodykit rear view in Brunei.jpg"},
+  {"slot": "vjm-7412.side", "title": "File:(Rear) 2020 Perodua Bezza 1.0 G.jpg"},
+  {"slot": "vjm-7412.interior", "title": "File:2021 Perodua Bezza 1.0 GXtra red interior view in Brunei.jpg"},
+
+  {"slot": "wxd-2291.hero", "title": "File:2018 Ford Ranger (PX) XLT 4WD 4-door utility (2018-10-22) 01.jpg", "blur": [[0.11, 0.595, 0.215, 0.695]]},
+  {"slot": "wxd-2291.rear", "title": "File:2018 Ford Ranger (PX) XLT 4WD 4-door utility (2018-10-22) 02.jpg", "blur": [[0.725, 0.61, 0.82, 0.705]]},
+  {"slot": "wxd-2291.interior", "title": "File:2019 Ford Ranger Raptor Double Cab 2.0 Interior.jpg"},
+
+  {"slot": "bhy-7783.hero", "title": "File:2017 Toyota HiAce (TRH201R) LWB van (2018-10-01) 01.jpg", "blur": [[0.785, 0.755, 0.87, 0.84], [0.83, 0.11, 0.915, 0.31]]},
+  {"slot": "bhy-7783.rear", "title": "File:2017 Toyota HiAce (TRH201R) LWB van (2018-10-01) 02.jpg", "blur": [[0.18, 0.57, 0.29, 0.655]]},
+  {"slot": "bhy-7783.interior", "title": "File:Toyota HIACE Relaxbase TYPE 1 S-GL (CBF-TRH200V-WVMXTE) interior.jpg"},
+
+  {"slot": "vkr-3128.hero", "title": "File:2021 Toyota Vios 1.5J MT Super White front view in Brunei.jpg"},
+  {"slot": "vkr-3128.rear", "title": "File:Toyota Vios NSP151 G Prime White Pearl - rear.jpg"},
+  {"slot": "vkr-3128.interior", "title": "File:2021 Toyota Vios 1.5J MT Super White interior view in Brunei.jpg"},
+
+  {"slot": "pke-4410.hero", "title": "File:2021 Toyota Kijang Innova 2.0 V Luxury (front), Citraland, West Surabaya.jpg"},
+  {"slot": "pke-4410.rear", "title": "File:2021 Toyota Kijang Innova 2.0 V Luxury (rear), Citraland, West Surabaya.jpg"},
+  {"slot": "pke-4410.interior", "title": "File:2021 Toyota Innova 2.4G diesel 6AT grey interior view in Brunei.jpg"},
+
+  {"slot": "jtr-5510.hero", "title": "File:Nissan NV350 Urvan 2.5 Premium 2020 (2).jpg", "crop": [0.14, 0, 1, 1], "blur": [[0.795, 0.67, 0.885, 0.755], [0.95, 0.415, 1.0, 0.455]]},
+  {"slot": "jtr-5510.rear", "title": "File:Nissan NV350 CARAVAN WAGON Rider GX (3BA-KS2E26) rear.jpg"},
+  {"slot": "jtr-5510.side", "title": "File:Nissan NV350 Urvan 2.5 15-Seater 2019.jpg", "blur": [[0.865, 0.66, 0.915, 0.715]]},
+  {"slot": "jtr-5510.interior", "title": "File:Nissan NV350 CARAVAN PREMIUM GX (LDF-VW2E26) interior.jpg"},
+
+  {"slot": "scene.hub", "title": "File:Former vehicle inspection station, Lafitte St, New Orleans 10 June 2025 - 2.jpg"},
+  {"slot": "scene.lane", "title": "File:Car brake test.jpg"},
+  {"slot": "scene.pit", "title": "File:Inspection pits in Presidio Division (2), March 2026.jpg"},
+  {"slot": "scene.flood", "title": "File:Flooded Section 24 Residential Area Park.jpg"},
+  {"slot": "scene.tyre", "title": "File:Tire tread .jpg", "crop": [0, 0, 1, 0.84]},
+  {"slot": "scene.login", "title": "File:LDP 25.jpg"}
+ ]
+}

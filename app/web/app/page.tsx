@@ -1,205 +1,222 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ActiveUseCaseCard, UseCase, UseCaseCard, startUseCase, useActiveUseCase } from "@/components/Demo";
+import { useEffect, useMemo, useState } from "react";
+import { IconTile, Panel, ProgressBar, SegmentRing, StatCard, StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
-import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
-import { ErrorState, LoadingState, ProvenanceLegend, Source } from "@/components/ui";
-import { api } from "@/lib/api";
+import { ErrorState, LoadingState, Source } from "@/components/ui";
+import { VehicleImage } from "@/components/VehicleImage";
 import { useUser } from "@/lib/auth";
-import { LANE_SESSIONS, fmtN, llmLabel } from "@/lib/format";
+import { useFetch } from "@/lib/live";
 
-const FLOW = [
-  { t: "Check-in", d: "Plate camera and booking code" },
-  { t: "Inspect", d: "Lane sensors, cameras and AI modules" },
-  { t: "Review findings", d: "Each AI finding with its evidence" },
-  { t: "Decide", d: "The examiner confirms or dismisses" },
-  { t: "Report", d: "Plain-language, QR-verifiable" },
-  { t: "Downstream", d: "Owner, fleet, HQ, regulator, buyer" },
-];
+const LANE_STATE: Record<string, { label: string; tone: Tone }> = {
+  operation: { label: "In Operation", tone: "green" }, preparing: { label: "Preparing", tone: "amber" }, idle: { label: "Idle", tone: "gray" },
+};
+const STATUS: Record<string, { label: string; tone: Tone }> = {
+  in_queue: { label: "In Queue", tone: "blue" }, scheduled: { label: "Scheduled", tone: "gray" }, in_progress: { label: "In Lane", tone: "amber" },
+  completed: { label: "Completed", tone: "green" },
+};
+const ACT: Record<string, { icon: string; tone: Tone }> = {
+  completed: { icon: "checkc", tone: "green" }, started: { icon: "clock", tone: "amber" }, queued: { icon: "doc", tone: "blue" },
+  live: { icon: "bolt", tone: "purple" },
+};
+const greeting = (h: number) => (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
+const today = () => new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Kuala_Lumpur", weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
-/** What the product is, in one screen: the pitch, the inspection flow, and where to start. */
-function Hero({ onStart, busy, canRun }: { onStart: () => void; busy: boolean; canRun: boolean }) {
-  return (
-    <section className="card mb-5 overflow-hidden">
-      <div className="flex flex-col gap-4 p-5 lg:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-[760px]">
-            <span className="label text-cyan">VehicleSense AI · vehicle inspection platform</span>
-            <h1 className="mt-1 font-display text-[26px] font-semibold leading-tight sm:text-[30px]">Every inspection, from lane to verified result</h1>
-            <p className="mt-2 text-[14.5px] leading-relaxed text-fg-2">
-              Lane sensors and cameras feed AI models that flag what a person might miss. An examiner decides every finding,
-              the report is hash-chained and QR-verifiable, and owners, fleets, HQ and buyers see the outcome.
-            </p>
-          </div>
-          {canRun && (
-            <div className="flex flex-col items-start gap-1.5">
-              <button className="btn btn-primary btn-lg" disabled={busy} onClick={onStart}>{busy ? "Starting…" : "Start the recommended demo"}<Icon name="arrow" size={16} /></button>
-              <span className="text-[12px] text-fg-3">UC-01 · about 6 minutes · then pick any use case below</span>
-            </div>
-          )}
+const RESULT: Record<string, { label: string; tone: Tone }> = {
+  PASS: { label: "Passed", tone: "green" }, PASS_ADVISORY: { label: "Passed · advisory", tone: "amber" }, FAIL: { label: "Failed", tone: "red" },
+};
+
+function LaneCard({ ln }: { ln: any }) {
+  const st = LANE_STATE[ln.state];
+  const v = ln.vehicle;
+  if (!v) {
+    const other = ln.next || ln.last;
+    return (
+      <div className="flex h-full min-h-[320px] flex-col rounded-2xl border border-dashed border-ink-500 bg-white/40 p-4">
+        <div className="flex items-center justify-between"><b className="text-[15px]">Lane {ln.lane}</b><StatusPill tone="gray">Idle</StatusPill></div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-fg-4">
+          <Icon name="car" size={40} width={1.2} color="#94A3B8" />
+          <span className="text-[14px] font-medium text-fg-3">Lane available</span>
         </div>
-        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6" aria-label="How an inspection flows">
-          {FLOW.map((f, i) => (
-            <li key={f.t} className="flex gap-2.5 rounded-xl border border-ink-600 bg-ink-850 px-3 py-2.5">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan/15 text-[11px] font-bold text-cyan">{i + 1}</span>
-              <span className="min-w-0"><b className="block text-[13px]">{f.t}</b><span className="block text-[11.5px] leading-snug text-fg-3">{f.d}</span></span>
-            </li>
-          ))}
-        </ol>
+        {other && (
+          <Link href={`/vehicles/${encodeURIComponent(other.plate)}`} className="flex items-center gap-3 rounded-xl bg-white/80 p-2.5 ring-1 ring-ink-600/60 transition hover:ring-blue-200">
+            <VehicleImage plate={other.plate} vtype={other.vtype} photo={other.photo} size="480" className="h-11 w-16 shrink-0 rounded-lg" />
+            <span className="min-w-0 leading-tight">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-fg-4">{ln.next ? `Next · ${ln.next.start_at}` : `Last · ${ln.last.end_at}`}</span>
+              <b className="block truncate text-[13.5px]">{other.plate}</b>
+              <span className="block truncate text-[12px] text-fg-3">{ln.next ? `${other.make} ${other.model}` : RESULT[ln.last.result]?.label}</span>
+            </span>
+          </Link>
+        )}
       </div>
-    </section>
+    );
+  }
+  const href = ln.live ? `/inspection/${v.inspection_id}` : `/vehicles/${encodeURIComponent(v.plate)}`;
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/80 bg-white/70 shadow-glass">
+      <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-b from-[#F1F5FB] to-[#DEE6F2]">
+        <VehicleImage plate={v.plate} vtype={v.vtype} photo={v.photo} className="h-full w-full" />
+        <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-2">
+          <b className="whitespace-nowrap rounded-full bg-white/90 px-2.5 py-0.5 text-[13px] shadow-sm backdrop-blur">Lane {ln.lane}{ln.live && <span className="ml-1 text-[10.5px] font-bold uppercase tracking-wider text-[#6D28D9]">· live</span>}</b>
+          <StatusPill tone={st.tone} className="shadow-sm">{st.label}</StatusPill>
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col p-4">
+        <div className="text-[18px] font-bold tracking-tight">{v.plate}</div>
+        <div className="truncate text-[13px] text-fg-2">{v.make} {v.model}</div>
+        <div className="truncate text-[12.5px] text-fg-3">{v.inspection_type}</div>
+        <div className="mt-auto pt-3">
+          {ln.state === "operation" ? (
+            <div className="flex items-center gap-2"><ProgressBar value={ln.progress} /><span className="w-10 text-right text-[12.5px] font-semibold text-fg-2">{ln.progress}%</span></div>
+          ) : <ProgressBar value={2} tone="gray" />}
+          <div className="mt-1.5 text-[12.5px] text-fg-3">{ln.note}</div>
+          <Link href={href} className="mt-3 flex items-center justify-center gap-1 rounded-xl bg-blue-50 py-2 text-[13px] font-semibold text-[#1D4ED8] ring-1 ring-blue-100 transition hover:bg-blue-100">
+            View Details<Icon name="chev" size={15} />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 
-export default function DemoControl() {
-  const router = useRouter();
+export default function Dashboard() {
   const user = useUser();
-  const { sessions, setPlayer } = useSessions();
-  const { active } = useActiveUseCase();
-  const [list, setList] = useState<UseCase[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [status, setStatus] = useState<any>(null);
-  const [checked, setChecked] = useState(false);
-  const canRun = user?.role === "presenter";
-
+  const hub = "BR00";  // the demo hub: the ten main vehicles (other hubs are in oversight)
+  const [tick, setTick] = useState(0);
+  const [moreQueue, setMoreQueue] = useState(false);
+  const d = useFetch<any>(user ? "/api/hub/today" : null, { branch_id: hub }, [tick]);
   useEffect(() => {
-    const load = () => api.get("/api/usecases").then((r) => { setList(r.items); setErr(null); }).catch((e) => setErr(e.message));
-    load();
-    const t = setInterval(load, 5000);
-    return () => clearInterval(t);
-  }, [active?.id, active?.done]);
-  useEffect(() => {
-    const load = () => api.get("/api/system/status").then(setStatus).catch(() => setStatus(null)).finally(() => setChecked(true));
-    load();
-    const t = setInterval(load, 8000);
+    const t = setInterval(() => setTick((x) => x + 1), 20000);
     return () => clearInterval(t);
   }, []);
-
-  const start = async (id: string) => {
-    setBusy(id);
-    await startUseCase(id, (href) => router.push(href));
-    setBusy(null);
-  };
-  const items = (list || []).map((u) => (active && u.id === active.id ? active : u));
-  const llm = llmLabel(status?.llm?.backend);
-  const lanes = sessions.filter((s) => s.kind === "lane");
-
+  const D = d.data;
+  const hour = Number(new Date().toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", hour12: false }));
+  const k = D?.kpis;
+  const deltaPct = k && k.total_prev ? Math.round((100 * (k.total - k.total_prev)) / k.total_prev) : null;
+  const queue = useMemo(() => (D?.queue || []).slice(0, moreQueue ? 50 : 5), [D, moreQueue]);
   return (
     <Shell>
-      <Hero onStart={() => start("UC-01")} busy={busy === "UC-01"} canRun={canRun} />
-      {checked && !status && <div className="mb-4"><ErrorState title="The inspection services are not reachable">The pages show what they last loaded. Start the backend (see the README) and this notice clears.</ErrorState></div>}
-      {status && !llm && (
-        <p className="mb-4 rounded-xl border border-ink-600 bg-ink-850 px-4 py-2.5 text-[13px] text-fg-3">
-          The local language model is not reachable, so report summaries and the assistant use the template engine. Every inspection result is still computed live.
-        </p>
-      )}
-      {active && <ActiveUseCaseCard uc={active} busy={busy === active.id} onRestart={() => start(active.id)} />}
-
-      <section id="usecases" className="scroll-mt-20">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-display text-[19px] font-semibold">Use cases <span className="text-[13px] font-normal text-fg-3">· nine end-to-end journeys</span></h2>
-          <p className="text-[13px] text-fg-3">{canRun ? "Start one: it opens its first screen, and every page then shows the step and what to do next." : "Read only: the presenter starts the use cases."}</p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <div className="eyebrow mb-1.5">{user ? `${greeting(hour)}, ${user.name.split(" ")[0]}` : "Welcome back"}</div>
+          <h1 className="text-[30px] font-extrabold leading-[1.08] tracking-tight sm:text-[40px] xl:text-[46px]">Inspector Dashboard</h1>
+          <p className="mt-2 text-[15px] text-fg-2 sm:text-[17px]">Here&apos;s today&apos;s overview of inspection lanes, queue and activity.</p>
         </div>
-        {err && !list ? <ErrorState title="Could not load the use cases" onRetry={() => location.reload()}>{err}</ErrorState>
-          : !list ? <LoadingState label="Loading the use cases…" rows={4} />
-          : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-              {items.map((u) => (
-                <UseCaseCard key={u.id} uc={u} active={active?.id === u.id} busy={busy === u.id || !canRun} onStart={() => start(u.id)} />
-              ))}
-            </div>
-          )}
-      </section>
-
-      <section className="mt-8" aria-label="Presenter controls">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-display text-[17px] font-semibold">Presenter controls · lane replays</h2>
-          <p className="text-[12.5px] text-fg-3">Pause, speed up, jump to a step or change a value while a replay runs. Restarting a replay starts a new inspection; seeded data is never deleted.</p>
+        <div className="card flex max-w-full items-center gap-3 px-4 py-3">
+          <Icon name="calendar" size={24} color="#475569" />
+          <div className="min-w-0 leading-tight">
+            <div className="text-[15px] font-semibold">{today()} {D && <span className="font-normal text-fg-3">· {D.clock.time}</span>}</div>
+            <div className="text-[12.5px] text-fg-2">{D ? `${D.branch.name}, ${D.branch.state} · ${D.branch.lanes} lanes` : "…"}</div>
+          </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {lanes.map((s) => {
-            const l = LANE_SESSIONS.find((x) => x.session === s.session_id);
-            return (
-              <div key={s.session_id} className="card card-pad">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-[11.5px] font-semibold uppercase tracking-wide text-fg-3">{s.session_id} · {l?.label} · Central Inspection Hub</div>
-                    <h3 className="font-display text-[15px] font-semibold">{s.title}</h3>
-                    {s.vehicle && <p className="text-[12px] text-fg-3">{s.vehicle.plate} · {s.vehicle.year} · {fmtN(s.vehicle.odometer_km)} km</p>}
-                  </div>
-                  <div className="flex gap-2">
-                    <Link className="btn btn-sm" href={`/lane?lane=${s.lane_id}`}>Lane</Link>
-                    <Link className="btn btn-sm" href={`/examiner?session=${s.session_id}`}>Examiner</Link>
-                  </div>
+      </div>
+
+      {d.error && !D ? <ErrorState title="Today's overview could not load" onRetry={d.reload}>{d.error}</ErrorState> : !D ? (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="card p-5"><LoadingState label="" rows={2} /></div>)}
+          <div className="card col-span-2 p-5 lg:col-span-5"><LoadingState label="Loading today at the hub…" rows={5} /></div>
+        </div>
+      ) : (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[12.5px] text-fg-3">
+            {D.clock.demo && <span className="pill bg-amber-50 text-amber-800 ring-1 ring-amber-200"><Icon name="clock" size={14} />{D.clock.note}</span>}
+            <Source kind="synthetic" text="Today's plan: the ten main vehicles" />
+            {D.live.length > 0 && <Source kind="live_model" text={`${D.live.length} live lane inspection${D.live.length === 1 ? "" : "s"} today`} />}
+          </div>
+          <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5 [&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
+            <StatCard icon="car" tone="blue" label="Total Vehicles Today" value={k.total} delta={deltaPct != null ? `${deltaPct >= 0 ? "↑ +" : "↓ "}${deltaPct}%` : undefined}
+              deltaTone={deltaPct != null && deltaPct < 0 ? "red" : "green"} sub={deltaPct != null ? "vs. previous day" : "on today's plan"} href="/inspection?tab=schedule" />
+            <StatCard icon="checkc" tone="green" label="Completed" value={k.completed} delta={k.total ? `${Math.round((100 * k.completed) / k.total)}%` : undefined} sub="Today" href="/inspection?tab=schedule&status=completed" />
+            <StatCard icon="clock" tone="amber" label="In Progress" value={k.in_progress} sub="Live now" href="/inspection" />
+            <StatCard icon="clock" tone="gray" label="In Queue" value={k.in_queue} sub="Waiting" href="/inspection?tab=schedule&status=in_queue" />
+            <StatCard icon="warn" tone="red" label="Issues Found" value={k.issues} delta={k.issue_rate != null ? `${(k.issue_rate * 100).toFixed(1)}%` : undefined} deltaTone="red"
+              sub={`of inspected · ${k.fails} failed`} href="/inspection?tab=reports" />
+          </div>
+
+          <div className="mb-5">
+            <Panel title="Inspection Lanes" href="/lane" actionLabel="Live lane console">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {D.lanes.map((ln: any) => <LaneCard key={ln.lane} ln={ln} />)}
+              </div>
+            </Panel>
+          </div>
+          <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <Panel title="Lane Utilization" action={<span className="pill bg-white text-fg-2 ring-1 ring-ink-600">Now</span>}>
+                <div className="flex flex-wrap items-center gap-5">
+                  <SegmentRing size={150} stroke={16} parts={[{ value: D.utilization.operation, color: "#10B981" }, { value: D.utilization.preparing, color: "#F59E0B" }, { value: D.utilization.idle, color: "#CBD5E1" }]}>
+                    <span className="text-[30px] font-bold">{D.utilization.pct}%</span><span className="text-[12.5px] text-fg-3">Utilization</span>
+                  </SegmentRing>
+                  <ul className="min-w-[150px] flex-1 space-y-2.5 text-[14px]">
+                    {[["In Operation", D.utilization.operation, "#10B981"], ["Preparing", D.utilization.preparing, "#F59E0B"], ["Idle", D.utilization.idle, "#94A3B8"]].map(([l, n, c]) => (
+                      <li key={l as string} className="flex items-center justify-between gap-3"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: c as string }} />{l}</span><b>{n}</b></li>
+                    ))}
+                    <li className="flex items-center justify-between gap-3 border-t border-ink-600 pt-2 text-fg-2"><span>Total Lanes</span><b>{D.branch.lanes}</b></li>
+                  </ul>
                 </div>
-                {canRun ? <PlayerControls s={s} onState={setPlayer} quiet /> : <p className="mt-2 text-[12.5px] text-fg-3">Status: {s.player?.status || "idle"}</p>}
-              </div>
-            );
-          })}
-          {!lanes.length && <LoadingState label="Loading the lane replays…" />}
-        </div>
-      </section>
-
-      <div className="mt-8 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <details className="card card-pad group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-            <span className="h-title">What the data labels mean</span><span className="text-[12px] text-fg-3 group-open:hidden">Show</span>
-          </summary>
-          <div className="mt-3"><ProvenanceLegend /></div>
-        </details>
-        <details className="card card-pad group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-            <span className="h-title">Under the hood · live pipeline and models</span>
-            <span className="flex items-center gap-2"><Source kind="live_logic" text="Pipeline status" /><span className="text-[12px] text-fg-3 group-open:hidden">Show</span></span>
-          </summary>
-          {!status ? <p className={`mt-3 text-[13px] ${checked ? "text-bad" : "text-fg-3"}`}>{checked ? "The API is not reachable." : "Loading…"}</p> : (
-            <div className="mt-3 flex flex-col gap-4 text-[13px]">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {[
-                  ["Database", status.database], ["Message bus", status.bus.kind], ["Bus messages", fmtN(status.bus.published)],
-                  ["WebSocket clients", status.websocket.clients], ["Model calls", fmtN(status.processor.model_calls)],
-                  ["Evidence entries", fmtN(status.counts.evidence_entries)],
-                  ["Assistant / reports", llm || "Template engine"], ["Photo explanations", llmLabel(status.vlm?.backend) || "Off"],
-                ].map(([k, v]) => (
-                  <div key={k as string} className="rounded-lg border border-ink-600 bg-ink-850 px-3 py-2">
-                    <div className="text-[11px] text-fg-3">{k}</div>
-                    <div className="truncate font-semibold">{v}</div>
-                  </div>
-                ))}
-              </div>
-              <ul className="flex flex-col gap-2">
-                {status.models.map((m: any) => (
-                  <li key={m.key} className="rounded-lg border border-ink-600 bg-ink-850 px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold">{m.title}</span><Source kind={m.runs_as} /></div>
-                    <div className="mt-1 text-[11.5px] text-fg-3">{metricLine(m)}</div>
+              </Panel>
+              <Panel title={`Current Queue (${D.queue.length})`} href="/inspection?tab=schedule&status=in_queue" actionLabel="View Queue">
+                {!D.queue.length ? <p className="text-[13.5px] text-fg-3">No one is waiting: every arrival is on a lane.</p> : (
+                  <ol className="flex flex-col">
+                    {queue.map((q: any, i: number) => (
+                      <li key={q.no} className="flex items-center gap-3 border-b border-ink-600/60 py-2.5 text-[14px] last:border-0">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[12px] font-bold ring-1 ring-ink-600">{i + 1}</span>
+                        <Link href={`/vehicles/${encodeURIComponent(q.plate)}`} className="w-[86px] shrink-0 font-bold hover:text-cyan">{q.plate}</Link>
+                        <span className="min-w-0 flex-1 truncate text-fg-2">{q.make} {q.model}</span>
+                        {i === 0 && <StatusPill tone="blue">Next</StatusPill>}
+                        <span className="w-[64px] shrink-0 text-right text-[13px] text-fg-3">~ {q.wait_min} min</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                {D.queue.length > 5 && (
+                  <button className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-blue-50 py-2 text-[13px] font-semibold text-[#1D4ED8] ring-1 ring-blue-100 hover:bg-blue-100" onClick={() => setMoreQueue((m) => !m)}>
+                    <Icon name={moreQueue ? "down" : "chev"} size={15} />{moreQueue ? "Show fewer" : `Show ${D.queue.length - 5} more vehicles`}
+                  </button>
+                )}
+              </Panel>
+          </div>
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <Panel title="Upcoming Vehicles" href="/inspection?tab=schedule" actionLabel={`View all (${D.upcoming.length})`} pad={false}>
+              {!D.upcoming.length ? <p className="px-5 pb-5 text-[13.5px] text-fg-3">No more vehicles expected today.</p> : (
+                <div className="overflow-x-auto px-2 pb-3">
+                  <table className="w-full min-w-[720px] text-left text-[13.5px]">
+                    <thead className="text-[12.5px] text-fg-3"><tr className="[&>th]:px-3 [&>th]:py-2 [&>th]:font-medium"><th>#</th><th>Vehicle No.</th><th>Vehicle Type</th><th>Owner</th><th>Inspection Type</th><th>Scheduled</th><th>Status</th><th /></tr></thead>
+                    <tbody>
+                      {D.upcoming.slice(0, 10).map((x: any, i: number) => (
+                        <tr key={x.no} className="border-t border-ink-600/60 [&>td]:px-3 [&>td]:py-2.5">
+                          <td><span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[12px] font-bold ring-1 ring-ink-600">{i + 1}</span></td>
+                          <td className="whitespace-nowrap"><Link href={`/vehicles/${encodeURIComponent(x.plate)}`} className="flex items-center gap-2.5 font-bold hover:text-cyan"><VehicleImage plate={x.plate} vtype={x.vtype} photo={x.photo} size="480" className="h-9 w-14 shrink-0 rounded-lg" />{x.plate}</Link></td>
+                          <td className="whitespace-nowrap text-fg-2">{x.make} {x.model}</td>
+                          <td className="max-w-[160px] truncate text-fg-2">{x.owner}</td>
+                          <td className="max-w-[200px] truncate text-fg-2">{x.inspection_type}{x.source === "booking" && <span className="ml-1.5 text-[11px] font-semibold text-cyan">booked</span>}</td>
+                          <td className="whitespace-nowrap text-fg-2">{x.arrival_at}</td>
+                          <td><StatusPill tone={STATUS[x.status]?.tone || "gray"}>{STATUS[x.status]?.label || x.status}</StatusPill></td>
+                          <td><Link href={`/vehicles/${encodeURIComponent(x.plate)}`} aria-label={`Open ${x.plate}`} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white"><Icon name="dots" size={18} width={3} /></Link></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+            <Panel title="Recent Activity" href="/inspection?tab=schedule&status=completed">
+              <ul className="flex flex-col gap-1">
+                {D.activity.slice(0, 10).map((a: any, i: number) => (
+                  <li key={i}>
+                    <Link href={a.inspection_id ? `/inspection/${a.inspection_id}` : `/vehicles/${encodeURIComponent(a.plate)}`} className="flex items-center gap-3 rounded-xl px-1 py-1.5 hover:bg-white/70">
+                      <IconTile icon={ACT[a.kind]?.icon || "clock"} tone={a.kind === "completed" && a.result === "FAIL" ? "red" : ACT[a.kind]?.tone || "blue"} size={36} />
+                      <span className="min-w-0 flex-1"><b className="block truncate text-[13.5px]">{a.title}</b><span className="block truncate text-[12.5px] text-fg-3">{a.sub}</span></span>
+                      <span className="shrink-0 text-[12.5px] text-fg-3">{a.time}</span>
+                    </Link>
                   </li>
                 ))}
+                {!D.activity.length && <p className="text-[13.5px] text-fg-3">Nothing yet today.</p>}
               </ul>
-            </div>
-          )}
-        </details>
-      </div>
+            </Panel>
+          </div>
+        </>
+      )}
     </Shell>
   );
-}
-
-function metricLine(m: any): string {
-  const x = m.metrics;
-  if (!m.ready) return "not trained - run make train-vision";
-  if (!x) return "computed on request";
-  switch (m.key) {
-    case "tyre":
-    case "damage": return `validation accuracy ${(x.top1_val_accuracy * 100).toFixed(1)}% on ${x.n_val} held-out images`;
-    case "corrosion": return `balanced accuracy ${(x.balanced_accuracy * 100).toFixed(0)}% (rust vs clean vehicle photos)`;
-    case "enose": return `future R&D, not in the result · accuracy ${(x.holdout_accuracy_random_split * 100).toFixed(1)}% random split · ${(x.holdout_accuracy_later_batches_drift * 100).toFixed(1)}% on later batches (drift)`;
-    case "acoustic": return `CV accuracy ${(x.cv_accuracy * 100).toFixed(1)}% · macro-F1 ${x.cv_macro_f1} · fingerprint EER ${(x.fingerprint_eer * 100).toFixed(0)}%`;
-    case "soh": return `SOH from discharge MAE ${x.soh_from_discharge_mae_pct} pts (NASA)`;
-    case "fusion": return `health AUC ${x.health.holdout_auc_time_split} · next-fail AUC ${x.next_fail.holdout_auc} · flood AUC ${x.flood.holdout_auc_physical_evidence_only} (physical evidence)`;
-    case "demand": return `14-day MAPE ${(x.holdout_mape * 100).toFixed(1)}% vs ${(x.naive_last_week_mape * 100).toFixed(1)}% naive`;
-    default: return "";
-  }
 }

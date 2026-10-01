@@ -7,8 +7,8 @@ import { SEVERITY, Severity, alertSeverity, hasModelConfidence } from "@/lib/pre
 /** A measurement against its limit, in the three presentation states. */
 const VERDICT_SEV: Record<string, Severity> = { pass: "normal", advisory: "attention", fail: "critical" };
 
-const ENOSE_COLORS = ["#22D3EE", "#60A5FA", "#A78BFA", "#F472B6", "#FB923C", "#FBBF24", "#34D399", "#2DD4BF",
-  "#38BDF8", "#818CF8", "#C084FC", "#F87171", "#FACC15", "#4ADE80", "#94A3B8", "#E879F9"];
+const ENOSE_COLORS = ["#2563EB", "#3B82F6", "#7C3AED", "#DB2777", "#EA580C", "#D97706", "#059669", "#0D9488",
+  "#0284C7", "#4F46E5", "#9333EA", "#DC2626", "#CA8A04", "#16A34A", "#94A3B8", "#C026D3"];
 
 export function Timeline({ timeline, step, t }: { timeline: any[]; step: string; t?: number }) {
   const idx = timeline.findIndex((s) => s.step === step);
@@ -85,7 +85,7 @@ export function ENoseChart({ enose, events = [], height = 200 }: { enose: { t: n
   return (
     <LineChart series={series} height={height} yFmt={(v) => v.toFixed(1)}
       xLabels={[0, 0.25, 0.5, 0.75, 1].map((f) => ({ x: t0 + f * (t1 - t0), label: `${Math.round(t0 + f * (t1 - t0))}s` }))}
-      vlines={events.flatMap((e) => (e.peak_s >= t0 && e.peak_s <= t1 ? [{ x: e.peak_s, color: "#F87171", label: e.condition.replaceAll("_", " ") }] : []))}
+      vlines={events.flatMap((e) => (e.peak_s >= t0 && e.peak_s <= t1 ? [{ x: e.peak_s, color: "#DC2626", label: e.condition.replaceAll("_", " ") }] : []))}
     />
   );
 }
@@ -93,7 +93,7 @@ export function ENoseChart({ enose, events = [], height = 200 }: { enose: { t: n
 export function BrakeChart({ brake, height = 180 }: { brake: Record<string, { t: number; f: number }[]>; height?: number }) {
   const wheels = Object.keys(brake).sort();
   if (!wheels.length) return <p className="text-[13px] text-fg-3">Brake roller curves appear during the brake test.</p>;
-  const col = ["#22D3EE", "#60A5FA", "#34D399", "#FBBF24", "#F472B6", "#F87171"];
+  const col = ["#2563EB", "#3B82F6", "#059669", "#D97706", "#DB2777", "#DC2626"];
   return (
     <div>
       <LineChart height={height} yFmt={(v) => `${v.toFixed(0)}`} xLabels={[0, 3, 6, 9, 12].map((x) => ({ x, label: `${x}s` }))}
@@ -109,9 +109,9 @@ export function PNChart({ pn, height = 160 }: { pn: { t: number; v: number }[]; 
   if (!pn.length) return <p className="text-[13px] text-fg-3">Particle-number test runs during the emission step.</p>;
   return (
     <LineChart height={height} yMin={0} yFmt={(v) => `${(v / 1e6).toFixed(1)}M`}
-      hlines={[{ y: 250000, color: "#FBBF24", label: "250k advisory", dashed: true }]}
+      hlines={[{ y: 250000, color: "#D97706", label: "250k advisory", dashed: true }]}
       xLabels={[0, 15, 30, 45, 59].map((x) => ({ x, label: `${x}s` }))}
-      series={[{ color: "#F87171", points: pn.map((p) => ({ x: p.t, y: p.v })), area: true }]} />
+      series={[{ color: "#DC2626", points: pn.map((p) => ({ x: p.t, y: p.v })), area: true }]} />
   );
 }
 
@@ -121,7 +121,7 @@ export function OBDChart({ obd, height = 150 }: { obd: { t: number; rpm: number 
   const pts = obd.filter((_, i) => i % step === 0 && _.rpm != null);
   return (
     <LineChart height={height} yFmt={(v) => fmtN(v)} xLabels={[pts[0].t, pts[pts.length - 1].t].map((x) => ({ x, label: `${Math.round(x)}s` }))}
-      series={[{ color: "#60A5FA", points: pts.map((p) => ({ x: p.t, y: p.rpm as number })) }]} />
+      series={[{ color: "#3B82F6", points: pts.map((p) => ({ x: p.t, y: p.rpm as number })) }]} />
   );
 }
 
@@ -156,7 +156,7 @@ export function AlertMini({ a }: { a: any }) {
         <div className="text-[13px] font-semibold">{a.title}</div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px] text-fg-3">
           <SeverityBadge s={s} />
-          {a.fail_item && <Pill color="#F87171">Fail item</Pill>}
+          {a.fail_item && <Pill color="#DC2626">Fail item</Pill>}
           <span>{a.system}{hasModelConfidence(a) ? ` · model confidence ${Math.round(a.confidence * 100)}%` : ""}</span>
         </div>
       </div>

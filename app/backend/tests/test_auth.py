@@ -54,8 +54,11 @@ def test_examiner_reaches_the_lanes_of_their_branch_only(s1):
     assert me["role"] == "examiner" and me["branch_id"] == "BR00" and me["examiner_id"] == "VE011"
     insp = ex.get("/api/inspections/latest", params={"session_id": "S1"}).json()
     assert insp["inspection_id"] == s1["inspection_id"]
-    for path in ("/api/hq/ops", "/api/owner/passport/DMO%209006", "/api/fleet/overview", "/api/floodwatch/invitations"):
+    for path in ("/api/hq/ops", "/api/owner/passport/DMO%209006", "/api/floodwatch/invitations"):
         assert ex.get(path).status_code == 403, path
+    # the fleet's health trends show in Vehicle Records; changing them stays the fleet's
+    assert ex.get("/api/fleet/vehicles/VKR%203128").status_code == 200
+    assert ex.post("/api/fleet/vehicles/VKR%203128/report").status_code == 403
     assert ex.post("/api/evidence/tamper-test").status_code == 403
     with session_scope() as s:  # an inspection at another branch
         s.add(LiveInspection(inspection_id="LIotherbr", session_id="X", lane_id="BR05-L1", branch_id="BR05", plate="DMO 1",

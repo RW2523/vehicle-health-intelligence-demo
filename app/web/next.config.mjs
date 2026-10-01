@@ -13,6 +13,22 @@ const nextConfig = {
   experimental: { proxyTimeout: 180_000 },
   // The browser talks to one origin; Next forwards API, media and live WebSocket calls to the FastAPI service
   // (upgrade requests on a rewrite are proxied too), so the whole demo works through a single port or tunnel.
+  // The apps' earlier addresses (bookmarks, QR codes, printed links) open the same screen in its new place; the query
+  // string is passed on.
+  async redirects() {
+    const to = (source, destination) => ({ source, destination, permanent: false });
+    return [
+      to("/owner", "/mobile"),
+      to("/hq", "/oversight/hq"),
+      to("/regulator", "/oversight/regulator"),
+      to("/sales", "/oversight/sales"),
+      to("/sales/:path*", "/oversight/sales/:path*"),
+      to("/flood", "/oversight/flood"),
+      to("/fleet", "/vehicles"),
+      to("/fleet/vehicle/:plate", "/vehicles/:plate?tab=health"),
+      to("/vision", "/lane?view=vision"),
+    ];
+  },
   async rewrites() {
     return [
       { source: "/api/:path*", destination: `${API}/api/:path*` },

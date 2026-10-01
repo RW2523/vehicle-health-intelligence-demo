@@ -11,7 +11,7 @@ export const IMAGE_KIND: Record<string, string> = {
   closeup: "Close-up",
   progression: "Same spot, month by month",
 };
-export const SEVERITY: Record<string, [string, string]> = { H: ["High · fail item", "#F87171"], M: ["Medium · advisory", "#FBBF24"], L: ["Low · cosmetic", "#93C5FD"] };
+export const SEVERITY: Record<string, [string, string]> = { H: ["High · fail item", "#DC2626"], M: ["Medium · advisory", "#D97706"], L: ["Low · cosmetic", "#3B82F6"] };
 
 export type LibImage = {
   id: string;
@@ -111,11 +111,11 @@ export function ImageViewer({ items, index, onIndex, onClose, onOpenCase }: {
               <span className="label">Where the app uses it</span>
               <div className="flex flex-wrap gap-2">
                 {e.used_by_vehicles?.map((v) => (
-                  <Link key={v} className="btn btn-sm" href={`/fleet/vehicle/${encodeURIComponent(v)}`} onClick={onClose}>{v} history<Icon name="arrow" size={13} /></Link>
+                  <Link key={v} className="btn btn-sm" href={`/vehicles/${encodeURIComponent(v)}?tab=health`} onClick={onClose}>{v} history<Icon name="arrow" size={13} /></Link>
                 ))}
                 {e.app_capture && (onOpenCase
                   ? <button className="btn btn-sm btn-primary" onClick={() => onOpenCase(e.app_capture!.capture_id)}>Open the case in AI vision</button>
-                  : <Link className="btn btn-sm" href={`/vision?case=${e.app_capture.capture_id}`} onClick={onClose}>AI vision case #{e.app_capture.capture_id}<Icon name="arrow" size={13} /></Link>)}
+                  : <Link className="btn btn-sm" href={`/lane?view=vision&case=${e.app_capture.capture_id}`} onClick={onClose}>AI vision case #{e.app_capture.capture_id}<Icon name="arrow" size={13} /></Link>)}
               </div>
             </div>
           ) : null}
@@ -152,7 +152,7 @@ export function ImageCard({ e, onOpen, compact = false }: { e: LibImage; onOpen:
         <span className="text-[12.5px] font-semibold leading-snug">{e.id} · {e.title}</span>
         <span className="flex flex-wrap items-center gap-1">
           <span className="chip border-ink-500 text-[11px] text-fg-3">{IMAGE_KIND[e.kind]?.split(":")[0] || e.kind}</span>
-          {e.kind !== "progression" && n > 0 && <span className="chip border-[#F97316]/70 bg-[#F97316]/10 text-[11px] text-[#FDBA74]">{n} finding{n > 1 ? "s" : ""}</span>}
+          {e.kind !== "progression" && n > 0 && <span className="chip border-[#EA580C]/70 bg-[#EA580C]/10 text-[11px] text-[#EA580C]">{n} finding{n > 1 ? "s" : ""}</span>}
           {!compact && e.used_by_vehicles?.map((v) => <span key={v} className="chip border-ink-500 text-[11px] text-cyan">{v}</span>)}
         </span>
       </span>

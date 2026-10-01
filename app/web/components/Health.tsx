@@ -79,7 +79,7 @@ export function VehicleHealthSummary({ fusion, fuel, active, onPick, extra, comp
               {h.factors.slice(0, 5).map((f: any) => (
                 <li key={f.feature} className="flex justify-between gap-2">
                   <span>{f.label}{f.value != null ? ` (${typeof f.value === "number" ? +f.value.toFixed(2) : f.value})` : ""}</span>
-                  <span style={{ color: f.shap > 0 ? "#F87171" : "#34D399" }}>{f.shap > 0 ? "raises risk" : "lowers risk"}</span>
+                  <span style={{ color: f.shap > 0 ? "#DC2626" : "#059669" }}>{f.shap > 0 ? "raises risk" : "lowers risk"}</span>
                 </li>
               ))}
             </ul>

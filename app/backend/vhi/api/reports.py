@@ -42,7 +42,7 @@ def get_report(report_id: str):
         v = s.execute(select(Vehicle).where(Vehicle.plate == r.plate)).scalar_one_or_none()
         # where this result shows up downstream: the fleet's vehicle record, or the owner's health passport
         out["history_href"] = (f"/fleet/vehicle/{quote(r.plate)}" if v is not None and v.fleet_id
-                               else f"/owner?plate={quote(r.plate)}&tab=passport")
+                               else f"/mobile/vehicle?plate={quote(r.plate)}")
         out["history_label"] = "Fleet vehicle record" if v is not None and v.fleet_id else "Vehicle health passport"
         out["inspection"] = ({"inspection_id": li.inspection_id, "session_id": li.session_id, "lane_id": li.lane_id,
                               "branch_id": li.branch_id, "started_at": li.started_at.isoformat() if li.started_at else None,

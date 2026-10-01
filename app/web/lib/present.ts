@@ -5,15 +5,15 @@
 export type Provenance = "live_feed" | "real" | "live_model" | "live_logic" | "simulated" | "synthetic" | "sample" | "mock" | "rnd";
 
 export const PROVENANCE: Record<Provenance, { label: string; color: string; help: string }> = {
-  live_feed: { label: "LIVE FEED", color: "#34D399", help: "Read live from a public data source (with the time it was fetched)." },
-  real: { label: "PUBLIC DATA", color: "#6EE7B7", help: "Real public data, stored as a snapshot (not live)." },
-  live_model: { label: "LIVE MODEL", color: "#22D3EE", help: "Computed now by a trained AI model running on this server." },
-  live_logic: { label: "LIVE LOGIC", color: "#A78BFA", help: "Computed now by transparent rules, limits or calculations." },
-  simulated: { label: "SIMULATED", color: "#FBBF24", help: "Sensor readings replayed from a scripted demo session, not a real lane." },
-  synthetic: { label: "SYNTHETIC", color: "#FB923C", help: "Generated demo records: fictional vehicles, owners, history and claims." },
-  sample: { label: "SAMPLE", color: "#F472B6", help: "Sample photos or recordings from public datasets." },
-  mock: { label: "MOCK", color: "#9AA8BF", help: "Stands in for an integration: recorded only, nothing is sent, charged or booked outside the demo." },
-  rnd: { label: "FUTURE R&D", color: "#C084FC", help: "A research option shown as a preview: not active in this demo and not in any result." },
+  live_feed: { label: "LIVE FEED", color: "#059669", help: "Read live from a public data source (with the time it was fetched)." },
+  real: { label: "PUBLIC DATA", color: "#047857", help: "Real public data, stored as a snapshot (not live)." },
+  live_model: { label: "LIVE MODEL", color: "#0284C7", help: "Computed now by a trained AI model running on this server." },
+  live_logic: { label: "LIVE LOGIC", color: "#7C3AED", help: "Computed now by transparent rules, limits or calculations." },
+  simulated: { label: "SIMULATED", color: "#B45309", help: "Sensor readings replayed from a scripted demo session, not a real lane." },
+  synthetic: { label: "SYNTHETIC", color: "#C2410C", help: "Generated demo records: fictional vehicles, owners, history and claims." },
+  sample: { label: "SAMPLE", color: "#DB2777", help: "Sample photos or recordings from public datasets." },
+  mock: { label: "MOCK", color: "#475569", help: "Stands in for an integration: recorded only, nothing is sent, charged or booked outside the demo." },
+  rnd: { label: "FUTURE R&D", color: "#9333EA", help: "A research option shown as a preview: not active in this demo and not in any result." },
 };
 export const PROVENANCE_ORDER: Provenance[] = ["live_feed", "real", "live_model", "live_logic", "simulated", "synthetic", "sample", "mock", "rnd"];
 
@@ -48,9 +48,9 @@ export function provenance(kind: string, text?: string): { kind: Provenance; det
 /** Severity: Normal / Attention / Critical everywhere. A high alert is Critical (it must be decided before the report). */
 export type Severity = "normal" | "attention" | "critical";
 export const SEVERITY: Record<Severity, { label: string; color: string; rank: number }> = {
-  critical: { label: "Critical", color: "#F87171", rank: 0 },
-  attention: { label: "Attention", color: "#FBBF24", rank: 1 },
-  normal: { label: "Normal", color: "#34D399", rank: 2 },
+  critical: { label: "Critical", color: "#DC2626", rank: 0 },
+  attention: { label: "Attention", color: "#D97706", rank: 1 },
+  normal: { label: "Normal", color: "#059669", rank: 2 },
 };
 export const alertSeverity = (a: { severity?: string }): Severity => (a.severity === "high" ? "critical" : a.severity === "medium" ? "attention" : "normal");
 export const scoreSeverity = (v: number | null | undefined): Severity | null => (v == null ? null : v < 50 ? "critical" : v < 70 ? "attention" : "normal");
@@ -59,29 +59,30 @@ export const isRequired = (a: { severity?: string }) => a.severity === "high";
 
 /** The examiner's decision on a finding. */
 export const DECISION: Record<string, { label: string; color: string }> = {
-  open: { label: "To review", color: "#9AA8BF" },
-  confirmed: { label: "Confirmed", color: "#34D399" },
-  dismissed: { label: "Dismissed", color: "#C9D3E3" },
-  deferred: { label: "Deferred", color: "#FBBF24" },
+  open: { label: "To review", color: "#64748B" },
+  confirmed: { label: "Confirmed", color: "#059669" },
+  dismissed: { label: "Dismissed", color: "#334155" },
+  deferred: { label: "Deferred", color: "#D97706" },
+  advisory: { label: "Advisory", color: "#B45309" },
 };
 
 export const VERDICT: Record<string, { color: string; help: string }> = {
-  PASS: { color: "#34D399", help: "Passed: no failed item was confirmed." },
-  FAIL: { color: "#F87171", help: "Did not pass: at least one confirmed failed item must be fixed." },
-  CONDITIONAL: { color: "#FBBF24", help: "EV Health Certificate with conditions: EV findings were confirmed." },
-  REFERRED: { color: "#60A5FA", help: "Referred: identity checks need a senior examiner's sign-off." },
+  PASS: { color: "#059669", help: "Passed: no failed item was confirmed." },
+  FAIL: { color: "#DC2626", help: "Did not pass: at least one confirmed failed item must be fixed." },
+  CONDITIONAL: { color: "#D97706", help: "EV Health Certificate with conditions: EV findings were confirmed." },
+  REFERRED: { color: "#3B82F6", help: "Referred: identity checks need a senior examiner's sign-off." },
 };
 
 /** Where an inspection is in its workflow (derived from the stored state; the backend decides). */
 export type Workflow = "waiting" | "running" | "review" | "decision" | "senior" | "report_ready" | "complete";
 export const WORKFLOW: Record<Workflow, { label: string; color: string }> = {
-  waiting: { label: "Not started", color: "#6F7E98" },
-  running: { label: "Running", color: "#22D3EE" },
-  review: { label: "Awaiting review", color: "#FBBF24" },
-  decision: { label: "Decision pending", color: "#A78BFA" },
-  senior: { label: "Senior review", color: "#60A5FA" },
-  report_ready: { label: "Report ready", color: "#34D399" },
-  complete: { label: "Complete", color: "#34D399" },
+  waiting: { label: "Not started", color: "#94A3B8" },
+  running: { label: "Running", color: "#2563EB" },
+  review: { label: "Awaiting review", color: "#D97706" },
+  decision: { label: "Decision pending", color: "#7C3AED" },
+  senior: { label: "Senior review", color: "#3B82F6" },
+  report_ready: { label: "Report ready", color: "#059669" },
+  complete: { label: "Complete", color: "#059669" },
 };
 
 export function workflowOf(insp: any, alerts: any[] = [], complete = false): Workflow {

@@ -9,6 +9,7 @@ import { Icon } from "@/components/icons";
 import { AlertMini, BrakeChart, ENoseChart, Frames, Instruments, OBDChart, PNChart, Timeline } from "@/components/lanebits";
 import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
+import { VisionPanel } from "@/components/VisionPanel";
 import { Card, Empty, LoadingState, Modal, PageHeader, Pill, Source, Tabs } from "@/components/ui";
 import { useUser } from "@/lib/auth";
 import { LANE_SESSIONS, STEP_LABEL, SYSTEM_NAME, fmtN } from "@/lib/format";
@@ -26,6 +27,7 @@ function LaneConsole() {
   const sp = useSearchParams();
   const router = useRouter();
   const user = useUser();
+  const vision = sp.get("view") === "vision";
   const laneInfo = LANES.find((l) => l.id === sp.get("lane")) || LANES[0];
   const lane = laneInfo.id;
   const L = useInspection({ lane });
@@ -46,18 +48,33 @@ function LaneConsole() {
 
   let cta = null;
   if (insp?.report) cta = <Link className="btn btn-primary" href={`/report?id=${insp.report.report_id}`}>View the report ({insp.report.verdict})<Icon name="arrow" size={15} /></Link>;
-  else if (insp && !running) cta = <Link className="btn btn-primary" href={`/examiner?session=${laneInfo.session}`}>Review AI findings<Icon name="arrow" size={15} /></Link>;
+  else if (insp && !running) cta = <Link className="btn btn-primary" href={`/inspection/${laneInfo.session}/findings`}>Review AI findings<Icon name="arrow" size={15} /></Link>;
 
   const nMeasured = Object.keys(r.instruments || {}).length + (r.brakes ? 1 : 0) + (r.pn ? 1 : 0);
   const nAi = (r.images || []).length + (r.acoustic || []).length + (r.anpr ? 1 : 0) + (r.chassis ? 1 : 0);
 
   return (
-    <Shell context={<Pill color={L.connected ? "#34D399" : "#9AA8BF"}>{L.connected ? "Live" : "Connecting…"}</Pill>}>
-      <PageHeader title="Lane console" sub="What the lane sees as it happens: what it has found first, then the evidence, then the raw readings."
-        actions={insp ? controls : null}>
-        <div className="mt-3 max-w-full overflow-x-auto"><Tabs value={lane} onChange={(v) => router.replace(`/lane?lane=${v}`)} items={LANES.map((l) => ({ id: l.id, label: `${l.label} · ${l.plate}` }))} /></div>
+    <Shell context={<Pill color={L.connected ? "#059669" : "#64748B"}>{L.connected ? "Live" : "Connecting…"}</Pill>}>
+      <PageHeader eyebrow="Live Lane" title={vision ? "AI vision" : "Lane console"}
+        sub={vision ? "The platform's AI inspection modules (undercarriage, above-carriage and tyre) on inspection captures and the image library. Run the live models on any capture, a curated photo or your own upload."
+          : "What the lane sees as it happens: what it has found first, then the evidence, then the raw readings."}
+        actions={!vision && insp ? controls : null}>
+        <div className="mt-3 flex max-w-full flex-wrap items-center gap-3">
+          <div className="flex shrink-0 gap-1 rounded-full border border-white/80 bg-white/70 p-1 shadow-glass" role="tablist" aria-label="Live Lane view">
+            {[{ id: "lane", label: "Sensors & lane", icon: "lane" }, { id: "vision", label: "AI vision", icon: "vision" }].map((x) => {
+              const on = (x.id === "vision") === vision;
+              return (
+                <button key={x.id} role="tab" aria-selected={on} onClick={() => router.replace(x.id === "vision" ? "/lane?view=vision" : `/lane?lane=${lane}`, { scroll: false })}
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-[13.5px] font-semibold transition ${on ? "bg-gradient-to-r from-[#3B82F6] to-[#1D4ED8] text-white shadow" : "text-fg-2 hover:bg-white"}`}>
+                  <Icon name={x.icon} size={16} color={on ? "#fff" : "#475569"} />{x.label}
+                </button>
+              );
+            })}
+          </div>
+          {!vision && <div className="max-w-full overflow-x-auto"><Tabs value={lane} onChange={(v) => router.replace(`/lane?lane=${v}`)} items={LANES.map((l) => ({ id: l.id, label: `${l.label} · ${l.plate}` }))} /></div>}
+        </div>
       </PageHeader>
-      {loading ? (
+      {vision ? <VisionPanel /> : loading ? (
         <div className="card card-pad"><LoadingState label="Loading the latest inspection on this lane…" rows={4} /></div>
       ) : !insp ? (
         <Empty title={`${laneInfo.plate} has not entered ${laneInfo.label.toLowerCase()} yet`} actions={controls}>
@@ -89,7 +106,7 @@ function LaneConsole() {
                 {L.alerts.length ? (
                   <div className="flex flex-col gap-2">
                     {L.alerts.slice(0, 6).map((a) => <AlertMini key={a.alert_id} a={a} />)}
-                    {L.alerts.length > 6 && <Link className="text-[12.5px] text-cyan hover:underline" href={`/examiner?session=${laneInfo.session}`}>and {L.alerts.length - 6} more in the examiner workspace →</Link>}
+                    {L.alerts.length > 6 && <Link className="text-[12.5px] text-cyan hover:underline" href={`/inspection/${laneInfo.session}/findings`}>and {L.alerts.length - 6} more in the examiner workspace →</Link>}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-ok/40 bg-ok/5 px-4 py-3 text-[13.5px]">
@@ -128,7 +145,7 @@ function LaneConsole() {
                     <div className="mb-2 flex items-center justify-between gap-2"><b className="text-[13px]">OBD-II · engine rpm</b><Source kind="simulated" /></div>
                     <OBDChart obd={L.obd} />
                     {r.obd?.dtcs?.length > 0 ? (
-                      <div className="mt-2 flex flex-wrap gap-2">{r.obd.dtcs.map((d: any) => <Pill key={d.code} color="#F87171">{d.code} · {d.description}</Pill>)}</div>
+                      <div className="mt-2 flex flex-wrap gap-2">{r.obd.dtcs.map((d: any) => <Pill key={d.code} color="#DC2626">{d.code} · {d.description}</Pill>)}</div>
                     ) : r.obd && <p className="mt-2 text-[12.5px] text-ok">No fault codes stored.</p>}
                   </div>
                   <div>
@@ -136,7 +153,7 @@ function LaneConsole() {
                     <ENoseChart enose={L.enose} events={r.enose?.events || []} height={170} />
                     <div className="mt-2 flex flex-wrap gap-2">
                       {(r.enose?.events || []).map((e: any, i: number) => (
-                        <Pill key={i} color={r.enose?.rnd ? "#C084FC" : "#F87171"}>{e.condition.replaceAll("_", " ")} · {e.level} · {Math.round(e.p * 100)}%{e.fused_with ? " · fused" : ""}</Pill>
+                        <Pill key={i} color={r.enose?.rnd ? "#9333EA" : "#DC2626"}>{e.condition.replaceAll("_", " ")} · {e.level} · {Math.round(e.p * 100)}%{e.fused_with ? " · fused" : ""}</Pill>
                       ))}
                     </div>
                     {r.enose?.rnd !== false && <p className="mt-2 text-[12px] text-fg-3">A gas-sensor array is a future R&D option, not current lane equipment. Its simulated signals raise no alerts and do not change the score or the result.</p>}
@@ -147,7 +164,7 @@ function LaneConsole() {
                       {["Plate camera", "Chassis OCR", "OBD-II dongle", "PN counter", "Opacimeter", "Gas analyser (CO, HC, λ)", "Roller brake tester", "Suspension tester", "Side-slip plate", "Headlamp tester", "Tint meter", "Pit cameras", "Thermal camera", "Microphones"].map((x) => (
                         <span key={x} className="chip border-ink-500 text-fg-2"><span className="h-1.5 w-1.5 rounded-full bg-ok" aria-hidden />{x}</span>
                       ))}
-                      <span className="chip border-ink-500 text-fg-3" title="Future R&D option, not current lane equipment"><span className="h-1.5 w-1.5 rounded-full bg-[#C084FC]" aria-hidden />E-nose (R&D)</span>
+                      <span className="chip border-ink-500 text-fg-3" title="Future R&D option, not current lane equipment"><span className="h-1.5 w-1.5 rounded-full bg-[#9333EA]" aria-hidden />E-nose (R&D)</span>
                     </div>
                   </div>
                 </div>

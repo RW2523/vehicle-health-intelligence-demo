@@ -37,9 +37,9 @@ export const STEP_LABEL: Record<string, string> = {
   done: "Done",
 };
 
-export const sevColor = (s: string) => (s === "high" ? "#F87171" : s === "medium" ? "#FBBF24" : "#93C5FD");
-export const riskColor = (r: string) => (r === "High" ? "#EF4444" : r === "Medium" ? "#F59E0B" : "#60A5FA");
-export const scoreColor = (v: number | null | undefined) => (v == null ? "#9AA8BF" : v < 50 ? "#F87171" : v < 70 ? "#FBBF24" : "#34D399");
+export const sevColor = (s: string) => (s === "high" ? "#DC2626" : s === "medium" ? "#D97706" : "#3B82F6");
+export const riskColor = (r: string) => (r === "High" ? "#DC2626" : r === "Medium" ? "#D97706" : "#3B82F6");
+export const scoreColor = (v: number | null | undefined) => (v == null ? "#64748B" : v < 50 ? "#DC2626" : v < 70 ? "#D97706" : "#059669");
 
 const LLM_ENGINES: Record<string, string> = { trtllm: "TensorRT-LLM", vllm: "vLLM", ollama: "Ollama", openai: "LLM server" };
 

@@ -38,7 +38,7 @@ async function confirmAll(page: Page) {
 
 test.describe("Demo control", () => {
   test("shows the nine use cases and starts one from the page", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/demo");
     await expect(page.getByRole("heading", { name: "Every inspection, from lane to verified result" })).toBeVisible();
     const cases = page.locator("#usecases article");
     await expect(cases).toHaveCount(9);
@@ -51,12 +51,13 @@ test.describe("Demo control", () => {
     // keyboard: the Start button is reachable and works with Enter
     await uc4.getByRole("button", { name: "Start" }).focus();
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/lane\?lane=BR00-L4/, { timeout: 60_000 });
+    await expect(page).toHaveURL(/\/inspection\/S7/, { timeout: 60_000 });
     await expect(page.getByRole("link", { name: /UC-04/ })).toBeVisible();
   });
 
   test("the data-label legend explains every provenance label", async ({ page }) => {
     await page.goto("/");
+    await page.getByRole("button", { name: /^Account:/ }).click();
     await page.getByRole("button", { name: "What the data labels mean" }).click();
     const dialog = page.getByRole("dialog", { name: "What the data labels mean" });
     for (const l of ["LIVE FEED", "PUBLIC DATA", "LIVE MODEL", "LIVE LOGIC", "SIMULATED", "SYNTHETIC", "SAMPLE", "MOCK", "FUTURE R&D"])
@@ -64,21 +65,85 @@ test.describe("Demo control", () => {
   });
 });
 
+test.describe("Inspector dashboard, search and the vehicle register", () => {
+  test("today at the hub: KPIs, the four lanes, utilization, queue, upcoming vehicles and activity", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Inspector Dashboard" })).toBeVisible();
+    for (const k of ["Total Vehicles Today", "Completed", "In Progress", "In Queue", "Issues Found"]) await expect(page.getByText(k, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/^Lane [1-4]/)).toHaveCount(4);
+    await expect(page.getByText("Lane Utilization")).toBeVisible();
+    await expect(page.getByText(/^Current Queue \(\d+\)$/)).toBeVisible();
+    await expect(page.getByText("Upcoming Vehicles")).toBeVisible();
+    await expect(page.getByText("Recent Activity")).toBeVisible();
+    await expect(page.getByText("SYNTHETIC").first()).toBeVisible();
+    await page.getByRole("link", { name: /View all \(\d+\)/ }).click();
+    await expect(page.getByRole("heading", { name: "Inspection Management" })).toBeVisible();
+    await expect(page.getByText(/Today at the Central Inspection Hub/)).toBeVisible();
+  });
+
+  test("the main app has exactly its seven sections, and the other two apps are one switch away", async ({ page }) => {
+    await page.goto("/");
+    const nav = page.getByRole("navigation", { name: "Sections" }).first();
+    const labels = ["Dashboard", "Live Lane", "Inspection Management", "Vehicle Records", "Appointments", "Chat Bot", "Settings"];
+    await expect(nav.getByRole("link")).toHaveText(labels);
+    await page.getByRole("button", { name: "Switch app" }).click();
+    const menu = page.getByRole("menu", { name: "Apps" });
+    for (const a of ["VehicleSense Inspection", "VehicleSense Mobile", "VehicleSense Oversight"]) await expect(menu.getByText(a)).toBeVisible();
+  });
+
+  test("global search finds a vehicle and opens its record", async ({ page }) => {
+    await page.goto("/");
+    await page.getByLabel("Search vehicles, owners and inspections").fill("DMO 9003");
+    await page.getByRole("option", { name: /DMO 9003/ }).first().click();
+    await expect(page).toHaveURL(/\/vehicles\/DMO(%20| )9003/);
+    await expect(page.getByRole("heading", { name: "Honda Civic" })).toBeVisible();
+    await expect(page.getByText(/Rollback: the register shows/)).toBeVisible();
+  });
+
+  test("Vehicle Records lists the ten main vehicles, filters them and opens a record's tabs", async ({ page }) => {
+    await page.goto("/vehicles");
+    await expect(page.getByRole("heading", { name: "Vehicle Records" })).toBeVisible();
+    const cards = page.locator("main a[aria-label*=', ']").filter({ has: page.locator("img, svg") });
+    await expect(cards).toHaveCount(10);
+    await page.getByRole("tab", { name: "Lane replays" }).click();
+    await expect(cards).toHaveCount(4);
+    await page.getByLabel("Filter the vehicles").fill("zzzz-no-such");
+    await expect(page.getByText("No vehicle matches")).toBeVisible();
+    await page.getByRole("button", { name: "Show all ten" }).click();
+    await expect(cards).toHaveCount(10);
+    await page.getByRole("link", { name: /^WXD 2291,/ }).click();
+    await expect(page.getByRole("heading", { name: "Ford Ranger XLT" })).toBeVisible();
+    await page.getByRole("tab", { name: "Health trends" }).click();
+    await expect(page.getByText("How long will it go?")).toBeVisible();
+    await page.getByRole("tab", { name: "Inspection history" }).click();
+    await expect(page.getByText(/Inspection History \(\d+\)/)).toBeVisible();
+  });
+
+  test("an examiner captures a photo for a view: the AI module checks it", async ({ page, request }) => {
+    await fastForward(request, "S7");
+    await page.goto("/inspection/S7");
+    const tyre = "../../data/curated/images/tyre/defective/tyre_helath_qualit_00231.jpg";
+    await page.getByLabel("Photo for Front View").setInputFiles(tyre);
+    await expect(page.getByText(/Front View captured|flagged it/).first()).toBeVisible({ timeout: 60_000 });
+  });
+});
+
 test.describe("UC-04 clean inspection", () => {
-  test("no anomalies: the examiner issues a PASS and the passport updates", async ({ page, request }) => {
+  test("no anomalies: capture, checklist, approval, PASS certificate and the passport", async ({ page, request }) => {
     await startUseCase(request, "UC-04");
     await fastForward(request, "S7");
-    await page.goto("/lane?lane=BR00-L4");
+    await page.goto("/inspection/S7");
+    await expect(page.getByRole("heading", { name: "Active Inspection Capture" })).toBeVisible();
     await expect(page.getByText("No anomalies detected in this inspection.")).toBeVisible();
-    await page.getByRole("link", { name: /Review AI findings/ }).first().click();
-    await expect(page.getByRole("heading", { name: "Examiner workspace" })).toBeVisible();
-    await expect(page.getByText("No anomalies detected in this inspection")).toBeVisible();
-    await page.getByRole("button", { name: "Issue report", exact: true }).click();
-    await expect(page).toHaveURL(/\/report\?id=/);
-    await expect(page.getByText("Inspection complete: report issued")).toBeVisible();
-    await expect(page.getByText("PASS", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/^\d+\/\d+ completed$/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Capture Front View/ })).toBeVisible();
+    await page.getByRole("link", { name: /Go to final review/ }).click();
+    await expect(page.getByRole("heading", { name: "Final Review and Approval" })).toBeVisible();
+    await expect(page.getByText("Ready to Issue")).toBeVisible();
+    await page.getByRole("button", { name: "Issue Certificate" }).click();
+    await expect(page.getByRole("link", { name: /Certificate issued · open report/ })).toBeVisible();
     await page.getByRole("link", { name: /Open the health passport/ }).click();
-    await expect(page).toHaveURL(/\/owner\?plate=DMO(%20|\+)9006&tab=passport/);
+    await expect(page).toHaveURL(/\/mobile\/vehicle\?plate=DMO(%20|\+)9006/);
     await expect(page.getByRole("link", { name: /UC-04\s*complete/ })).toBeVisible();
   });
 });
@@ -87,36 +152,35 @@ test.describe("UC-01 commercial vehicle: lane → examiner → report → verifi
   test("critical findings first, reasons enforced, decisions advance, FAIL report, buyer verifies it", async ({ page, request }) => {
     await startUseCase(request, "UC-01");
     await fastForward(request, "S1");
-    await page.goto("/lane?lane=BR00-L3");
-    await expect(page.getByText("What the lane has found")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "DMO 9001", exact: true }).or(page.getByText("DMO 9001").first()).first()).toBeVisible();
-
-    await page.goto("/examiner?session=S1");
-    await expect(page.getByRole("heading", { name: "Examiner workspace" })).toBeVisible();
-    await expect(page.getByText(/^Findings \(\d+\)/)).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Lane 3 · DMO 9001" })).toHaveAttribute("aria-selected", "true");
-    // the report waits for the critical findings, and says so
-    await expect(page.getByRole("button", { name: /Decide \d+ critical findings? first/ })).toBeDisabled();
+    await page.goto("/inspection/S1");
+    await expect(page.getByText("DMO 9001").first()).toBeVisible();
+    await expect(page.getByText(/Detected Issues/)).toBeVisible();
+    await page.goto("/inspection/S1/review");
+    await expect(page.getByRole("link", { name: /Decide \d+ critical findings? first/ })).toBeVisible();
+    await page.goto("/inspection/S1/findings");
+    await expect(page.getByRole("heading", { name: "Defect Review and Findings" })).toBeVisible();
     await expect(page.getByText("Why was this flagged?")).toBeVisible();
-    // dismissing without a reason is refused
-    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
-    await expect(page.getByText(/Add a short reason \(at least 3 characters\)/)).toBeVisible();
-    // keyboard: the arrow keys move through the findings
-    const options = page.getByRole("listbox", { name: "Findings" }).getByRole("option");
-    await options.first().focus();
-    await page.keyboard.press("ArrowDown");
-    await expect(options.nth(1)).toHaveAttribute("aria-selected", "true");
-
-    await confirmAll(page);
-    await expect(page.getByText(/(\d+) of \1 critical findings? reviewed/)).toBeVisible();
-    const issue = page.getByRole("button", { name: "Issue report", exact: true });
-    await expect(issue).toBeEnabled();
-    await issue.click();
-    await expect(page).toHaveURL(/\/report\?id=/);
-    await expect(page.getByText("FAIL", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Evidence chain intact")).toBeVisible();
+    // passing a fail item without a reason is refused
+    await page.getByRole("button", { name: /Mark as Pass/ }).click();
+    await page.getByRole("button", { name: "Save Finding" }).click();
+    await expect(page.getByText(/Write the reason in the inspector's notes/)).toBeVisible();
+    // the rules' recommendation saves without a reason, and the next open finding opens
+    const first = await page.locator("section[aria-label='Finding in focus'] h2").textContent();
+    await page.getByRole("button", { name: /Fail Item/ }).click();
+    await page.getByRole("button", { name: "Save Finding" }).click();
+    await expect(page.locator("section[aria-label='Finding in focus'] h2")).not.toHaveText(first || "");
+    await page.getByRole("button", { name: /Decide the \d+ remaining as the rules recommend/ }).click();
+    await expect(page.getByRole("link", { name: /All decided · final review/ })).toBeVisible();
+    await page.getByRole("link", { name: /All decided · final review/ }).click();
+    await expect(page.getByText("Inspection Failed").or(page.getByText(/^Inspection\s*Failed/)).first()).toBeVisible();
+    await page.getByRole("button", { name: "Issue Certificate" }).click();
+    await expect(page.getByRole("link", { name: /Certificate issued · open report/ })).toBeVisible();
+    await page.getByRole("button", { name: /Send Report to Owner/ }).click();
+    await expect(page.getByText(/Report sent to the owner/).first()).toBeVisible();
+    await page.getByRole("button", { name: /Schedule Reinspection/ }).click();
+    await expect(page.getByText(/Re-inspection booked/).first()).toBeVisible();
     // the use case's downstream update: the fleet's vehicle record shows the result
-    await page.getByRole("link", { name: /Open the fleet record/ }).click();
+    await page.getByRole("link", { name: /Open the vehicle record/ }).click();
     await expect(page.getByText("Latest inspection", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Verify", exact: true }).click();
     await expect(page).toHaveURL(/\/verify\//);
@@ -131,9 +195,9 @@ test.describe("UC-01 commercial vehicle: lane → examiner → report → verifi
       await new Promise((r) => setTimeout(r, 1500));
       await route.continue();
     });
-    await page.goto("/examiner?session=S1");
-    await expect(page.getByText("Vehicle health", { exact: true })).toBeVisible();
-    expect(await page.getByText(/^Findings \(\d+\)/).textContent()).toBe(`Findings (${n})`);
+    await page.goto("/inspection/S1/findings");
+    await expect(page.getByText("Why was this flagged?")).toBeVisible();
+    await expect(page.getByRole("tab", { name: /All Findings/ })).toHaveText(new RegExp(`All Findings\\s*${n}$`));
   });
 });
 
@@ -141,32 +205,34 @@ test.describe("UC-02 EV flood risk and UC-03 senior review", () => {
   test("UC-02: the flood evidence and a CONDITIONAL EV Health Certificate", async ({ page, request }) => {
     await startUseCase(request, "UC-02");
     await fastForward(request, "S2");
-    await page.goto("/examiner?session=S2");
+    await page.goto("/inspection/S2/findings");
     await expect(page.getByText("DMO 9002").first()).toBeVisible();
     await expect(page.getByText(/Likely flood damage/).first()).toBeVisible();
-    await page.getByRole("button", { name: /Confirm all \d+ remaining/ }).click();
-    await page.getByRole("button", { name: "Issue report", exact: true }).click();
-    await expect(page.getByText("CONDITIONAL", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: /Decide the \d+ remaining as the rules recommend/ }).click();
+    await page.getByRole("link", { name: /All decided · final review/ }).click();
+    await page.getByRole("button", { name: "Issue Certificate" }).click();
+    await expect(page.getByText(/Inspection\s*Conditional/).first()).toBeVisible();
   });
 
   test("UC-03: identity checks disagree, so the senior examiner signs the report off", async ({ page, request }) => {
     await startUseCase(request, "UC-03");
     await fastForward(request, "S3");
-    await page.goto("/examiner?session=S3");
+    await page.goto("/inspection/S3/findings");
     await expect(page.getByText("Senior review required.")).toBeVisible();
-    await page.getByRole("button", { name: /Confirm all \d+ remaining/ }).click();
+    await page.getByRole("button", { name: /Decide the \d+ remaining as the rules recommend/ }).click();
+    await expect(page.getByRole("link", { name: /All decided · final review/ })).toBeVisible({ timeout: 60_000 });
+    await page.goto("/inspection/S3/review");
     await page.getByRole("button", { name: "Refer to the senior examiner" }).click();
     await expect(page.getByRole("combobox", { name: "Examiner" })).toHaveValue("VE001");
-    await page.getByRole("button", { name: "Sign off and issue the report" }).click();
-    await expect(page).toHaveURL(/\/report\?id=/);
-    await expect(page.getByText(/Priya Hassan \(Senior Examiner\)/)).toBeVisible();
+    await page.getByRole("button", { name: "Sign off and issue certificate" }).click();
+    await expect(page.getByText(/Priya Hassan \(Senior Examiner\)/).first()).toBeVisible();
   });
 });
 
 test.describe("UC-07 HQ exceptions", () => {
   test("an exception's evidence, a recorded action, and the tamper test", async ({ page, request }) => {
     await startUseCase(request, "UC-07");
-    await page.goto("/hq");
+    await page.goto("/oversight/hq");
     await expect(page.getByRole("heading", { name: "HQ operations" })).toBeVisible();
     const card = page.locator("article").filter({ hasText: "(VE017)" });
     await expect(card.getByText(/standard deviations above other examiners/)).toBeVisible();
@@ -188,7 +254,7 @@ test.describe("UC-07 HQ exceptions", () => {
       await new Promise((r) => setTimeout(r, 2500));
       await route.continue();
     });
-    await page.goto("/hq");
+    await page.goto("/oversight/hq");
     await expect(page.getByText("Checking every hub for exceptions…")).toBeVisible();
     await expect(page.getByRole("heading", { name: "HQ operations" })).toBeVisible();
   });
@@ -197,26 +263,20 @@ test.describe("UC-07 HQ exceptions", () => {
 test.describe("UC-06 fleet predictive maintenance", () => {
   test("the use case's truck is pinned, its trend explains why, and it is booked", async ({ page, request }) => {
     await startUseCase(request, "UC-06");
-    await page.goto("/fleet?fleet=FLEET07");
+    await page.goto("/vehicles?fleet=FLEET07");
     await expect(page.getByText(/UC-06 vehicle/)).toBeVisible();
     await page.getByRole("link", { name: /Open its history/ }).click();
-    await expect(page).toHaveURL(/\/fleet\/vehicle\/DMO(%20| )9001/);
+    await expect(page).toHaveURL(/\/vehicles\/DMO(%20| )9001\?tab=health/);
     await expect(page.getByText("Tread depth, worst tyre").first()).toBeVisible();
     await page.getByRole("button", { name: /Book an inspection before the fail date/ }).click();
-    await expect(page.getByText("Inspection booked")).toBeVisible();
+    await expect(page.getByText("Inspection booked").first()).toBeVisible();
   });
 });
 
 test.describe("Fleet and regulator", () => {
-  test("fleet overview → vehicle history → pattern report and booking", async ({ page }) => {
-    await page.goto("/fleet");
-    await expect(page.getByRole("heading", { name: "Fleet Intelligence" })).toBeVisible();
-    await expect(page.getByText("Vehicles needing attention")).toBeVisible();
-    await page.getByRole("button", { name: "With photos" }).click();
-    await expect(page.getByText("VKR 3128")).toBeVisible();
-
-    await page.goto("/fleet/vehicle/VKR%203128");
-    await expect(page.getByText("VKR 3128").first()).toBeVisible();
+  test("a fleet vehicle's health trends: pattern report and booking", async ({ page }) => {
+    await page.goto("/vehicles/VKR%203128?tab=health");
+    await expect(page.getByRole("heading", { name: "Toyota Vios 1.5" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Pattern report" })).toBeVisible();
     await page.getByRole("button", { name: /Send report now|send again/ }).click();
     await expect(page.getByRole("button", { name: /Report sent ✓/ })).toBeVisible();
@@ -225,20 +285,14 @@ test.describe("Fleet and regulator", () => {
     await expect(page.getByRole("button", { name: /^Booked / })).toBeVisible();
   });
 
-  test("FLEET07 shows the next periodic inspection fail risk", async ({ page }) => {
-    await page.goto("/fleet?fleet=FLEET07");
+  test("the fleet view shows the fleet's health and FLEET07's next periodic inspection fail risk", async ({ page }) => {
+    await page.goto("/vehicles?view=fleet");
+    await expect(page.getByRole("region", { name: "Fleet health" })).toBeVisible();
     await expect(page.getByText(/FLEET07 · next periodic inspection: fail risk/)).toBeVisible();
   });
 
-  test("a filter with no result says so and clears", async ({ page }) => {
-    await page.goto("/fleet?fleet=OP-KAS&type=Bus");
-    await expect(page.getByText("No vehicles match the selected filters")).toBeVisible();
-    await page.getByRole("button", { name: "Clear filters" }).click();
-    await expect(page.getByText("No vehicles match the selected filters")).toHaveCount(0);
-  });
-
   test("regulator view shows real registrations and synthetic defect trends", async ({ page }) => {
-    await page.goto("/regulator");
+    await page.goto("/oversight/regulator");
     await expect(page.getByText("1,629,552")).toBeVisible();
     await expect(page.getByText("Inspection fail rate and top defects")).toBeVisible();
     await expect(page.getByText("High-emitter hits (latest)")).toBeVisible();
@@ -248,7 +302,7 @@ test.describe("Fleet and regulator", () => {
 test.describe("Flood watch", () => {
   test("JPS stations by status, districts at risk and the vehicles to inspect", async ({ page, request }) => {
     const o = await (await request.get("/api/floodwatch")).json();
-    await page.goto("/flood");
+    await page.goto("/oversight/flood");
     await expect(page.getByRole("heading", { name: "Flood watch" })).toBeVisible();
     // every panel says where its data comes from: a live fetch (with its time) or the stored snapshot
     await expect(page.getByText(/(LIVE FEED· JPS Public InfoBanjir · fetched|PUBLIC DATA· Stored JPS snapshot, fetched)/).first()).toBeVisible();
@@ -262,7 +316,7 @@ test.describe("Flood watch", () => {
   });
 
   test("a past flood ranks the claimants first; a vehicle's reasons and the mock invitation", async ({ page }) => {
-    await page.goto("/flood");
+    await page.goto("/oversight/flood");
     await page.getByRole("tab", { name: /Dec 2021 · Klang Valley floods/ }).click();
     await expect(page.getByText(/Real event \(public record\)/)).toBeVisible();
     await expect(page.getByText("SYNTHETIC· Claims").first()).toBeVisible();
@@ -302,9 +356,9 @@ test.describe("Flood watch", () => {
   });
 });
 
-test.describe("UC-05 owner app", () => {
+test.describe("UC-05 the mobile app", () => {
   test("assistant answers in BM and offers Express slots", async ({ page }) => {
-    await page.goto("/owner?plate=DMO%209006&tab=chat");
+    await page.goto("/mobile/assistant?plate=DMO%209006");
     await page.getByLabel("Message").fill("Saya nak jual kereta, pemeriksaan apa yang saya perlu?");
     await page.getByRole("button", { name: "Send" }).click();
     await expect(page.getByText(/Pindah Milik/i).last()).toBeVisible();
@@ -314,7 +368,7 @@ test.describe("UC-05 owner app", () => {
   });
 
   test("self-check fails first, passes after fixing", async ({ page }) => {
-    await page.goto("/owner?plate=DMO%209006&tab=check");
+    await page.goto("/mobile/check?plate=DMO%209006");
     await page.getByRole("button", { name: "Run self-check" }).click();
     await expect(page.getByText("Fix these first")).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText("Window tint").first()).toBeVisible();
@@ -323,7 +377,7 @@ test.describe("UC-05 owner app", () => {
   });
 
   test("books and pays for an inspection, gets a check-in QR", async ({ page }) => {
-    await page.goto("/owner?plate=DMO%209006&tab=book");
+    await page.goto("/mobile/book?plate=DMO%209006");
     const slot = page.locator("div.grid-cols-4 button:not([aria-label$='full'])").first();
     await expect(slot).toBeVisible();
     await slot.click();
@@ -335,7 +389,7 @@ test.describe("UC-05 owner app", () => {
   });
 
   test("a full slot suggests the nearest branches with that time free, on the same screen", async ({ page }) => {
-    await page.goto("/owner?plate=DMO%209006&tab=book");
+    await page.goto("/mobile/book?plate=DMO%209006");
     const full = page.locator("div.grid-cols-4 button[aria-label$='full']").first();
     await expect(full).toBeVisible();
     const time = (await full.getAttribute("aria-label"))!.replace(" full", "");
@@ -351,7 +405,7 @@ test.describe("UC-05 owner app", () => {
     await page.goto(uc.next.href);
     await page.getByRole("button", { name: "Run again after fixing" }).click();
     await expect(page.getByText("Ready for inspection")).toBeVisible({ timeout: 60_000 });
-    await page.goto("/owner?plate=DMO%209006&tab=book");
+    await page.goto("/mobile/book?plate=DMO%209006");
     await page.getByRole("button", { name: /^Voluntary Inspection/ }).click();
     const slot = page.locator("div.grid-cols-4 button:not([aria-label$='full'])").first();
     await slot.click();
@@ -362,9 +416,9 @@ test.describe("UC-05 owner app", () => {
     await page.goto("/lane?lane=BR00-L4");
     await expect(page.getByText(/Booking BK\w+ checked in/)).toBeVisible();
     await expect(page.getByRole("region", { name: "Inspection in context" }).getByText("Voluntary Inspection", { exact: false })).toBeVisible();
-    await page.goto("/examiner?session=S7");
-    await page.getByRole("button", { name: "Issue report", exact: true }).click();
-    await expect(page).toHaveURL(/\/report\?id=/);
+    await page.goto("/inspection/S7/review");
+    await page.getByRole("button", { name: "Issue Certificate" }).click();
+    await expect(page.getByText("Voluntary Inspection").first()).toBeVisible();
     await page.getByRole("link", { name: /Open the passport/ }).click();
     await expect(page.getByText(/Health certificates · \d+/)).toBeVisible();
     await expect(page.getByText("Voluntary inspection report").first()).toBeVisible();
@@ -373,7 +427,7 @@ test.describe("UC-05 owner app", () => {
   });
 
   test("the passport lists every health certificate", async ({ page }) => {
-    await page.goto("/owner?plate=DMO%209006&tab=passport");
+    await page.goto("/mobile/vehicle?plate=DMO%209006");
     await expect(page.getByText(/Health certificates · \d+/)).toBeVisible();
     await expect(page.getByText("Voluntary Inspection").first()).toBeVisible();
   });
@@ -381,7 +435,7 @@ test.describe("UC-05 owner app", () => {
 
 test.describe("Used-vehicle sales", () => {
   test("oversight lists every car and motorcycle for sale and opens a vehicle's whole record", async ({ page }) => {
-    await page.goto("/sales");
+    await page.goto("/oversight/sales");
     await expect(page.getByRole("heading", { name: "Used-vehicle sales" })).toBeVisible();
     await expect(page.getByText(/\d+ cars · 15 motorcycles/)).toBeVisible();
     await page.getByRole("tab", { name: "Motorcycles" }).click();
@@ -400,7 +454,7 @@ test.describe("Used-vehicle sales", () => {
     await page.getByText(/What the lane measured/).first().click();
     await expect(page.getByText("Brake efficiency").first()).toBeVisible();
     // an ex-fleet car's inspection photos open in the image viewer
-    await page.goto("/sales?q=VJM%203287");
+    await page.goto("/oversight/sales?q=VJM%203287");
     await page.getByRole("link", { name: "VJM 3287", exact: true }).click();
     await page.getByRole("button", { name: "Library image i7" }).click();
     await expect(page.getByRole("dialog", { name: /Image i7/ })).toBeVisible();
@@ -408,7 +462,7 @@ test.describe("Used-vehicle sales", () => {
 
   test("UC-09: a buyer reviews the latest report and verifies it without a login", async ({ page, request, browser }) => {
     const uc = await startUseCase(request, "UC-09");
-    await page.goto("/sales");
+    await page.goto("/oversight/sales");
     await page.getByLabel("Search listings").fill("DMO 9003");
     await page.getByRole("link", { name: "DMO 9003", exact: true }).click();
     await expect(page.getByText("Latest inspection report")).toBeVisible();
@@ -432,8 +486,8 @@ test.describe("Used-vehicle sales", () => {
     await anon.close();
   });
 
-  test("owner app: the Sale tab shows a motorcycle's record end to end, and a car's photos", async ({ page }) => {
-    await page.goto("/owner?tab=sale");
+  test("mobile app: selling shows a motorcycle's record end to end, and a car's photos", async ({ page }) => {
+    await page.goto("/mobile/sell");
     await expect(page.getByText("Vehicles for sale")).toBeVisible();
     await page.getByRole("group", { name: "Vehicle type" }).getByRole("button", { name: "Motorcycles" }).click();
     await page.getByRole("button", { name: /Honda RS150R/ }).click();
@@ -444,7 +498,7 @@ test.describe("Used-vehicle sales", () => {
     await expect(page.getByRole("heading", { name: /Inspection history \(4\)/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: "OBD fault codes" })).toBeVisible();
     await expect(page.getByText(/No photos on file yet/)).toBeVisible();
-    await page.getByRole("button", { name: "‹ All for sale" }).click();
+    await page.getByRole("link", { name: "All for sale" }).click();
     await page.getByRole("group", { name: "Vehicle type" }).getByRole("button", { name: "All" }).click();
     await page.getByLabel("Search vehicles for sale").fill("WVA");
     await page.getByRole("button", { name: /WVA 1209/ }).click();
@@ -455,17 +509,17 @@ test.describe("Used-vehicle sales", () => {
 
 test.describe("AI vision", () => {
   test("shows the three AI inspection modules and runs a live model on a capture", async ({ page }) => {
-    await page.goto("/vision");
-    await expect(page.getByRole("heading", { name: "AI vision inspection" })).toBeVisible();
+    await page.goto("/lane?view=vision");
+    await expect(page.getByRole("heading", { name: "AI vision" })).toBeVisible();
     for (const name of ["Undercarriage AI", "Above-carriage AI", "Tyre AI"]) await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Live model result" })).toBeVisible({ timeout: 60_000 });
   });
 
   test("image library maps every source image to its case and fleet vehicles", async ({ page }) => {
-    await page.goto("/vision");
+    await page.goto("/lane?view=vision");
     await page.getByRole("tab", { name: /Image library · 26/ }).click();
-    await expect(page).toHaveURL(/view=library/);
+    await expect(page).toHaveURL(/images=library/);
     await page.getByRole("tab", { name: /Progressions · 3/ }).click();
     await page.getByRole("button", { name: "Library image i7" }).click();
     const dialog = page.getByRole("dialog");
@@ -484,8 +538,8 @@ test.describe("AI vision", () => {
   });
 
   test("a vehicle's inspection images open in the viewer, with findings and keyboard navigation", async ({ page }) => {
-    await page.goto("/fleet/vehicle/VKR%203128");
-    await expect(page.getByRole("heading", { name: /Inspection images/ })).toBeVisible();
+    await page.goto("/vehicles/VKR%203128?tab=photos");
+    await expect(page.getByText("Inspection images").first()).toBeVisible();
     await page.getByRole("button", { name: "Library image 07" }).click();
     const dialog = page.getByRole("dialog", { name: /Image 07/ });
     await expect(dialog.getByText("Findings (3)")).toBeVisible();
@@ -493,11 +547,6 @@ test.describe("AI vision", () => {
     await expect(page.getByRole("dialog", { name: /Image i1/ }).getByText("1. Disc scoring", { exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    // the fleet table's evidence thumbnails open the same viewer
-    await page.goto("/fleet");
-    await page.getByRole("button", { name: "With photos" }).click();
-    await page.getByRole("button", { name: "Open image 07 of VKR 3128" }).click();
-    await expect(page.getByRole("dialog", { name: /Image 07/ })).toBeVisible();
   });
 });
 
@@ -510,7 +559,7 @@ test.describe("GPU models and live updates", () => {
   test("the vision-language model explains a photo in plain words (when one is configured)", async ({ page, request }) => {
     const st = await (await request.get("/api/system/status")).json();
     test.skip(!st.vlm?.reachable, "no vision-language model configured (VHI_VLM_URL)");
-    await page.goto("/vision");
+    await page.goto("/lane?view=vision");
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await page.getByRole("button", { name: /Explain in plain words/ }).click();
     await expect(page.getByText("In plain words")).toBeVisible({ timeout: 90_000 });
@@ -522,22 +571,26 @@ test.describe("Orientation and navigation", () => {
   test("every inspection screen shows the inspection in context and the running use case", async ({ page, request }) => {
     await startUseCase(request, "UC-01");
     await fastForward(request, "S1");
-    for (const path of ["/lane?lane=BR00-L3", "/examiner?session=S1"]) {
+    await page.goto("/lane?lane=BR00-L3");
+    const bar = page.getByRole("region", { name: "Inspection in context" });
+    await expect(bar.getByText("DMO 9001", { exact: true })).toBeVisible();
+    await expect(bar.getByText(/Central Inspection Hub · Lane 3/)).toBeVisible();
+    await expect(bar.getByText(/UC-01/)).toBeVisible();
+    for (const path of ["/inspection/S1", "/inspection/S1/findings", "/inspection/S1/review"]) {
       await page.goto(path);
-      const bar = page.getByRole("region", { name: "Inspection in context" });
-      await expect(bar.getByText("DMO 9001", { exact: true })).toBeVisible();
-      await expect(bar.getByText(/Central Inspection Hub · Lane 3/)).toBeVisible();
-      await expect(bar.getByText("Arjun Ismail")).toBeVisible();
-      await expect(bar.getByText(/UC-01/)).toBeVisible();
-      await expect(bar.getByRole("list", { name: "Journey" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Inspection steps" })).toBeVisible();
+      await expect(page.getByText("DMO 9001").first()).toBeVisible();
     }
   });
 
   test("no client-specific branding or service codes appear anywhere in the apps", async ({ page, request }) => {
     const reports = await (await request.get("/api/reports", { params: { limit: 5 } })).json();
-    const pages = ["/", "/lane?lane=BR00-L3", "/examiner?session=S1", "/report", "/vision", "/fleet", "/fleet/vehicle/DMO%209001",
-      "/owner?plate=DMO%209006&tab=passport", "/owner?plate=DMO%209006&tab=book", "/owner?plate=DMO%209006&tab=chat", "/hq", "/regulator",
-      "/sales", "/sales?id=LS0001", "/flood", "/login", ...reports.map((r: any) => `/verify/${r.verify_token}`)];
+    const pages = ["/", "/demo", "/inspection", "/inspection?tab=reports", "/inspection/S1", "/inspection/S1/findings", "/inspection/S1/review",
+      "/vehicles", "/vehicles/DMO%209003", "/vehicles/DMO%209001?tab=health", "/appointments", "/assistant", "/settings", "/settings?tab=images",
+      "/lane?lane=BR00-L3", "/lane?view=vision", "/report",
+      "/mobile?plate=DMO%209006", "/mobile/vehicle?plate=DMO%209006", "/mobile/book?plate=DMO%209006", "/mobile/assistant?plate=DMO%209006", "/mobile/sell",
+      "/oversight", "/oversight/hq", "/oversight/regulator", "/oversight/sales", "/oversight/sales?id=LS0001", "/oversight/flood",
+      "/login", ...reports.map((r: any) => `/verify/${r.verify_token}`)];
     const banned = /PUSPAKOM|Puspakom|\bJPJ\b|Berkala|\bB[257]\b|MV15|mySIKAP|\bGEAR\b|Alam Megah|Glenmarie|Batu Caves|hire-purchase/;
     const found: Record<string, string> = {};
     for (const path of pages) {
@@ -549,14 +602,14 @@ test.describe("Orientation and navigation", () => {
     expect(found).toEqual({});
   });
 
-  test("on a phone the menu drawer reaches every app", async ({ browser }) => {
+  test("on a phone the menu drawer reaches every section and the other apps", async ({ browser }) => {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.goto(process.env.E2E_BASE_URL ? `${process.env.E2E_BASE_URL}/` : "http://localhost:3000/");
     await page.getByRole("button", { name: "Open menu" }).click();
     const drawer = page.getByRole("dialog", { name: "Navigation" });
-    await expect(drawer.getByRole("link", { name: /Fleet intelligence/ })).toBeVisible();
-    await drawer.getByRole("link", { name: /Regulator/ }).click();
-    await expect(page).toHaveURL(/\/regulator/);
+    for (const s of ["Live Lane", "Appointments", "Chat Bot"]) await expect(drawer.getByRole("link", { name: s })).toBeVisible();
+    await drawer.getByRole("link", { name: /Oversight app/ }).click();
+    await expect(page).toHaveURL(/\/oversight$/);
     await expect(page.getByRole("dialog", { name: "Navigation" })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
     await page.close();
@@ -567,8 +620,12 @@ test.describe("Orientation and navigation", () => {
       const page = await browser.newPage({ viewport: { width, height: 844 } });
       const base = process.env.E2E_BASE_URL || "http://localhost:3000";
       const wide: Record<string, number> = {};  // page -> pixels it scrolls sideways
-      for (const path of ["/", "/lane", "/examiner", "/report", "/vision", "/fleet", "/fleet/vehicle/VKR%203128", "/owner", "/hq", "/regulator",
-        "/sales", "/sales?id=LS0001", "/owner?tab=sale&listing=LS0003", "/flood", "/flood?scope=event%3A2025-12-10&vehicle=DMO%209002"]) {
+      for (const path of ["/", "/demo", "/inspection", "/inspection?tab=schedule", "/inspection?tab=reports", "/inspection/S1", "/inspection/S1/findings",
+        "/inspection/S1/review", "/vehicles", "/vehicles/DMO%209003", "/vehicles/VKR%203128?tab=health", "/vehicles/VKR%203128?tab=photos", "/lane",
+        "/lane?view=vision", "/report", "/appointments", "/assistant", "/settings", "/settings?tab=images",
+        "/mobile", "/mobile/vehicle", "/mobile/check", "/mobile/book", "/mobile/assistant", "/mobile/sell", "/mobile/sell?listing=LS0003",
+        "/oversight", "/oversight/hq", "/oversight/regulator", "/oversight/sales", "/oversight/sales?id=LS0001", "/oversight/flood",
+        "/oversight/flood?scope=event%3A2025-12-10&vehicle=DMO%209002"]) {
         await page.goto(base + path, { waitUntil: "networkidle" });  // with its data: wide tables only appear then
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         if (over > 1) wide[path] = over;
@@ -588,8 +645,8 @@ test.describe("Login and roles", () => {
 
   test("a visitor logs in and lands on the apps of their role", async ({ browser }) => {
     const page = await browser.newPage({ storageState: { cookies: [], origins: [] } });
-    await page.goto(`${BASE}/hq`);
-    await expect(page).toHaveURL(/\/login\?next=%2Fhq/);
+    await page.goto(`${BASE}/hq`);  // an old address: redirected to oversight, then to the login
+    await expect(page).toHaveURL(/\/login\?next=%2Foversight%2Fhq/);
     await logIn(page, "Arjun Ismail", "not the password");
     await expect(page.getByText("Wrong username or password.")).toBeVisible();
     await page.getByLabel("Password").fill(process.env.E2E_PASSWORD || "");
@@ -597,22 +654,24 @@ test.describe("Login and roles", () => {
     // back to the page asked for, which the examiner may not open: their own apps instead
     await expect(page.getByRole("heading", { name: "Not available to this account" })).toBeVisible();
     await page.getByRole("link", { name: /Go to your apps/ }).click();
-    await expect(page.getByRole("heading", { name: "Lane console" })).toBeVisible();
-    const nav = page.getByRole("navigation", { name: "Apps" });
-    await expect(nav.getByRole("link", { name: /Examiner/ })).toBeVisible();
-    await expect(nav.getByRole("link", { name: /HQ operations|Owner app|Demo control/ })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Inspector Dashboard" })).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Sections" }).first();
+    await expect(nav.getByRole("link", { name: "Inspection Management" })).toBeVisible();
+    // the examiner works in the inspection app only: no switch to the mobile or oversight app
+    await expect(page.getByRole("button", { name: "Switch app" })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Other apps" })).toHaveCount(0);
+    await page.getByRole("button", { name: /^Account:/ }).click();
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page).toHaveURL(/\/login/);
     await page.close();
   });
 
-  test("the viewer reads the examiner console but cannot decide", async ({ browser }) => {
+  test("the viewer reads the findings but cannot decide", async ({ browser }) => {
     const page = await browser.newPage({ storageState: { cookies: [], origins: [] } });
     await page.goto(`${BASE}/login?next=%2Fexaminer%3Fsession%3DS1`);
     await logIn(page, "Guest viewer", process.env.E2E_VIEWER_PASSWORD || process.env.E2E_PASSWORD || "");
-    await expect(page.getByRole("heading", { name: "Examiner workspace" })).toBeVisible();
-    await expect(page.getByText("Read only", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Confirm finding" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Defect Review and Findings" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save Finding" })).toHaveCount(0);
     await page.close();
   });
 });

@@ -14,26 +14,38 @@ from ..tables import Alert, Branch, Examiner, LiveInspection, Report
 from . import evidence
 from .llm import LLM
 
-ACTIONS = {"confirm": "confirmed", "dismiss": "dismissed", "defer": "deferred"}
+# confirm / dismiss / defer, and the examiner's item status: pass (the item meets the requirement: not confirmed),
+# advisory (noted, does not fail the vehicle) and fail (a failed item). Overriding the rules takes a reason: passing or
+# downgrading a fail item, or failing an item the rules do not fail.
+ACTIONS = {"confirm": "confirmed", "dismiss": "dismissed", "defer": "deferred", "pass": "dismissed", "advisory": "advisory",
+           "fail": "confirmed"}
 
 
-def decide(alert_id: str, action: str, reason: str, examiner_id: str) -> dict:
+def decide(alert_id: str, action: str, reason: str, examiner_id: str, recommendation: str = "") -> dict:
     if action not in ACTIONS:
-        raise HTTPException(400, "action must be confirm, dismiss or defer")
-    if action in ("dismiss", "defer") and len(reason.strip()) < 3:
-        raise HTTPException(400, "a reason is required to dismiss or defer an alert")
+        raise HTTPException(400, f"action must be one of {', '.join(ACTIONS)}")
     with session_scope() as s:
         a = s.get(Alert, alert_id)
         if a is None:
             raise HTTPException(404, "alert not found")
+        override = (action in ("dismiss", "defer", "pass") or (action == "advisory" and a.fail_item)
+                    or (action == "fail" and not a.fail_item))
+        if override and len(reason.strip()) < 3:
+            raise HTTPException(400, "a reason is required to dismiss, defer, pass or change how this finding counts")
         li = s.get(LiveInspection, a.inspection_id)
         if li and li.status == "reported":
             raise HTTPException(409, "report already issued; decisions are locked")
+        was_fail = a.fail_item
         a.status, a.reason, a.decided_by = ACTIONS[action], reason.strip(), examiner_id
+        if action == "fail":
+            a.fail_item = True
+        if recommendation:
+            a.evidence = {**(a.evidence or {}), "recommendation": recommendation[:80]}
         a.decided_at = dt.datetime.utcnow()
         out = alert_dict(a)
     ev = evidence.append("decision", {"alert_id": alert_id, "code": out["code"], "action": action, "reason": reason.strip(),
-                                      "examiner": examiner_id, "model_confidence": out["confidence"]},
+                                      "examiner": examiner_id, "model_confidence": out["confidence"],
+                                      "recommendation": recommendation[:80], "fail_item_by_rule": was_fail},
                          out["inspection_id"], actor=examiner_id)
     out["evidence"] = {**out["evidence"], "chain_seq": ev["seq"]}
     return out
@@ -58,7 +70,7 @@ def _verdict(li: LiveInspection, alerts: list[Alert], senior_signed: bool) -> tu
         return "REFERRED", ["Identity checks need a senior examiner's sign-off before a certificate is issued."]
     if fails:
         return "FAIL", [a.title for a in fails]
-    advis = [a for a in alerts if a.status == "confirmed"]
+    advis = [a for a in alerts if a.status in ("confirmed", "advisory")]
     if "EV" in li.inspection_type and any(a.code.startswith(("ev:", "flood")) for a in advis):
         return "CONDITIONAL", [a.title for a in advis]
     return "PASS", notes + [a.title for a in advis]
@@ -89,7 +101,7 @@ def _template_summary(li: LiveInspection, data: dict) -> str:
             "REFERRED": f"The {name} has been referred to a senior examiner."}[verdict]
     parts = [lead]
     fails = [f["title"] for f in data["findings"] if f["fail_item"] and f["status"] == "confirmed"]
-    advis = [f["title"] for f in data["findings"] if not f["fail_item"] and f["status"] == "confirmed"]
+    advis = [f["title"] for f in data["findings"] if (not f["fail_item"] and f["status"] == "confirmed") or f["status"] == "advisory"]
     if fails:
         parts.append(f"{len(fails)} item{'s' if len(fails) > 1 else ''} must be fixed: " + "; ".join(fails[:4]) + ".")
     if advis:
@@ -204,6 +216,6 @@ def verify_public(token: str) -> dict:
             "summary": d["summary"], "health_score": (data.get("health") or {}).get("score"),
             "ev": {k: data["ev"][k] for k in ("pack_soh_pct", "km_to_70")} if data.get("ev") else None,
             "flood_probability": (data.get("flood") or {}).get("p"),
-            "findings": [{"title": f["title"], "status": f["status"]} for f in data.get("findings", []) if f["status"] == "confirmed"],
+            "findings": [{"title": f["title"], "status": f["status"]} for f in data.get("findings", []) if f["status"] in ("confirmed", "advisory")],
             "chain": {"intact": chain["intact"], "entries_checked": chain["checked"], "report_anchor": d["chain_hash"],
                       "anchored": anchored}}

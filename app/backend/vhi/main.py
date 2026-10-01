@@ -114,14 +114,21 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestBaseURL)
     app.add_middleware(RequireLogin)
     from .api import auth as auth_api
-    from .api import (evidence, fleet, floodwatch, hq, inspections, owner, reference, regulator, reports, sales,
+    from .api import (evidence, fleet, floodwatch, hq, hub, inspections, owner, reference, regulator, reports, sales,
                       sessions, system, usecases, vision)
-    for m in (auth_api, system, reference, sessions, usecases, inspections, reports, evidence, vision, owner, fleet, hq,
+    for m in (auth_api, system, reference, hub, sessions, usecases, inspections, reports, evidence, vision, owner, fleet, hq,
               regulator, sales, floodwatch):
         app.include_router(m.router)
+    from .api import appointments
+    app.include_router(appointments.router)
+    from .api import copilot
+    app.include_router(copilot.router)
+    from .api import images as images_api
+    app.include_router(images_api.router)
     app.mount("/media/data", StaticFiles(directory=str(s.data_dir)), name="data")
     app.mount("/media/assets", StaticFiles(directory=str(s.assets_dir)), name="assets")
     app.mount("/media/evidence", StaticFiles(directory=str(s.evidence_dir)), name="evidence")
+    app.mount("/media/images", StaticFiles(directory=str(images_api.images.uploads_dir())), name="images")  # uploads
     return app
 
 

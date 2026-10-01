@@ -58,7 +58,7 @@ def build(models) -> list[dict]:
                        f"{w['override_rate']:.0%} of results were overridden."),
             "evidence": [f"{e['date']} · {e['inspection_id']}: PASS with brake efficiency {e['brake_efficiency_pct']}%"
                          f", tread {e['tyre_tread_min_mm']} mm" for e in ev[:4]],
-            "evidence_count": len(ev), "where": "Examiner integrity", "href": f"/hq?examiner={ex_id}#integrity",
+            "evidence_count": len(ev), "where": "Examiner integrity", "href": f"/oversight/hq?examiner={ex_id}#integrity",
             "provenance": [["synthetic", "Inspection history"], ["live_model", "z-score + Isolation Forest"]],
         })
     for d in sorted(insights.equipment().get("devices", []), key=lambda x: x["health"]):
@@ -73,7 +73,7 @@ def build(models) -> list[dict]:
                        f"{d['trend_g_per_day']:+.3f} g a day" + (f"; service by {d['service_by']}." if d.get("service_by") else ".")),
             "evidence": [f"Anomaly score {d['anomaly_score']:.2f} (Isolation Forest per device type)",
                          "at the limit now" if d["days_to_limit"] <= 0 else f"about {d['days_to_limit']:.0f} days to the limit"],
-            "where": "Lane equipment health", "href": f"/hq?device={d['branch_id']}-{d['lane']}-{d['device']}#equipment",
+            "where": "Lane equipment health", "href": f"/oversight/hq?device={d['branch_id']}-{d['lane']}-{d['device']}#equipment",
             "provenance": [["simulated", "Device telemetry"], ["live_model", "Isolation Forest + trend"]],
         })
     if models is not None:
@@ -86,7 +86,7 @@ def build(models) -> list[dict]:
                 "title": f"{dem['branch']}: demand above capacity on {sm['days_over_capacity']} of the next 14 days",
                 "reason": f"{sm['extra_slots_needed']} more slots needed than the lanes offer: about {shifts} extra lane shifts.",
                 "evidence": [f"{r['date']}: {r['extra_slots']} slots over capacity" for r in sm["roster"][:4]],
-                "where": "Demand vs lane capacity", "href": "/hq?branch=BR00#demand",
+                "where": "Demand vs lane capacity", "href": "/oversight/hq?branch=BR00#demand",
                 "provenance": [["synthetic", "Booking history"], ["live_model", "LightGBM forecast"]],
             })
     chain = evidence.verify()
@@ -94,7 +94,7 @@ def build(models) -> list[dict]:
         items.append({
             "key": "chain", "kind": "chain", "severity": "critical", "title": "The evidence chain does not verify",
             "reason": f"Entry {chain['broken_at_seq']}: {chain['reason']}.", "evidence": [], "where": "Evidence audit",
-            "href": "/hq#audit", "provenance": [["live_logic", "SHA-256 hash chain"]],
+            "href": "/oversight/hq#audit", "provenance": [["live_logic", "SHA-256 hash chain"]],
         })
     state = _state()
     for it in items:

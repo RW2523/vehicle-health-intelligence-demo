@@ -4,9 +4,9 @@
 import { fmtN } from "@/lib/format";
 import { Icon } from "./icons";
 
-export const TRUST_COL: Record<string, string> = { ok: "#34D399", warn: "#FBBF24", bad: "#F87171", info: "#60A5FA" };
+export const TRUST_COL: Record<string, string> = { ok: "#059669", warn: "#D97706", bad: "#DC2626", info: "#3B82F6" };
 export const TRUST_MARK: Record<string, string> = { ok: "✓", warn: "!", bad: "!", info: "i" };
-export const RESULT_COL: Record<string, string> = { PASS: "#34D399", FAIL: "#F87171", CONDITIONAL: "#FBBF24", REFERRED: "#60A5FA" };
+export const RESULT_COL: Record<string, string> = { PASS: "#059669", FAIL: "#DC2626", CONDITIONAL: "#D97706", REFERRED: "#3B82F6" };
 export const FLAGS = [
   { id: "rollback", label: "Odometer rollback" },
   { id: "flood", label: "Flood claim" },

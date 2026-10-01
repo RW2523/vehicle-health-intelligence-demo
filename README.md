@@ -79,9 +79,69 @@ Open `http://<spark-host>:3000`. The web server also proxies the live WebSocket 
 
   This writes `app/backend/models/vision/*.onnx` and `vision_metrics.json`. At runtime the classifiers run on onnxruntime (15-25 ms per image on the Grace CPU), so the API does not need PyTorch.
 
+## The apps
+
+Three apps, each on its own address, in a light "glass" design. The header's app switcher moves between them for the
+accounts that open more than one. The old addresses (`/owner`, `/hq`, `/regulator`, `/sales`, `/flood`, `/fleet`,
+`/vision`) redirect to their new places, query string included.
+
+| App | Address | Who lands there |
+|---|---|---|
+| **VehicleSense Inspection**: the hub's daily work | `/` | examiners, fleet managers, the presenter and the viewer |
+| **VehicleSense Mobile**: the owner's phone (a phone frame on a desktop, full screen on a phone) | `/mobile` | vehicle owners |
+| **VehicleSense Oversight**: the national view | `/oversight` | HQ and the regulator |
+
+### The inspection app: seven sections
+
+| Section | Address | What it is |
+|---|---|---|
+| **Dashboard** | `/` | Today at the Central Inspection Hub: <ul><li>KPIs</li><li>the four lanes with the vehicle on each and its progress</li><li>lane utilization, the queue, upcoming vehicles and recent activity</li></ul> |
+| **Live Lane** | `/lane`, `/lane?view=vision` | The lane console (what the lane sees as it happens, the live sensors and charts), and AI vision: the Undercarriage, Above-carriage and Tyre AI modules on the captures and the image library, with the live models |
+| **Inspection Management** | `/inspection` | <ul><li>Tabs: live lanes, today's schedule, issued reports</li><li>Each inspection: capture `/inspection/{id}`, findings `/inspection/{id}/findings`, final review and approval `/inspection/{id}/review`</li><li>Reports: `/report?id=`; the public QR check (no login): `/verify/{token}`</li></ul> |
+| **Vehicle Records** | `/vehicles`, `/vehicles/{plate}` | The ten main vehicles with their photos. Each record has these tabs: <ul><li>overview</li><li>inspection history</li><li>health trends: the fleet's twelve months of readings, anomalies, the time-to-limit forecast, the pattern report and booking before the fail date</li><li>photos and inspection images</li><li>claims and bookings</li></ul> |
+| **Appointments** | `/appointments` | Calendar (day, week, month dots), agenda and table views. Each appointment shows its timeline and its check-in QR, and can be checked in, rescheduled, cancelled or marked paid (mock). New appointments are made for any of the ten vehicles, with slot rules (heavy vehicles need a gear slot) |
+| **Chat Bot** | `/assistant` | The operations assistant. <ul><li>It answers questions on the vehicles, today's lanes, findings, reports, appointments, history, fleet trends and the inspection rules, from numbered facts it cites [n] with links</li><li>Answers come from the local LLM, or the template engine when it is off (it says which), in English or Malay</li><li>It keeps a conversation history per account</li></ul> |
+| **Settings** | `/settings` | <ul><li>Account and the apps</li><li>**Images**: every photo slot with its generation prompt, upload and revert to stock</li><li>**Demo**: demo control `/demo` and "start the hub's day again"</li><li>System: the pipeline and its models</li></ul> |
+
+**The ten main vehicles** (`vhi/services/showcase.py`) are what the inspection app lists:
+- the four lane-replay vehicles, DMO 9001, 9002, 9003 and 9006
+- six fleet vehicles whose sample inspection images are in the image library: VJM 7412, WXD 2291, BHY 7783, VKR 3128, PKE 4410 and JTR 5510
+
+The rest of the synthetic world, thousands of vehicles, stays behind the aggregate views: oversight, the regulator, flood watch and sales.
+
+**The hub's day** (`vhi/services/hubday.py`, `GET /api/hub/today`, `/api/hub/schedule`, `POST /api/hub/restart`) is a fixed plan for the ten vehicles on four lanes.
+- **Anchor:** it is laid against the clock from an anchor set the first time the day is looked at. At that point four inspections are done, every lane is busy, one vehicle waits and one is still to come; then the day runs on with the clock.
+- **Restart:** Settings → Demo starts the day again from now. A runtime reset clears the anchor.
+- **Live replays:** a live replay takes its vehicle's place on its lane.
+- **Closed hours:** outside opening hours the day is shown at 10:30.
+
+**Photos** (`vhi/services/images.py`, `/api/images/*`, `data/curated/images/stock/`):
+- **Stock:** representative stock photos of each model from Wikimedia Commons. Every one is CC0, CC BY or CC BY-SA, with its author and licence shown wherever it appears and listed in `data/curated/LICENSES.md`. `data/curated/scripts/fetch_stock_images.py --picks` downloads them again.
+- **Your own:** every photo slot has a text-to-image prompt (`data/curated/images/stock/PROMPTS.md`). An image uploaded in Settings → Images replaces the stock photo; uploads live in the runtime folder and survive a reset.
+
+### The mobile app
+
+`/mobile` is the vehicle owner's phone app:
+- **Screens:** home, the vehicle's health passport (and selling it), the guided self-check, booking with mock payment and the check-in ticket, and the assistant in English or Malay.
+- **Desktop:** it shows in a phone frame, and the presenter can switch between the three private owners.
+- **Public QR pages:** the booking check-in `/checkin/{token}` and the report verification `/verify/{token}` belong to it and need no login.
+
+### The oversight app
+
+`/oversight` has an overview and four sections:
+- **HQ operations** `/oversight/hq`: exceptions, lanes, equipment and the audit chain.
+- **Regulator** `/oversight/regulator`: registrations and defect trends.
+- **Used-vehicle sales** `/oversight/sales`.
+- **Flood watch** `/oversight/flood`: a live map (OpenStreetMap / CARTO tiles) of the JPS river-level stations, the districts and vehicles at risk. It refreshes itself and has the past-flood event views.
+
+New endpoints besides those above: `/api/appointments/*`, `/api/copilot/*` (the Chat Bot), `/api/images/*`, `GET /api/search`,
+`GET /api/notifications`, `GET /api/vehicles` (`scope=all` for the whole register) and `/api/vehicles/{plate}/profile`.
+Inspections take `POST /api/inspections/{id}/capture?view=…`, `/remark`, `/send-report` (mock) and `/reinspection`. Decisions
+accept `pass`, `advisory` and `fail` besides `confirm`, `dismiss` and `defer`; overriding the rules takes a reason.
+
 ## The demo: nine end-to-end use cases
 
-Log in as the **Demo presenter** and start from **Demo control** (`/`). It opens with what the product does and one
+Log in as the **Demo presenter** and start from **Demo control** (`/demo`). It opens with what the product does and one
 *Start the recommended demo* button, then lists nine **use cases**. Each card gives the vehicle, the scenario, the
 expected outcome, the time it takes and where its data comes from. *Start* opens the first screen of the journey.
 From then on the header of every page shows the running use case, its step and a link to the next one. Each
@@ -132,7 +192,7 @@ lane takes the booked inspection type.
   retrieved from the record, numbered, apart from the explanation. The local LLM only rephrases them, and without it
   a template does. It says plainly when something is not on record.
 
-**Used-vehicle sales.** The owner app's *Sale* tab and *Oversight › Used-vehicle sales* (`/sales`) list 55 cars and
+**Used-vehicle sales.** The owner app's *Sale* tab and *Oversight › Used-vehicle sales* (`/oversight/sales`) list 55 cars and
 motorcycles for sale, each with its whole record: every inspection, the odometer readings with rollback detection, OBD
 fault codes, insurance claims and policy, photos and the latest verifiable report, summed up for the buyer. The
 listings, the 15 motorcycles and their inspections are synthetic (`vhi/seed/sales.py`).
@@ -172,7 +232,7 @@ References that remain but are not shown in the apps:
 
 ### Flood watch
 
-**Flood watch** (`/flood`, under *oversight*) sets river levels (JPS Public InfoBanjir) against the registered vehicles. It shows which vehicles need a flood-damage inspection or an underbody corrosion check, and why.
+**Flood watch** (`/oversight/flood`) sets river levels (JPS Public InfoBanjir) against the registered vehicles. It shows which vehicles need a flood-damage inspection or an underbody corrosion check, and why.
 
 - **River levels and rainfall (real).** Every state's water-level and rainfall tables come from [JPS Public InfoBanjir](https://publicinfobanjir.water.gov.my/). They are fetched in parallel (about 8 s) and kept for 15 minutes. Opening the page starts a new fetch in the background once the data is older than that; *Refresh river levels* fetches at most every two minutes. The page says when the data was last updated, and says so plainly when the live feed is unavailable and it shows the stored snapshot.
 - **Station status.** Each station is read against its own JPS thresholds (normal, alert, warning, danger). A 0.00 m level under a positive normal level, or a reading more than a day old, counts as *no reading*.
@@ -184,7 +244,7 @@ References that remain but are not shown in the apps:
   - exposure of the district (a station at alert, warning or danger, very heavy rain, or a past flood)
   - raised or lowered by the vehicle (age, ground clearance, EV or hybrid battery, corrosion found before, earlier flood claims)
   - combined with the LightGBM flood model for vehicles with an inspection history
-- **Invitation (mock).** *Invite the owner for a flood inspection* only records the invitation; no message is sent. The vehicle's detail then shows the result of the inspection that follows. The address holds the view and the vehicle (`/flood?scope=event:2025-12-10&vehicle=DMO 9002`).
+- **Invitation (mock).** *Invite the owner for a flood inspection* only records the invitation; no message is sent. The vehicle's detail then shows the result of the inspection that follows. The address holds the view and the vehicle (`/oversight/flood?scope=event:2025-12-10&vehicle=DMO 9002`).
 - **API.** `/api/floodwatch` (`/stations`, `/areas`, `/vehicles`, `/vehicles/{plate}`, `/refresh`, `/invitations`); see `/docs`.
 
 ## Architecture
@@ -248,9 +308,9 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 ## Tests
 
 ```bash
-make test                                                          # 70 backend tests (SQLite)
+make test                                                          # 78 backend tests (SQLite)
 VHI_DATABASE_URL=postgresql+psycopg://... make test                # the same suite on PostgreSQL (add VHI_MQTT_URL=... for MQTT)
-make e2e                                                           # 38 Playwright end-to-end tests (needs `make start`;
+make e2e                                                           # 42 Playwright end-to-end tests (needs `make start`;
                                                                    # first time: cd app/web && npx playwright install chromium)
 ```
 

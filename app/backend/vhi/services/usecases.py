@@ -29,15 +29,15 @@ def _lane(session: str, lane: str, plate: str, report_step: str = "Issue the rep
     """The inspection stages every lane journey shares."""
     return [
         {"id": "checkin", "stage": "Check-in", "label": f"{plate} checks in at the lane", "kind": "checkin",
-         "href": f"/lane?lane={lane}", "cta": "Watch the lane"},
+         "href": f"/inspection/{session}", "cta": "Watch the inspection"},
         {"id": "inspect", "stage": "Inspect", "label": "Sensors, cameras and AI modules run", "kind": "lane_done",
-         "href": f"/lane?lane={lane}", "cta": "Watch the lane"},
+         "href": f"/inspection/{session}", "cta": "Watch the inspection"},
         {"id": "review", "stage": "Review findings", "label": "Examiner reviews every critical finding", "kind": "reviewed",
-         "href": f"/examiner?session={session}", "cta": "Review AI findings"},
+         "href": f"/inspection/{session}/findings", "cta": "Review AI findings"},
         {"id": "decide", "stage": "Decide", "label": "Every finding decided", "kind": "decided",
-         "href": f"/examiner?session={session}", "cta": "Decide the findings"},
+         "href": f"/inspection/{session}/findings", "cta": "Decide the findings"},
         {"id": "report", "stage": "Report", "label": report_step, "kind": "report",
-         "href": f"/examiner?session={session}", "cta": "Issue the report"},
+         "href": f"/inspection/{session}/review", "cta": "Issue the report"},
     ]
 
 
@@ -55,7 +55,7 @@ USECASES: list[dict] = [
         "minutes": 6, "provenance": ["simulated", "live_model", "live_logic"], "autostart": True,
         "steps": _lane("S1", "BR00-L3", "DMO 9001") + [
             _visit("downstream", "Downstream update", "Fleet vehicle record shows the result",
-                   f"/fleet/vehicle/{_q('DMO 9001')}", "Open the fleet record")],
+                   f"/vehicles/{_q('DMO 9001')}?tab=health", "Open the vehicle record", f"/vehicles/{_q('DMO 9001')}")],
     },
     {
         "id": "UC-02", "title": "EV flood-risk inspection", "session": "S2", "lane": "BR00-L2",
@@ -66,7 +66,7 @@ USECASES: list[dict] = [
         "minutes": 6, "provenance": ["simulated", "live_model", "synthetic"], "autostart": True,
         "steps": _lane("S2", "BR00-L2", "DMO 9002") + [
             _visit("downstream", "Downstream update", "Vehicle history lists the certificate",
-                   f"/owner?plate={_q('DMO 9002')}&tab=passport", "Open the vehicle history", "/owner")],
+                   f"/mobile/vehicle?plate={_q('DMO 9002')}", "Open the owner's passport", "/mobile")],
     },
     {
         "id": "UC-03", "title": "Odometer rollback and senior review", "session": "S3", "lane": "BR00-L1",
@@ -78,11 +78,11 @@ USECASES: list[dict] = [
         "minutes": 7, "provenance": ["simulated", "live_model", "synthetic"], "autostart": True,
         "steps": _lane("S3", "BR00-L1", "DMO 9003", "Senior examiner signs off the report")[:4] + [
             {"id": "refer", "stage": "Senior review", "label": "Referred to the senior examiner", "kind": "referred",
-             "href": "/examiner?session=S3", "cta": "Refer to the senior examiner"},
+             "href": "/inspection/S3/review", "cta": "Refer to the senior examiner"},
             {"id": "report", "stage": "Report", "label": "Senior examiner signs off the report", "kind": "report",
-             "href": "/examiner?session=S3", "cta": "Sign off as senior examiner"},
+             "href": "/inspection/S3/review", "cta": "Sign off as senior examiner"},
             _visit("downstream", "Downstream update", "Vehicle history shows the decision",
-                   f"/owner?plate={_q('DMO 9003')}&tab=passport", "Open the vehicle history", "/owner")],
+                   f"/mobile/vehicle?plate={_q('DMO 9003')}", "Open the owner's passport", "/mobile")],
     },
     {
         "id": "UC-04", "title": "Clean inspection, no anomalies", "session": "S7", "lane": "BR00-L4",
@@ -93,7 +93,7 @@ USECASES: list[dict] = [
         "minutes": 4, "provenance": ["simulated", "live_model", "live_logic"], "autostart": True,
         "steps": _lane("S7", "BR00-L4", "DMO 9006") + [
             _visit("downstream", "Downstream update", "Health passport shows the PASS",
-                   f"/owner?plate={_q('DMO 9006')}&tab=passport", "Open the health passport", "/owner")],
+                   f"/mobile/vehicle?plate={_q('DMO 9006')}", "Open the health passport", "/mobile")],
     },
     {
         "id": "UC-05", "title": "Owner self-check, booking and inspection", "session": "S7", "lane": "BR00-L4",
@@ -104,14 +104,14 @@ USECASES: list[dict] = [
         "minutes": 8, "provenance": ["live_model", "simulated", "mock"], "autostart": False,
         "steps": [
             {"id": "selfcheck", "stage": "Self-check", "label": "Self-check says the car is ready", "kind": "selfcheck",
-             "href": f"/owner?plate={_q('DMO 9006')}&tab=check", "cta": "Run the self-check"},
+             "href": f"/mobile/check?plate={_q('DMO 9006')}", "cta": "Run the self-check"},
             {"id": "book", "stage": "Book", "label": "Slot booked and paid (mock)", "kind": "booked",
-             "href": f"/owner?plate={_q('DMO 9006')}&tab=book", "cta": "Book an inspection"},
+             "href": f"/mobile/book?plate={_q('DMO 9006')}", "cta": "Book an inspection"},
             {"id": "checkin", "stage": "Check-in", "label": "Booking code checked in at the lane", "kind": "booking_checked_in",
-             "href": "/lane?lane=BR00-L4", "cta": "Start the lane"},
+             "href": "/inspection/S7", "cta": "Start the inspection"},
         ] + _lane("S7", "BR00-L4", "DMO 9006")[1:] + [
             _visit("downstream", "Downstream update", "Passport and timeline show the certificate",
-                   f"/owner?plate={_q('DMO 9006')}&tab=passport", "Open the passport", "/owner")],
+                   f"/mobile/vehicle?plate={_q('DMO 9006')}", "Open the passport", "/mobile")],
     },
     {
         "id": "UC-06", "title": "Fleet predictive maintenance", "session": "S1", "lane": "BR00-L3",
@@ -121,14 +121,14 @@ USECASES: list[dict] = [
         "outcome": "The truck is inspected, and the fleet view and its vehicle record show the new result.",
         "minutes": 8, "provenance": ["synthetic", "live_logic", "live_model", "simulated"], "autostart": False,
         "steps": [
-            _visit("fleet", "Attention list", "Vehicles needing attention", "/fleet?fleet=FLEET07", "Open the fleet", "/fleet"),
-            _visit("history", "Vehicle history", "Brake trend and forecast of DMO 9001",
-                   f"/fleet/vehicle/{_q('DMO 9001')}", "Open the vehicle history"),
+            _visit("fleet", "Attention list", "Vehicles needing attention", "/vehicles?fleet=FLEET07", "Open the vehicle records", "/vehicles"),
+            _visit("history", "Vehicle history", "Tyre trend and forecast of DMO 9001",
+                   f"/vehicles/{_q('DMO 9001')}?tab=health", "Open the health trends", f"/vehicles/{_q('DMO 9001')}"),
             {"id": "book", "stage": "Action", "label": "Inspection booked", "kind": "fleet_booked",
-             "href": f"/fleet/vehicle/{_q('DMO 9001')}", "cta": "Book the inspection"},
+             "href": f"/vehicles/{_q('DMO 9001')}?tab=health", "cta": "Book the inspection"},
         ] + _lane("S1", "BR00-L3", "DMO 9001") + [
-            _visit("downstream", "Downstream update", "Fleet record shows the new result",
-                   f"/fleet/vehicle/{_q('DMO 9001')}", "Back to the fleet record")],
+            _visit("downstream", "Downstream update", "The vehicle record shows the new result",
+                   f"/vehicles/{_q('DMO 9001')}?tab=health", "Back to the vehicle record", f"/vehicles/{_q('DMO 9001')}")],
     },
     {
         "id": "UC-07", "title": "HQ exception investigation", "session": None, "lane": None,
@@ -138,11 +138,11 @@ USECASES: list[dict] = [
         "outcome": "The action is recorded (and hash-chained) and HQ shows the exception as handled.",
         "minutes": 4, "provenance": ["synthetic", "simulated", "live_model", "mock"], "autostart": False,
         "steps": [
-            _visit("hq", "Exceptions", "Open exceptions at HQ", "/hq", "Open HQ operations"),
-            _visit("drill", "Evidence", "The evidence behind an exception", "/hq?", "Open an exception", "/hq?"),
-            {"id": "act", "stage": "Resolution", "label": "Action recorded", "kind": "exception_action", "href": "/hq",
+            _visit("hq", "Exceptions", "Open exceptions at HQ", "/oversight/hq", "Open HQ operations"),
+            _visit("drill", "Evidence", "The evidence behind an exception", "/oversight/hq?", "Open an exception", "/oversight/hq?"),
+            {"id": "act", "stage": "Resolution", "label": "Action recorded", "kind": "exception_action", "href": "/oversight/hq",
              "cta": "Record an action"},
-            _visit("back", "Updated", "HQ shows the exception as handled", "/hq", "Back to HQ"),
+            _visit("back", "Updated", "HQ shows the exception as handled", "/oversight/hq", "Back to HQ"),
         ],
     },
     {
@@ -153,14 +153,14 @@ USECASES: list[dict] = [
         "outcome": "The invitation is recorded (mock), the EV is inspected, and flood watch shows the result.",
         "minutes": 8, "provenance": ["synthetic", "live_logic", "live_model", "mock", "simulated"], "autostart": False,
         "steps": [
-            _visit("flood", "Risk view", "Districts and vehicles at risk in the December 2025 floods", f"/flood?scope={FLOOD_EVENT}",
-                   "Open flood watch", "/flood"),
-            _visit("vehicle", "At-risk vehicle", "Why DMO 9002 is at risk", f"/flood?scope={FLOOD_EVENT}&vehicle={_q('DMO 9002')}",
+            _visit("flood", "Risk view", "Districts and vehicles at risk in the December 2025 floods", f"/oversight/flood?scope={FLOOD_EVENT}",
+                   "Open flood watch", "/oversight/flood"),
+            _visit("vehicle", "At-risk vehicle", "Why DMO 9002 is at risk", f"/oversight/flood?scope={FLOOD_EVENT}&vehicle={_q('DMO 9002')}",
                    "Open the vehicle", "*vehicle=DMO"),
             {"id": "invite", "stage": "Invitation", "label": "Owner invited (mock)", "kind": "invited",
-             "href": f"/flood?scope={FLOOD_EVENT}&vehicle={_q('DMO 9002')}", "cta": "Invite for inspection"},
+             "href": f"/oversight/flood?scope={FLOOD_EVENT}&vehicle={_q('DMO 9002')}", "cta": "Invite for inspection"},
         ] + _lane("S2", "BR00-L2", "DMO 9002") + [
-            _visit("downstream", "Result", "Flood watch shows the inspection result", f"/flood?scope={FLOOD_EVENT}&vehicle={_q('DMO 9002')}",
+            _visit("downstream", "Result", "Flood watch shows the inspection result", f"/oversight/flood?scope={FLOOD_EVENT}&vehicle={_q('DMO 9002')}",
                    "Back to flood watch", "*vehicle=DMO")],
     },
     {
@@ -171,11 +171,11 @@ USECASES: list[dict] = [
         "outcome": "The public verification page says Genuine, unaltered report, without a login.",
         "minutes": 3, "provenance": ["synthetic", "live_logic"], "autostart": False,
         "steps": [
-            _visit("listings", "Search", "Search the listings", "/sales", "Open the listings"),
-            _visit("record", "Vehicle record", "Full record and red flags", "/sales?id={listing}", "Open the vehicle record",
-                   "/sales?id="),
-            _visit("report", "Latest report", "Latest inspection report", "/sales?id={listing}#report", "See the latest report",
-                   "/sales?id={listing}#report"),
+            _visit("listings", "Search", "Search the listings", "/oversight/sales", "Open the listings"),
+            _visit("record", "Vehicle record", "Full record and red flags", "/oversight/sales?id={listing}", "Open the vehicle record",
+                   "/oversight/sales?id="),
+            _visit("report", "Latest report", "Latest inspection report", "/oversight/sales?id={listing}#report", "See the latest report",
+                   "/oversight/sales?id={listing}#report"),
             _visit("verify", "Verification", "Public verification: genuine, unaltered", "/verify/{token}", "Verify the report",
                    "/verify/"),
         ],
@@ -338,8 +338,12 @@ def _reset(uc: dict, actor: str) -> None:
     plate = uc.get("plate")
     with session_scope() as s:
         if uc["id"] in ("UC-05", "UC-06") and plate:
-            for b in s.execute(select(Booking).where(Booking.plate == plate, Booking.status.in_(("pending_payment", "confirmed")))).scalars():
-                b.status = "cancelled"
+            # open bookings, and visits checked in at a lane whose inspection never got a report (an earlier run
+            # stopped half-way): either would make the use case's own booking or check-in step look done already
+            last = s.execute(select(Report.created_at).where(Report.plate == plate).order_by(Report.created_at.desc())).scalars().first()
+            for b in s.execute(select(Booking).where(Booking.plate == plate, Booking.status.in_(("pending_payment", "confirmed", "checked_in")))).scalars():
+                if b.status != "checked_in" or last is None or b.created_at > last:
+                    b.status = "cancelled"
         if uc["id"] == "UC-08" and plate:
             v = s.execute(select(Vehicle).where(Vehicle.plate == plate)).scalar_one_or_none()
             if v is not None:
@@ -367,7 +371,7 @@ def visit(path: str) -> dict | None:
         match = _fill(step["match"], uc)
         # "*text" matches anywhere in the address (query parameters come in any order), otherwise it is a prefix
         hit = match[1:] in path if match.startswith("*") else path.startswith(match)
-        if hit and (step["id"] != "drill" or len(path) > len("/hq?")):
+        if hit and (step["id"] != "drill" or len(path) > len("/oversight/hq?")):
             run.setdefault("visits", {})[step["id"]] = _now().isoformat(timespec="seconds")
             _put(ACTIVE, run)
             p = progress(uc, run)

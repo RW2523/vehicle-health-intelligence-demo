@@ -14,13 +14,14 @@ export type User = {
   plate?: string | null;
 };
 
-/** Where each role starts after logging in. */
+/** Where each role starts after logging in: its app (lib/apps.ts) and the section it uses most. */
 export const ROLE_HOME: Record<string, string> = {
-  presenter: "/", viewer: "/", examiner: "/lane", hq: "/hq", regulator: "/regulator", fleet: "/fleet", owner: "/owner",
+  presenter: "/", viewer: "/", examiner: "/", hq: "/oversight/hq", regulator: "/oversight/regulator", fleet: "/vehicles", owner: "/mobile",
 };
 
 /** The presenter and the read-only viewer open every app; other roles open the apps that list them. */
-export const canOpen = (role: string | undefined, roles: string[]) => role === "presenter" || role === "viewer" || roles.includes(role || "");
+export const canOpen = (role: string | undefined, roles: string[]) =>
+  role === "presenter" || role === "viewer" || roles.includes("*") || roles.includes(role || "");
 
 let cached: Promise<User | null> | null = null;
 

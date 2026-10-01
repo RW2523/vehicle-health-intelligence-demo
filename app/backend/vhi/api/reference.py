@@ -27,13 +27,29 @@ def examiners():
 
 
 @router.get("/vehicles")
-def search_vehicles(q: str = Query("", min_length=0), limit: int = 20):
-    with session_scope() as s:
-        stmt = select(Vehicle)
-        if q:
-            like = f"%{q.upper()}%"
-            stmt = stmt.where(or_(Vehicle.plate.like(like), Vehicle.make.ilike(like), Vehicle.model.ilike(like)))
-        return [vehicle_public(v) for v in s.scalars(stmt.limit(min(limit, 100)))]
+def vehicle_register(q: str = Query("", min_length=0), vtype: str = "", fuel: str = "", state: str = "", result: str = "",
+                     page: int = 1, page_size: int = 25, scope: str = "main"):
+    """The vehicle register with each vehicle's latest inspection, filtered and paged: the ten main vehicles the
+    inspection app is built around, or the whole synthetic register with scope=all."""
+    from .. import auth
+    from ..services import registry
+    a = auth.user()
+    if a and a.role == "owner":  # an owner sees only their own vehicle
+        q = a.plate or ""
+    return registry.listing(q, vtype, fuel, state, result, page, page_size, scope)
+
+
+@router.get("/vehicles/facets")
+def vehicle_facets():
+    from ..services import registry
+    return registry.facets()
+
+
+@router.get("/vehicles/{plate}/profile")
+def vehicle_profile(plate: str):
+    from .. import auth
+    from ..services import registry
+    return registry.profile(auth.own_plate(plate))
 
 
 @router.get("/vehicles/{plate}")

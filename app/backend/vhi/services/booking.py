@@ -28,7 +28,11 @@ GEAR_TIMES = {"08:00", "10:40", "13:20", "15:40"}  # slots held back each day fo
 
 
 def today() -> dt.date:
-    return dt.date.fromisoformat(get_settings().demo_today)
+    """The booking calendar's today: the real date in Malaysia, never earlier than the demo world's anchor date (so
+    the owner app, staff appointments and the hub's day share one calendar)."""
+    from zoneinfo import ZoneInfo
+    s = get_settings()
+    return max(dt.date.fromisoformat(s.demo_today), dt.datetime.now(ZoneInfo(s.timezone)).date())
 
 
 def _synthetic_taken(branch_id: str, day: str, slot: str, lanes: int) -> int:
@@ -115,7 +119,7 @@ def create(plate: str, branch_id: str, day: str, slot: str, itype: str, gear: bo
     with session_scope() as s:
         b = Booking(plate=plate, branch_id=branch_id, date=day, slot=slot, inspection_type=itype, gear=gear,
                     price_rm=price, source=source, fleet_id=fleet_id,
-                    status="confirmed" if source in ("fleet", "api") else "pending_payment")
+                    status="confirmed" if source in ("fleet", "api", "examiner") else "pending_payment")
         s.add(b)
         s.flush()
         return booking_dict(b)

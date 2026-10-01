@@ -96,9 +96,9 @@ export function Kpi({ label, value, sub, color, right }: { label: string; value:
   );
 }
 
-export function Pill({ children, color = "#9AA8BF", solid = false }: { children: ReactNode; color?: string; solid?: boolean }) {
+export function Pill({ children, color = "#64748B", solid = false }: { children: ReactNode; color?: string; solid?: boolean }) {
   return (
-    <span className="chip max-w-full whitespace-normal" style={{ borderColor: color, color: solid ? "#06202A" : color, background: solid ? color : color + "18" }}>
+    <span className="chip max-w-full whitespace-normal" style={{ borderColor: color, color: solid ? "#FFFFFF" : color, background: solid ? color : color + "18" }}>
       {children}
     </span>
   );
@@ -116,13 +116,14 @@ export function Empty({ children, title, actions }: { children?: ReactNode; titl
   );
 }
 
-/** Title, one line on what the page is for, and the page's actions - the same on every screen. */
-export function PageHeader({ title, sub, actions, children }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; children?: ReactNode }) {
+/** Eyebrow, title, one line on what the page is for, and the page's actions - the same on every screen. */
+export function PageHeader({ title, sub, actions, children, eyebrow }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; children?: ReactNode; eyebrow?: ReactNode }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
       <div className="min-w-0">
-        <h1 className="font-display text-[24px] font-semibold leading-tight">{title}</h1>
-        {sub && <p className="mt-1 max-w-[760px] text-[13.5px] text-fg-3">{sub}</p>}
+        {eyebrow && <div className="eyebrow mb-1.5">{eyebrow}</div>}
+        <h1 className="text-[28px] font-extrabold leading-[1.1] tracking-tight text-fg sm:text-[34px] xl:text-[40px]">{title}</h1>
+        {sub && <p className="mt-2 max-w-[820px] text-[14.5px] text-fg-2 sm:text-[16px]">{sub}</p>}
         {children}
       </div>
       {actions && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{actions}</div>}
@@ -132,14 +133,14 @@ export function PageHeader({ title, sub, actions, children }: { title: ReactNode
 
 export function Tabs({ value, onChange, items, size = "md" }: { value: string; onChange: (v: any) => void; items: { id: string; label: ReactNode }[]; size?: "sm" | "md" }) {
   return (
-    <div role="tablist" className="inline-flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-850 p-1">
+    <div role="tablist" className="inline-flex flex-wrap gap-1 rounded-xl border border-white/80 bg-white/60 p-1 shadow-glass">
       {items.map((it) => (
         <button
           key={it.id}
           role="tab"
           aria-selected={value === it.id}
           onClick={() => onChange(it.id)}
-          className={`rounded-lg px-3 ${size === "sm" ? "py-1 text-[12px]" : "py-1.5 text-[13px]"} font-semibold transition ${value === it.id ? "bg-cyan text-[#06202A]" : "text-fg-2 hover:bg-ink-700"}`}
+          className={`rounded-lg px-3 ${size === "sm" ? "py-1 text-[12px]" : "py-1.5 text-[13px]"} font-semibold transition ${value === it.id ? "bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white shadow-sm" : "text-fg-2 hover:bg-white"}`}
         >
           {it.label}
         </button>
@@ -152,7 +153,7 @@ type ToastKind = "info" | "ok" | "err";
 let pushToast: (m: string, kind: ToastKind) => void = () => {};
 /** Short confirmation in the corner; errors in red. At most three stay on screen. */
 export const toast = (m: string, kind: ToastKind = "info") => pushToast(m, kind);
-const TOAST_COL: Record<ToastKind, string> = { info: "#22D3EE", ok: "#34D399", err: "#F87171" };
+const TOAST_COL: Record<ToastKind, string> = { info: "#2563EB", ok: "#059669", err: "#DC2626" };
 
 export function Toaster() {
   const [msgs, setMsgs] = useState<{ id: number; m: string; kind: ToastKind }[]>([]);
@@ -180,11 +181,11 @@ export function ScoreRing({ value, size = 120, label = "Health" }: { value: numb
   const r = size / 2 - sw + 1;
   const c = 2 * Math.PI * r;
   const v = value ?? 0;
-  const col = value == null ? "#2A3957" : v < 50 ? "#F87171" : v < 70 ? "#FBBF24" : "#34D399";
+  const col = value == null ? "#CBD5E1" : v < 50 ? "#DC2626" : v < 70 ? "#D97706" : "#059669";
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1F2B44" strokeWidth={sw} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E2E8F0" strokeWidth={sw} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${(c * v) / 100} ${c}`} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">

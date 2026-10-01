@@ -2,32 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
-html, body { background: #0B1220; color: #E8EEF7; }
-body { font-family: "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+:root { color-scheme: light; }
+html { background: #EEF3F9; }
+/* the page: a soft, light backdrop with blurred colour fields, behind frosted-glass panels */
+body {
+  color: #0F172A; font-family: "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh;
+  background:
+    radial-gradient(1200px 700px at 8% -10%, rgba(191, 219, 254, 0.75), transparent 60%),
+    radial-gradient(900px 600px at 100% 0%, rgba(224, 231, 255, 0.85), transparent 55%),
+    radial-gradient(1000px 800px at 85% 110%, rgba(204, 251, 241, 0.55), transparent 60%),
+    radial-gradient(800px 600px at -10% 100%, rgba(254, 243, 199, 0.45), transparent 60%),
+    linear-gradient(180deg, #F3F6FB 0%, #EAF0F8 100%);
+  background-attachment: fixed;
+}
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .5; }
-:focus-visible { outline: 2px solid #22D3EE; outline-offset: 2px; }
+:focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #2A3957; border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 @layer components {
-  .card { @apply rounded-2xl border border-ink-600 bg-ink-800; }
-  .card-pad { @apply p-4; }
-  .h-title { @apply font-display text-[15px] font-semibold text-fg; }
-  .label { @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-3; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-ink-500 px-3 py-2 text-[13px] font-semibold text-fg transition hover:border-cyan/60 hover:bg-ink-700 disabled:hover:bg-transparent; }
-  .btn-primary { @apply border-transparent bg-cyan text-[#06202A] hover:bg-[#67E8F9] hover:border-transparent; }
-  .btn-sm { @apply px-2.5 py-1.5 text-[12px]; }
-  .btn-danger { @apply border-bad/60 text-bad hover:border-bad hover:bg-bad/10; }
-  .btn-lg { @apply px-4 py-2.5 text-[14px]; }
+  .card { @apply rounded-2xl border border-white/80 bg-white/75 shadow-glass backdrop-blur-xl; }
+  .card-pad { @apply p-4 lg:p-5; }
+  .glass { @apply border border-white/70 bg-white/55 backdrop-blur-2xl; }
+  .h-title { @apply text-[16px] font-bold tracking-tight text-fg; }
+  .label { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-3; }
+  .eyebrow { @apply text-[12px] font-medium uppercase tracking-[0.28em] text-fg-3; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-ink-500/80 bg-white/80 px-3.5 py-2 text-[13px] font-semibold text-fg shadow-sm transition hover:border-cyan/50 hover:bg-white disabled:hover:bg-white/80; }
+  .btn-primary { @apply border-transparent bg-gradient-to-b from-[#3B82F6] to-[#2563EB] text-white shadow-[0_8px_20px_-8px_rgba(37,99,235,0.7)] hover:from-[#2563EB] hover:to-[#1D4ED8] hover:border-transparent; }
+  .btn-sm { @apply rounded-lg px-2.5 py-1.5 text-[12px]; }
+  .btn-danger { @apply border-bad/40 text-bad hover:border-bad hover:bg-red-50; }
+  .btn-lg { @apply px-5 py-3 text-[14px]; }
   .chip { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11.5px] font-semibold; }
-  .input { @apply rounded-lg border border-ink-500 bg-ink-850 px-3 py-2 text-[13px] text-fg placeholder:text-fg-4 focus:border-cyan focus:outline-none; }
+  .pill { @apply inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-[12px] font-semibold; }
+  .input { @apply rounded-xl border border-ink-500/80 bg-white/90 px-3 py-2 text-[13px] text-fg placeholder:text-fg-4 focus:border-cyan focus:outline-none focus:ring-4 focus:ring-blue-100; }
 }
 
 @keyframes shimmer { 0% { background-position: -200px 0 } 100% { background-position: 200px 0 } }
-.skeleton { background: linear-gradient(90deg, #1A2640 0px, #22314f 60px, #1A2640 120px); background-size: 400px 100%; animation: shimmer 1.4s linear infinite; }
+.skeleton { background: linear-gradient(90deg, #E8EDF4 0px, #F4F7FB 60px, #E8EDF4 120px); background-size: 400px 100%; animation: shimmer 1.4s linear infinite; }
 @keyframes scan { 0% { top: 0% } 100% { top: 100% } }
 .scanline { animation: scan 1.6s linear infinite; }
 @keyframes pulse-dot { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }

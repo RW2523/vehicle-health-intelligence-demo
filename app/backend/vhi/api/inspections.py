@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select, text
 
@@ -21,6 +21,11 @@ class DecisionReq(BaseModel):
     action: str
     reason: str = ""
     examiner_id: str = "VE012"
+    recommendation: str = ""
+
+
+class RemarkReq(BaseModel):
+    text: str
 
 
 class RouteReq(BaseModel):
@@ -79,6 +84,11 @@ def latest(lane_id: str | None = None, session_id: str | None = None):
         return get_inspection(li.inspection_id)
 
 
+def registry_photo(plate: str) -> dict | None:
+    from ..services.registry import _photo
+    return _photo(plate)
+
+
 @router.get("/{iid}")
 def get_inspection(iid: str):
     with session_scope() as s:
@@ -96,6 +106,16 @@ def get_inspection(iid: str):
         d["report"] = report_svc.report_dict(rep) if rep else None
     ctx = rt().processor.ctx.get(iid) if rt().processor else None
     d["live"] = ctx is not None
+    from ..services import inspection_view as view
+    with session_scope() as s:
+        li = s.get(LiveInspection, iid)
+        alerts_rows = s.execute(select(Alert).where(Alert.inspection_id == iid)).scalars().all()
+        ex = s.get(Examiner, li.examiner_id)
+        d["verdict_preview"] = view.verdict_preview(li, alerts_rows, bool(ex and ex.senior))
+    d["owner"] = view.owner_of(d["plate"])
+    d["photo"] = registry_photo(d["plate"])
+    d["booking"] = view.booking_for(d)
+    d["remarks"] = (d.get("results") or {}).get("remarks", [])
     if ctx:
         d["timeline"] = ctx.timeline
         d["vehicle"] = ctx.vehicle
@@ -110,6 +130,8 @@ def get_inspection(iid: str):
             v = s.execute(select(Vehicle).where(Vehicle.plate == d["plate"])).scalar_one_or_none()
             d["vehicle"] = {"plate": v.plate, "make": v.make, "model": v.model, "year": v.year, "fuel": v.fuel,
                             "vehicle_id": v.vehicle_id} if v else {"plate": d["plate"]}
+    d["checklist"] = view.checklist(d, d["alerts"])
+    d["captures"] = view.captures(d)
     return clean(d)
 
 
@@ -144,7 +166,7 @@ async def decision(alert_id: str, req: DecisionReq):
             raise HTTPException(404, "alert not found")
         iid = a.inspection_id
     _in_my_branch(iid)
-    out = report_svc.decide(alert_id, req.action, req.reason, _examiner(req.examiner_id))
+    out = report_svc.decide(alert_id, req.action, req.reason, _examiner(req.examiner_id), req.recommendation)
     await rt().hub.broadcast(f"inspection:{out['inspection_id']}", "decision", out, remember=False)
     rt().hub.patch_remembered("alert", "alert_id", out)
     return out
@@ -180,3 +202,55 @@ async def ask(iid: str, req: AskReq):
 
     _in_my_branch(iid)
     return await asyncio.to_thread(inspection_assistant.ask, iid, req.question[:300], req.alert_id, rt().llm)
+
+
+def _actor() -> str:
+    a = auth.user()
+    return (a.examiner_id or a.username) if a else "examiner"
+
+
+@router.post("/{iid}/remark")
+def remark(iid: str, req: RemarkReq):
+    """An examiner's remark on the inspection, kept with it and in the evidence chain."""
+    from ..services import inspection_view as view
+    _in_my_branch(iid)
+    return {"remarks": view.add_remark(iid, req.text, _actor())}
+
+
+@router.post("/{iid}/capture")
+async def capture(iid: str, view: str, file: UploadFile = File(...)):
+    """The examiner's photo for one camera view (front, rear, left, right, underbody, interior, tyre): stored with the
+    inspection, run through the view's AI module, and raised as a finding when it is flagged."""
+    import asyncio
+
+    from ..services import inspection_view as iv
+    _in_my_branch(iid)
+    data = await file.read()
+    if len(data) > 12 * 1024 * 1024:
+        raise HTTPException(413, "photo larger than 12 MB")
+    item, alert = await asyncio.to_thread(iv.add_capture, iid, view, data, file.filename or "", _actor(),
+                                          rt().settings.evidence_dir, rt().models, rt().processor._media_url)
+    if alert:
+        await rt().hub.broadcast(f"inspection:{iid}", "alert", alert, remember=False)
+    return {"image": item, "finding": alert}
+
+
+@router.post("/{iid}/send-report")
+def send_report(iid: str):
+    """MOCK: record that the report was sent to the owner. No e-mail or SMS leaves the demo."""
+    from ..services import evidence
+    _in_my_branch(iid)
+    with session_scope() as s:
+        rep = s.execute(select(Report).where(Report.inspection_id == iid)).scalar_one_or_none()
+        if rep is None:
+            raise HTTPException(409, "issue the report first")
+        plate = rep.plate
+    e = evidence.append("report_sent", {"channel": "mock", "plate": plate}, iid, actor=_actor())
+    return {"sent": True, "channel": "mock", "chain_seq": e["seq"], "note": "Recorded only: no message is sent in the demo."}
+
+
+@router.post("/{iid}/reinspection")
+def book_reinspection(iid: str):
+    from ..services import inspection_view as view
+    _in_my_branch(iid)
+    return view.reinspection(iid, _actor())
