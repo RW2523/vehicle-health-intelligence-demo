@@ -7,10 +7,9 @@ import { Suspense, useMemo, useState } from "react";
 import { StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { MobileShell, useMobileHref, useMobilePlate } from "@/components/MobileShell";
-import { HealthBadge, MCard, MEmpty, MError, MList, MRow, MSkeleton, MTitle, Plate, RESULT_TONE, Segmented, Verdict, dayLabel, inDays, scoreCol } from "@/components/mobileKit";
+import { HealthBadge, MCard, MEmpty, MError, MList, MRow, MSkeleton, MTitle, OwnerSource, Plate, RESULT_TONE, Segmented, Verdict, dayLabel, inDays, scoreCol } from "@/components/mobileKit";
 import { BOOKING_STATUS, latestCheck, useBookings, usePassport, useProfile } from "@/components/mobileData";
 import { MobileVehiclePhoto, useMobilePhotos } from "@/components/mobilePhoto";
-import { Source } from "@/components/ui";
 import { fmtN } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
@@ -141,7 +140,7 @@ function Overview({ p, prof, href }: { p: any; prof: any; href: (path: string, q
           )}
         </MCard>
       )}
-      <div className="mt-2 flex flex-wrap gap-1.5"><Source kind="live_model" text="Lane reports" /><Source kind="synthetic" text="Earlier inspections" /></div>
+      <div className="mt-2 flex flex-wrap gap-1.5"><OwnerSource kind="live_model" text="Lane reports" /><OwnerSource kind="synthetic" text="Earlier inspections" /></div>
 
       <MTitle>Selling or buying?</MTitle>
       <MList>
@@ -204,7 +203,7 @@ function History({ p, prof }: { p: any; prof: any }) {
           <span className="text-[24px] font-extrabold tracking-tight">{fmtN(v.odometer_km)} <span className="text-[14px] font-semibold text-slate-400">km now</span></span>
           {odo && <StatusPill tone={odo.rollback ? "red" : "green"} dot>{odo.rollback ? "Rollback" : "Consistent"}</StatusPill>}
         </div>
-        {odo ? <OdometerChart points={odo.points} now={v.odometer_km} nowDate={today} /> : <MSkeleton rows={1} h={110} />}
+        {odo ? <OdometerChart points={odo.points} now={v.odometer_km} nowDate={today} /> : <MSkeleton rows={1} h={110} label="Loading the odometer readings…" />}
         <p className={`mt-1 text-[12.5px] ${odo?.rollback ? "font-semibold text-rose-700" : "text-emerald-700"}`}>
           {!odo ? "" : odo.rollback ? `It reads ${fmtN(odo.max.km - v.odometer_km)} km less than the ${fmtN(odo.max.km)} km recorded on ${dayLabel(odo.max.date, true)}.` : "The readings only go up."}
         </p>
@@ -218,7 +217,7 @@ function History({ p, prof }: { p: any; prof: any }) {
       </MCard>
 
       <MTitle>Inspection history · {insp.length}</MTitle>
-      {!prof ? <MSkeleton rows={2} /> : !insp.length ? <MEmpty icon="clipboard" title="No earlier inspections">Lane reports appear under Overview.</MEmpty> : (
+      {!prof ? <MSkeleton rows={2} label="Loading the inspection history…" /> : !insp.length ? <MEmpty icon="clipboard" title="No earlier inspections">Lane reports appear under Overview.</MEmpty> : (
         <MCard pad={false} className="divide-y divide-slate-100">
           {insp.map((i: any) => (
             <details key={i.id} className="group px-4 py-3">
@@ -278,7 +277,7 @@ function History({ p, prof }: { p: any; prof: any }) {
           </MList>
         </>
       )}
-      <div className="mt-3 flex flex-wrap gap-1.5"><Source kind="synthetic" text="Inspection history and claims" /></div>
+      <div className="mt-3 flex flex-wrap gap-1.5"><OwnerSource kind="synthetic" text="Inspection history and claims" /></div>
     </>
   );
 }
@@ -291,7 +290,7 @@ function Documents({ p, plate }: { p: any; plate: string }) {
   const paid = (books.data || []).filter((b) => b.payment_ref);
   return (
     <>
-      <MTitle action={<Source kind="mock" text="Registry" />}>Registration</MTitle>
+      <MTitle action={<OwnerSource kind="mock" text="Registry" />}>Registration</MTitle>
       <MCard label="Registration">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
           {[["Number plate", v.plate], ["Make and model", `${v.make} ${v.model}`], ["Year", v.year], ["Chassis no.", v.chassis_no], ["Engine no.", v.engine_no],
@@ -320,8 +319,8 @@ function Documents({ p, plate }: { p: any; plate: string }) {
         </MList>
       )}
 
-      <MTitle action={<Source kind="mock" text="Payment gateway" />}>Payment receipts</MTitle>
-      {!books.data ? <MSkeleton rows={1} /> : !paid.length ? <MEmpty icon="wallet" title="No payments yet">Receipts of your booking payments appear here.</MEmpty> : (
+      <MTitle action={<OwnerSource kind="mock" text="Payments" />}>Payment receipts</MTitle>
+      {books.error && !books.data ? <MError onRetry={books.reload}>Your payments could not load. {books.error}</MError> : !books.data ? <MSkeleton rows={1} label="Loading your payments…" /> : !paid.length ? <MEmpty icon="wallet" title="No payments yet">Receipts of your booking payments appear here.</MEmpty> : (
         <MList>
           {paid.map((b) => (
             <MRow key={b.booking_id} icon="wallet" tone={b.status === "cancelled" ? "gray" : "blue"} title={`RM ${b.price_rm.toFixed(2)} · ${b.type_label}`}
@@ -346,7 +345,7 @@ function VehicleScreen() {
   const title = useMemo(() => (p ? `${p.vehicle.make} ${p.vehicle.model}` : "Vehicle"), [p]);
   return (
     <MobileShell tab="vehicle" title={title} scrollKey={plate || ""}>
-      {pass.error && !p ? <MError onRetry={pass.reload}>The passport could not load. {pass.error}</MError> : !p ? <MSkeleton rows={4} h={110} /> : (
+      {pass.error && !p ? <MError onRetry={pass.reload}>The passport could not load. {pass.error}</MError> : !p ? <MSkeleton rows={4} h={110} label="Loading the health passport…" /> : (
         <>
           <PassportCard p={p} />
           <Segmented label="Passport sections" className="mt-4" value={seg} onChange={setSeg}

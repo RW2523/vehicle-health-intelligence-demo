@@ -1,18 +1,19 @@
 "use client";
 import Link from "next/link";
-import { use, useRef, useState } from "react";
+import { ReactNode, use, useRef, useState } from "react";
 import { NextAction, useActiveUseCase } from "@/components/Demo";
-import { IconTile, Panel, ProgressBar, Ring, StatusPill } from "@/components/glass";
+import { IconTile, Panel, ProgressBar, Ring, StatusPill, Tone } from "@/components/glass";
 import { DamageMap } from "@/components/DamageMap";
 import { Icon } from "@/components/icons";
 import { LiveLaneView } from "@/components/LiveLaneView";
 import { ITEM_STATUS, NoInspection, PageLoading, StepNav, VIEWS, VehicleStrip, atTime, capturesOf, checklistOf, itemLabel, useInspectionParam } from "@/components/insp";
-import { ucFor } from "@/components/insp";
+import { ucUnlessSame } from "@/components/insp";
 import { useVehiclePhotos } from "@/components/Photo";
 import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
 import { Modal, PageHeader, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
+import { useAssistantContext } from "@/lib/assistantContext";
 import { useUser } from "@/lib/auth";
 import { alertSeverity, isRequired } from "@/lib/present";
 import { alertFinding } from "@/lib/zones";
@@ -76,6 +77,7 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
   const insp = L.insp;
   const refs = useVehiclePhotos(insp?.plate);
   const canAct = user?.role === "presenter" || user?.role === "examiner";
+  useAssistantContext(insp ? { inspection_id: insp.inspection_id, plate: insp.plate } : {});
   if (!insp) return <Shell>{L.notFound ? <NoInspection id={id} /> : <PageLoading />}</Shell>;
   const iid = insp.inspection_id;
   const ck = checklistOf(insp, L.alerts, L.step);
@@ -117,25 +119,43 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
     }
   };
 
-  let primary;
-  if (locked) primary = <Link className="btn btn-primary btn-lg w-full" href={`/inspection/${sid}/review`}><Icon name="award" size={18} />Report issued · view approval</Link>;
-  else if (running) primary = <Link className="btn btn-primary btn-lg w-full" href={`/lane?lane=${insp.lane_id}`}><Icon name="eye" size={18} />Watch the live sensors</Link>;
-  else if (open.length) primary = <Link className="btn btn-primary btn-lg w-full" href={`/inspection/${sid}/findings`}><Icon name="warn" size={18} />Review findings ({open.length})</Link>;
-  else primary = <Link className="btn btn-primary btn-lg w-full" href={`/inspection/${sid}/review`}><Icon name="checkc" size={18} />Go to final review</Link>;
+  // the one next step, by where the inspection stands
+  const openReq = open.filter(isRequired).length;
+  const rep = insp.report;
+  let next: { icon: string; tone: Tone; title: ReactNode; sub: ReactNode; cta: ReactNode };
+  if (locked) next = { icon: "award", tone: rep.verdict === "FAIL" ? "red" : rep.verdict === "PASS" ? "green" : "amber", title: `Report issued · ${rep.verdict}`, sub: `${rep.report_id} · ${rep.kind}`,
+    cta: <Link className="btn btn-primary btn-lg" href={`/report?id=${rep.report_id}`}><Icon name="doc" size={18} />View report</Link> };
+  else if (running) next = { icon: "lane", tone: "amber", title: "The vehicle is in the lane", sub: "Readings and AI results arrive as each station runs.",
+    cta: <Link className="btn btn-primary btn-lg" href={`/lane?lane=${insp.lane_id}`}><Icon name="eye" size={18} />Watch the lane</Link> };
+  else if (open.length) next = { icon: "warn", tone: openReq ? "red" : "amber", title: `${open.length} finding${open.length === 1 ? "" : "s"} to decide`,
+    sub: openReq ? `${openReq} critical: decided before the final review` : "None is critical",
+    cta: <Link className="btn btn-primary btn-lg" href={`/inspection/${sid}/findings`}><Icon name="warn" size={18} />Review findings ({open.length})</Link> };
+  else next = { icon: "checkc", tone: "green", title: L.alerts.length ? "Every finding has a decision" : "No anomalies: nothing to decide", sub: "The final review shows the outcome and issues the report.",
+    cta: <Link className="btn btn-primary btn-lg" href={`/inspection/${sid}/review`}><Icon name="checkc" size={18} />Go to final review</Link> };
 
   return (
     <Shell>
       <PageHeader eyebrow="Inspection" title="Active Inspection Capture" sub="Capture vehicle images and complete the inspection checklist in real time."
-        actions={<><NextAction uc={ucFor(uc, insp)} here={[`/inspection/${sid}`, `/inspection/${iid}`]} /><Link className="btn" href="/inspection"><Icon name="back" size={16} />Back to Queue</Link></>} />
+        actions={<><NextAction uc={ucUnlessSame(uc, insp, locked || running ? null : open.length ? "/inspection/{id}/findings" : "/inspection/{id}/review")} here={[`/inspection/${sid}`, `/inspection/${iid}`, `/inspection/${insp.session_id}`]} /><Link className="btn" href="/inspection"><Icon name="back" size={16} />Back to Queue</Link></>} />
       <StepNav id={sid} at="capture" findings={L.alerts.length} open={open.length} />
-      <VehicleStrip insp={insp} />
-      {running && (
-        <div className="card mb-5 flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
-          {/* the lane progress strip: the vehicle through the lane's stations, on the replay clock */}
-          <div className="min-w-[240px] flex-1"><LiveLaneView L={L} player={L.player || (sess?.player?.inspection_id === iid ? sess.player : null)} compact /></div>
-          {sess && canAct && <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} quiet />}
+      <section aria-label="Next step" className="card mb-5 flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
+        <div className="flex min-w-0 flex-1 items-center gap-3.5 sm:min-w-[260px]">
+          <IconTile icon={next.icon} tone={next.tone} size={46} />
+          <div className="min-w-0 leading-tight">
+            <div className="text-[17px] font-bold">{next.title}</div>
+            <div className="mt-0.5 text-[13px] text-fg-3">{next.sub}</div>
+          </div>
         </div>
-      )}
+        <div className="flex flex-wrap items-center gap-2 [&>a]:w-full sm:[&>a]:w-auto">
+          {running && sess && canAct && <PlayerControls s={sess} onState={setPlayer} compact onFastDone={L.reload} quiet />}
+          {next.cta}
+        </div>
+        {running && (
+          // the lane progress strip: the vehicle through the lane's stations, on the replay clock
+          <div className="w-full min-w-0 basis-full"><LiveLaneView L={L} player={L.player || (sess?.player?.inspection_id === iid ? sess.player : null)} compact /></div>
+        )}
+      </section>
+      <VehicleStrip insp={insp} />
       {/* lg: capture | checklist over the issues, then progress and actions side by side; 2xl: capture | checklist | the rest.
           Cards keep their own height (items-start): a short card never stretches into empty space. */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr_auto] 2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)] 2xl:grid-rows-[auto_auto_1fr]">
@@ -213,9 +233,8 @@ export default function CapturePage({ params }: { params: Promise<{ id: string }
             </ul>
           )}
         </Panel>
-        <Panel title="Quick Actions" sub="Use these actions to proceed with the inspection." className="min-w-0 lg:col-start-2 lg:row-start-3 2xl:col-start-3">
+        <Panel title="Quick Actions" sub="Remarks go on the record; the next step is at the top." className="min-w-0 lg:col-start-2 lg:row-start-3 2xl:col-start-3">
           <div className="flex flex-col gap-2.5">
-            {primary}
             <div className="flex flex-wrap gap-2.5 [&>*]:min-w-[150px] [&>*]:flex-1 [&>*]:whitespace-nowrap">
               <button className="btn" disabled={!canAct || locked} onClick={() => setRemarkOpen(true)}><Icon name="edit" size={16} />Add Remark</button>
               <Link className="btn" href={`/inspection/${sid}/review`}><Icon name="doc" size={16} />Complete Inspection</Link>

@@ -2,13 +2,14 @@
 /* The Oversight app's shell (/oversight): HQ, the regulator, used-vehicle sales and flood watch for the whole country.
    The same floating glass frame and header pieces as the inspection app, with its own identity: a deep-navy accent line
    and a control-room tab bar (the active tab is a navy pill, a Malaysia-time clock on the right). Wide by default, for
-   maps and long tables. */
+   maps and long tables. The guided demo's progress bar and the floating assistant are the inspection app's. */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode, RefObject, useEffect, useRef } from "react";
 import { ROLE_HOME, canOpen, useUser } from "@/lib/auth";
 import { useClock } from "@/lib/live";
-import { DemoBar } from "./Demo";
+import { AssistantDock } from "./AssistantDock";
+import { DemoBar, DemoProgressBar } from "./Demo";
 import { Icon } from "./icons";
 import { AppSwitcher, Brand, Logo, Notifications, ROLE_LABEL, UserMenu, useLoginGate } from "./Shell";
 
@@ -158,7 +159,8 @@ export function OversightShell({ children, context, wide = false }: { children: 
           </header>
           {user && <div className="px-3 pb-2.5 lg:px-6 lg:pb-0"><OvTabs role={user.role} /></div>}
         </div>
-        <main className={`mx-auto flex w-full min-w-0 flex-1 flex-col px-4 py-5 lg:px-6 ${wide ? "" : "max-w-[1800px]"}`}>
+        <main className={`mx-auto flex w-full min-w-0 flex-1 flex-col px-4 py-5 pb-24 lg:px-6 ${wide ? "" : "max-w-[1800px]"}`}>
+          {guided && <DemoProgressBar className="mb-4" />}
           <div className="min-w-0">
             {!user ? null : allowed ? children : (
               <div className="card card-pad mx-auto mt-10 max-w-[520px] text-center">
@@ -174,6 +176,7 @@ export function OversightShell({ children, context, wide = false }: { children: 
           </footer>
         </main>
       </div>
+      {user && <AssistantDock />}
     </div>
   );
 }

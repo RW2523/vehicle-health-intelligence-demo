@@ -235,3 +235,32 @@ def reinspection(iid: str, actor: str) -> dict:
                 return b
         d += dt.timedelta(days=1)
     raise HTTPException(409, "no free slot in the next 30 days")
+
+
+SEV_ORDER = {"high": 0, "medium": 1, "low": 2}
+
+
+def findings_summary(s, iids: list[str]) -> dict[str, dict]:
+    """Per inspection: how many findings, how many still open, how many of those are critical (high severity or a fail
+    item: the ones that block the report), and the most serious open one (or the most serious overall when all are
+    decided). One query for any number of inspections."""
+    from ..tables import Alert
+    out: dict[str, dict] = {i: {"findings": 0, "open": 0, "open_required": 0, "decided": 0, "top": None} for i in iids}
+    if not iids:
+        return out
+    rows = s.execute(select(Alert).where(Alert.inspection_id.in_(iids))).scalars().all()
+    best: dict[str, tuple] = {}
+    for a in rows:
+        o = out[a.inspection_id]
+        o["findings"] += 1
+        is_open = a.status == "open"
+        o["open"] += is_open
+        o["decided"] += not is_open
+        o["open_required"] += is_open and (a.severity == "high" or bool(a.fail_item))
+        rank = (not is_open, SEV_ORDER.get(a.severity, 3), not a.fail_item, a.rank or 99)
+        if a.inspection_id not in best or rank < best[a.inspection_id][0]:
+            best[a.inspection_id] = (rank, {"alert_id": a.alert_id, "title": a.title, "severity": a.severity, "open": is_open,
+                                            "fail_item": bool(a.fail_item)})
+    for i, (_, top) in best.items():
+        out[i]["top"] = top
+    return out

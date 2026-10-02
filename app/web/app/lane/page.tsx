@@ -13,6 +13,7 @@ import { PlayerControls, useSessions } from "@/components/Player";
 import { Shell } from "@/components/Shell";
 import { VisionPanel } from "@/components/VisionPanel";
 import { Card, LoadingState, Modal, PageHeader, Pill, Source, Tabs } from "@/components/ui";
+import { useAssistantContext } from "@/lib/assistantContext";
 import { useUser } from "@/lib/auth";
 import { LANE_SESSIONS, SYSTEM_NAME, fmtN } from "@/lib/format";
 import { useInspection } from "@/lib/inspection";
@@ -50,6 +51,9 @@ function LaneConsole() {
   // the replay clock: the lane channel's player, else the session list's (it keeps the last state after a reload)
   const sessPlayer = sess?.player && insp && sess.player.inspection_id === insp.inspection_id ? sess.player : null;
   const refs = useVehiclePhotos(!vision && L.notFound ? laneInfo.plate : null);
+  // the floating assistant answers "what's on this lane?" about this lane and its inspection
+  useAssistantContext(vision ? {} : { lane_id: lane, plate: insp?.plate || laneInfo.plate, inspection_id: insp?.inspection_id || null,
+                                      label: `${laneInfo.label}${insp ? ` · ${insp.plate}` : ""}` });
 
   let cta = null;
   if (insp?.report) cta = <Link className="btn btn-primary" href={`/report?id=${insp.report.report_id}`}>View the report ({insp.report.verdict})<Icon name="arrow" size={15} /></Link>;

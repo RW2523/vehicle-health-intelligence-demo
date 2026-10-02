@@ -3,17 +3,18 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ReactNode, Suspense, use, useEffect, useMemo, useRef, useState } from "react";
 import { NextAction, refreshUseCase, useActiveUseCase } from "@/components/Demo";
-import { IconTile, Panel, StatusPill, Tone } from "@/components/glass";
+import { IconTile, Panel, ProgressBar, StatusPill, Tone } from "@/components/glass";
 import { DamageMap } from "@/components/DamageMap";
 import { Icon } from "@/components/icons";
 import { useVehiclePhotos } from "@/components/Photo";
-import { Evidence, InspectionAssistant, NoInspection, PageLoading, StepNav, checklistOf, itemLabel, itemOf, measureOf, ruleFor, useInspectionParam } from "@/components/insp";
-import { ucFor } from "@/components/insp";
+import { Evidence, InspectionAssistant, NoInspection, PageLoading, PreviousTrend, SOURCE_KIND, StepNav, checklistOf, itemLabel, itemOf, measureOf, moduleOf, observedOf, ruleFor, useInspectionParam } from "@/components/insp";
+import { ucUnlessSame } from "@/components/insp";
 import { Shell } from "@/components/Shell";
 import { Modal, PageHeader, Source, toast } from "@/components/ui";
 import { VehicleArt } from "@/components/VehicleArt";
 import { VehicleImage } from "@/components/VehicleImage";
 import { api } from "@/lib/api";
+import { useAssistantContext } from "@/lib/assistantContext";
 import { useUser } from "@/lib/auth";
 import { DECISION, alertSeverity, hasModelConfidence, isRequired } from "@/lib/present";
 import { alertFinding } from "@/lib/zones";
@@ -104,17 +105,34 @@ function Findings({ id }: { id: string }) {
     setRec(cur.evidence?.recommendation || "");
     setAction(null);
   }, [cur?.alert_id]);  // eslint-disable-line react-hooks/exhaustive-deps
+  // the floating assistant answers about the finding in focus
+  useAssistantContext(insp ? { inspection_id: insp.inspection_id, alert_id: cur?.alert_id ?? null, plate: insp.plate,
+    label: cur ? `Finding: ${cur.title} · ${insp.plate}` : insp.plate } : {});
   if (!insp) return L.notFound ? <NoInspection id={id} /> : <PageLoading />;
   const sid = session || insp.inspection_id;
   const ck = checklistOf(insp, L.alerts, L.step);
   const tabs = ck.items.filter((i) => i.findings > 0);
   const open = L.alerts.filter((a) => a.status === "open");
+  const openReq = open.filter(isRequired).length;
+  const decided = L.alerts.length - open.length;
+  const running = insp.status === "in_lane";
   const ruleRec = cur ? (cur.fail_item ? "fail" : "advisory") : null;
   const chosen = action || (cur && cur.status !== "open" ? (cur.status === "dismissed" ? "pass" : cur.status === "advisory" ? "advisory" : cur.status === "confirmed" ? (cur.fail_item ? "fail" : "advisory") : null) : null);
   const needReason = cur && chosen && (chosen === "pass" || (chosen === "advisory" && cur.fail_item) || (chosen === "fail" && !cur.fail_item));
   const m = cur ? measureOf(cur, L) : null;
   const rule = cur ? ruleFor(cur, L.fusion?.health) : null;
   const imgs = cur ? [cur.evidence?.image?.annotated, cur.evidence?.image?.source_image].filter(Boolean) : [];
+  const obs = cur && !m ? observedOf(cur) : null;
+  // where the limit comes from: the vehicle's own history, a calibrated model threshold, or the demo's reference values
+  const refText = cur ? Object.entries(RULES).find(([k]) => (cur.code || "").startsWith(k))?.[1] || null : null;
+  const refNote = !cur ? null : cur.code === "identity:odometer" && m ? "From the vehicle's inspection history" : cur.code === "identity:engine" && m ? "Calibrated match threshold"
+    : m || refText ? "Demo reference value" : null;
+  // the final review: dominant once every critical finding has a decision, disabled (saying why) before that
+  let finalCta: ReactNode;
+  if (insp.report) finalCta = <Link className="btn btn-primary btn-lg" href={`/report?id=${insp.report.report_id}`}><Icon name="award" size={16} />View report</Link>;
+  else if (running) finalCta = <button className="btn btn-lg" disabled><Icon name="clock" size={16} />Lane still running</button>;
+  else if (openReq > 0) finalCta = <button className="btn btn-lg" disabled title="The final review opens once every critical finding has a decision"><Icon name="lock" size={16} />Decide {openReq} critical finding{openReq === 1 ? "" : "s"} first</button>;
+  else finalCta = <Link className="btn btn-primary btn-lg" href={`/inspection/${sid}/review`}>{open.length ? "Go to final review" : "All decided · final review"}<Icon name="arrow" size={16} /></Link>;
 
   const save = async () => {
     if (!cur || !chosen) return;
@@ -131,6 +149,7 @@ function Findings({ id }: { id: string }) {
       refreshUseCase();
       const next = ordered.find((a) => a.status === "open" && a.alert_id !== cur.alert_id && (tab === "all" || itemOf(a.code, ev) === tab));
       if (next) setSel(next.alert_id);
+      else if (!ordered.some((a) => a.status === "open" && a.alert_id !== cur.alert_id)) showProgress();
     } catch (e: any) {
       toast(e.message, "err");
     } finally {
@@ -145,6 +164,11 @@ function Findings({ id }: { id: string }) {
     setBusy(false);
     toast(`Decided the ${open.length} remaining finding${open.length === 1 ? "" : "s"} as the rules recommend`, "ok");
   };
+  // every finding decided: bring the progress and its next step (the final review) into view
+  const showProgress = () => setTimeout(() => {
+    const el = document.querySelector("[aria-label='Decision progress']");
+    if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 80);
   const route = async () => {
     setBusy(true);
     try {
@@ -197,7 +221,7 @@ function Findings({ id }: { id: string }) {
         <div className="card mb-6 flex w-full min-w-0 items-center gap-3 p-3 sm:w-auto sm:gap-4 sm:pr-5">
           <div className="flex h-[64px] w-[96px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-b from-[#F1F5FB] to-[#E3EAF5] sm:h-[78px] sm:w-[130px]">{insp.photo ? <VehicleImage plate={insp.plate} vtype={insp.owner?.vtype} photo={insp.photo} size="480" className="h-full w-full" /> : <VehicleArt vtype={insp.owner?.vtype} seed={insp.plate} className="h-[56px] w-[90px] sm:h-[70px] sm:w-[124px]" />}</div>
           <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-0.5 text-[13px] sm:gap-x-5 [&>dd]:truncate [&>dt]:whitespace-nowrap">
-            <dt className="text-fg-3">Vehicle No.</dt><dd className="font-bold">{insp.plate}</dd>
+            <dt className="text-fg-3">Vehicle No.</dt><dd className="font-bold"><Link href={`/vehicles/${encodeURIComponent(insp.plate)}`} className="inline-flex items-center gap-1 hover:text-cyan hover:underline" title="Open the vehicle record">{insp.plate}<Icon name="chev" size={13} color="#94A3B8" /></Link></dd>
             <dt className="text-fg-3">Make / Model</dt><dd title={`${v.make} ${v.model}`}>{v.make} {v.model}</dd>
             <dt className="text-fg-3">Year</dt><dd>{v.year || insp.owner?.year}</dd>
             <dt className="text-fg-3">Inspection</dt><dd className="sm:max-w-[220px]" title={insp.inspection_type}>{insp.inspection_type}</dd>
@@ -210,7 +234,7 @@ function Findings({ id }: { id: string }) {
           <select aria-label="Examiner" className="input w-auto py-1.5" value={examiner} onChange={(e) => setExaminer(e.target.value)}>
             <option value="VE011">Arjun Ismail · Examiner</option><option value="VE001">Priya Hassan · Senior Examiner</option>
           </select>
-          <NextAction uc={ucFor(uc, insp)} here={[`/inspection/${sid}/findings`, `/inspection/${insp.inspection_id}/findings`]} />
+          <NextAction uc={ucUnlessSame(uc, insp, !insp.report && !running && !openReq ? "/inspection/{id}/review" : null)} here={[`/inspection/${sid}/findings`, `/inspection/${insp.inspection_id}/findings`, `/inspection/${insp.session_id}/findings`]} />
         </div>
       )}
       {insp.route === "senior" && !insp.report && (
@@ -218,6 +242,26 @@ function Findings({ id }: { id: string }) {
           <span><b className="text-[#1D4ED8]">Senior review required.</b> Identity checks disagree, so only a senior examiner can sign this report off.{isSenior ? " You are acting as the senior examiner." : routed ? " It has been referred to the senior examiner." : ""}</span>
           {!isSenior && !routed && !readOnly && open.filter(isRequired).length === 0 && <button className="btn btn-primary btn-sm" disabled={busy} onClick={route}>Refer to the senior examiner</button>}
         </div>
+      )}
+      {L.alerts.length > 0 && (
+        <section aria-label="Decision progress" className="card mb-4 flex scroll-mt-24 flex-col gap-3 p-4 lg:flex-row lg:items-center lg:gap-6 lg:p-5">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="text-[20px] font-extrabold tracking-tight sm:text-[22px]">{decided} of {L.alerts.length} findings decided</span>
+              {openReq > 0 ? <StatusPill tone="red" dot>{openReq} critical left</StatusPill>
+                : open.length ? <span className="text-[13.5px] text-fg-3">No critical finding left · {open.length} other{open.length === 1 ? "" : "s"} still open</span>
+                : <StatusPill tone="green" dot>Every finding has a decision</StatusPill>}
+            </div>
+            <ProgressBar value={(100 * decided) / L.alerts.length} tone={openReq ? "blue" : "green"} className="mt-2.5" />
+            <p className="mt-1.5 text-[12.5px] text-fg-3">
+              {running ? "The lane is still running: more findings may arrive." : insp.report ? "The report is issued: the decisions are final." : openReq ? "Critical findings need a decision before the final review. Each decision is saved to the evidence log." : "The final review shows the outcome these decisions lead to."}
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0 lg:justify-end">
+            {open.length > 1 && !readOnly && <button className="btn" disabled={busy} onClick={confirmRest}>Decide the {open.length} remaining as the rules recommend</button>}
+            {finalCta}
+          </div>
+        </section>
       )}
       {!L.alerts.length ? (
         <div className="card p-8 text-center">
@@ -251,7 +295,6 @@ function Findings({ id }: { id: string }) {
                 </button>
               ))}
             </FadeRow>
-            {open.length > 1 && !readOnly && <button className="btn shrink-0 self-end 2xl:self-auto" disabled={busy} onClick={confirmRest}>Decide the {open.length} remaining as the rules recommend</button>}
           </div>
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)_330px]">
             <div className="flex max-h-[80vh] flex-col gap-3 overflow-y-auto pr-1" role="listbox" aria-label="Findings">
@@ -261,7 +304,8 @@ function Findings({ id }: { id: string }) {
                 const img = a.evidence?.image?.annotated;
                 return (
                   <button key={a.alert_id} role="option" aria-selected={on} onClick={() => setSel(a.alert_id)}
-                    className={`flex items-center gap-3 rounded-2xl border p-2.5 text-left transition ${on ? "border-blue-300 bg-white shadow-lg ring-2 ring-blue-100" : "border-white/80 bg-white/65 hover:bg-white"}`}>
+                    className={`relative flex shrink-0 items-center gap-3 overflow-hidden rounded-2xl border p-2.5 text-left transition ${on ? "border-[#2563EB] bg-white shadow-lg ring-2 ring-blue-200" : "border-white/80 bg-white/65 hover:bg-white"}`}>
+                    {on && <span className="absolute inset-y-0 left-0 w-1 bg-[#2563EB]" aria-hidden />}
                     {img ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={img} alt="" className="h-[84px] w-[92px] shrink-0 rounded-xl object-cover" />
@@ -269,7 +313,7 @@ function Findings({ id }: { id: string }) {
                     <span className="min-w-0 flex-1 leading-tight">
                       <b className="block text-[14.5px] leading-snug">{a.title}</b>
                       <span className="mt-0.5 block truncate text-[12.5px] text-fg-3">{itemLabel(a.code || "", ev)}</span>
-                      <span className="mt-1.5 flex flex-wrap gap-1.5"><StatusPill tone={s.tone}>{s.label}</StatusPill>{a.status !== "open" && <StatusPill tone={STATUS_PILL[a.status]?.tone || "gray"}>{STATUS_PILL[a.status]?.label || a.status}</StatusPill>}</span>
+                      <span className="mt-1.5 flex flex-wrap gap-1.5"><StatusPill tone={s.tone}>{s.label}</StatusPill><StatusPill tone={STATUS_PILL[a.status]?.tone || "gray"}>{STATUS_PILL[a.status]?.label || a.status}</StatusPill></span>
                     </span>
                     <Icon name="chev" size={16} color="#94A3B8" />
                   </button>
@@ -284,7 +328,7 @@ function Findings({ id }: { id: string }) {
                     <span className="hidden sm:block"><IconTile icon={cur.system?.includes("Tyre") ? "tyre" : cur.system?.includes("Brake") ? "brake" : "warn"} tone="gray" size={44} /></span>
                     <div className="min-w-0 flex-1">
                       <h2 className="text-[21px] font-bold leading-tight tracking-tight">{cur.title}</h2>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-fg-3">{itemLabel(cur.code || "", ev)}<StatusPill tone={SEV_PILL[alertSeverity(cur)].tone}>{SEV_PILL[alertSeverity(cur)].label}</StatusPill>{cur.fail_item && <StatusPill tone="red">Fail item</StatusPill>}<Source kind={cur.source} /></div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-fg-3">{itemLabel(cur.code || "", ev)}<StatusPill tone={SEV_PILL[alertSeverity(cur)].tone}>{SEV_PILL[alertSeverity(cur)].label}</StatusPill>{cur.fail_item && <StatusPill tone="red">Fail item</StatusPill>}{cur.status !== "open" && <StatusPill tone={STATUS_PILL[cur.status]?.tone || "gray"}>{STATUS_PILL[cur.status]?.label || cur.status}</StatusPill>}</div>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-auto">
@@ -294,35 +338,48 @@ function Findings({ id }: { id: string }) {
                   </div>
                 </div>
                 {imgs.length > 0 && (
-                  <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_150px]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imgs[0]} alt={`AI result: ${cur.title}`} className="h-[220px] w-full rounded-2xl bg-ink-950 object-cover sm:h-[260px]" />
-                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">
-                      {imgs[1] && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={imgs[1]} alt="Original capture" className="h-[126px] w-full rounded-xl object-cover" />
-                      )}
-                      <div className="flex h-[126px] flex-col justify-center rounded-xl bg-white/70 px-3 text-[12px] text-fg-3 ring-1 ring-ink-600">
-                        <b className="text-fg-2">{cur.evidence?.image?.camera || "Lane camera"}</b>{cur.evidence?.image?.model}
-                        {hasModelConfidence(cur) && <span>Model confidence {Math.round(cur.confidence * 100)}%</span>}
-                      </div>
-                    </div>
+                  <div className={`mb-4 grid grid-cols-1 gap-2 ${imgs.length > 1 ? "sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" : ""}`}>
+                    <figure className="relative min-w-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imgs[0]} alt={`AI result: ${cur.title}`} className="h-[220px] w-full rounded-2xl bg-ink-950 object-cover sm:h-[260px]" />
+                      <figcaption className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-fg-2">AI result</figcaption>
+                    </figure>
+                    {imgs[1] && (
+                      <figure className="relative min-w-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={imgs[1]} alt="Original capture" className="h-[160px] w-full rounded-2xl object-cover sm:h-[260px]" />
+                        <figcaption className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-fg-2">Original capture</figcaption>
+                      </figure>
+                    )}
                   </div>
                 )}
                 <div className="mb-4 rounded-2xl bg-white/70 p-3.5 ring-1 ring-ink-600">
                   <div className="label mb-1">Why was this flagged?</div>
                   <p className="text-[14.5px] leading-relaxed">{cur.detail}</p>
                 </div>
-                {m && (
-                  <div className="mb-4">
-                    <div className="mb-2 flex items-center gap-2 text-[15px] font-bold"><Icon name="sliders" size={17} />Measurement Details</div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600"><div className="text-[12px] text-fg-3">Measured</div><div className="text-[20px] font-bold">{m.observed}</div><StatusPill tone={cur.fail_item ? "red" : "amber"}>{m.status}</StatusPill></div>
-                      <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600"><div className="text-[12px] text-fg-3">Limit</div><div className="text-[15px] font-semibold leading-snug">{m.limit}</div><span className="text-[11.5px] text-fg-4">Demo reference</span></div>
-                      <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600"><div className="text-[12px] text-fg-3">Difference</div><div className={`text-[17px] font-bold ${cur.fail_item ? "text-bad" : "text-[#B45309]"}`}>{m.delta || "–"}</div>{rule && <span className="text-[11.5px] text-fg-3">Health score −{rule.points}</span>}</div>
-                    </div>
+                <div className="mb-2 flex items-center gap-2 text-[15px] font-bold"><Icon name="sliders" size={17} />Result and reference</div>
+                <dl className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600">
+                    <dt className="text-[12px] text-fg-3">Observed result</dt>
+                    <dd>{m ? <><div className="text-[20px] font-bold leading-tight">{m.observed}</div><StatusPill tone={cur.fail_item ? "red" : "amber"} className="mt-1">{m.status}</StatusPill></>
+                      : obs ? <div className="text-[14.5px] font-semibold leading-snug">{obs}</div> : <div className="text-[13px] text-fg-3">Described above: not a single measured value</div>}</dd>
                   </div>
-                )}
+                  <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600">
+                    <dt className="text-[12px] text-fg-3">{m ? "Threshold" : "Reference"}</dt>
+                    <dd>{m ? <><div className="text-[15px] font-semibold leading-snug">{m.limit}</div>{m.delta && <div className={`mt-0.5 text-[13.5px] font-bold ${cur.fail_item ? "text-bad" : "text-[#B45309]"}`}>{m.delta}</div>}</>
+                      : <div className="text-[13px] leading-snug text-fg-2">{refText || "No fixed limit: the examiner judges this finding from its evidence."}</div>}
+                      {(refNote || rule) && <span className="text-[11.5px] text-fg-4">{[refNote, rule ? `health score −${rule.points}` : null].filter(Boolean).join(" · ")}</span>}</dd>
+                  </div>
+                  <div className="rounded-xl bg-white/80 p-3 ring-1 ring-ink-600 sm:col-span-2">
+                    <dt className="text-[12px] text-fg-3">Source / module</dt>
+                    <dd className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <span className="text-[13.5px] font-semibold">{moduleOf(cur)}</span>
+                      <span className="text-[12.5px] text-fg-3">{SOURCE_KIND[cur.source] || cur.system}{hasModelConfidence(cur) ? ` · model confidence ${Math.round(cur.confidence * 100)}%` : ""}</span>
+                      <Source kind={cur.source} />
+                    </dd>
+                  </div>
+                </dl>
+                <PreviousTrend a={cur} insp={insp} />
                 <div className="mb-2 flex items-center gap-2 text-[15px] font-bold"><Icon name="doc" size={17} />Finding Details</div>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_200px]">
                   <label className="flex flex-col gap-1 text-[12.5px] text-fg-3">Inspector&apos;s Notes{needReason && <span className="text-bad"> · required: this changes how the finding counts</span>}
@@ -383,7 +440,6 @@ function Findings({ id }: { id: string }) {
                     <button className="btn btn-primary btn-lg" disabled={!chosen || busy || (!action && cur.status !== "open")} onClick={save}><Icon name="doc" size={16} />{busy ? "Saving…" : "Save Finding"}</button>
                   </div>
                 )}
-                {!open.length && <Link className="btn btn-primary btn-lg md:col-span-2 2xl:col-span-1" href={`/inspection/${sid}/review`}>All decided · final review<Icon name="arrow" size={15} /></Link>}
               </div>
             )}
           </div>

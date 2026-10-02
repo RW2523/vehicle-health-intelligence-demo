@@ -123,7 +123,7 @@ function circleStyle(p: MapPoint, on: boolean): Leaflet.CircleMarkerOptions {
   return { radius: on ? r + 3 : r, color: on ? "#0F172A" : "#FFFFFF", weight: on ? 2.5 : p.faint ? 0.6 : 1.2, fillColor: p.color, fillOpacity: p.faint ? 0.62 : 0.95, opacity: 1 };
 }
 
-export function LiveMap({ label, points, layers = [], legend = [], views = MY_VIEWS, selected, onSelect, focus, overlay, className = "h-[440px]", compact = false, footer }: {
+export function LiveMap({ label, points, layers = [], legend = [], views = MY_VIEWS, selected, onSelect, focus, overlay, className = "h-[440px]", compact = false, footer, status }: {
   /** what the map shows, for screen readers (the lists beside it carry the same data) */
   label: string;
   points: MapPoint[];
@@ -142,6 +142,9 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
   compact?: boolean;
   /** under the map on a phone, and in the bottom-right corner from sm up */
   footer?: ReactNode;
+  /** a message over the map while its data loads, when it could not load, or when there is nothing to draw
+   *  ("Loading lane data…"); the map itself stays usable underneath */
+  status?: ReactNode;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const Lr = useRef<typeof Leaflet | null>(null);
@@ -154,6 +157,8 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
   const [view, setView] = useState<string | null>(views[0]?.id ?? null);
   const [off, setOff] = useState<Record<string, boolean>>(() => Object.fromEntries(layers.filter((l) => l.on === false).map((l) => [l.id, true])));
   const [failed, setFailed] = useState(false);
+  // the basemap's tiles come from the internet: without them the markers still draw, on a plain background
+  const [noTiles, setNoTiles] = useState(false);
   const strip = useRef<HTMLDivElement>(null);
   useEdgeFade(strip);
 
@@ -180,7 +185,11 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
       labels.style.zIndex = "410";
       labels.style.pointerEvents = "none";
       m.createPane("lm-dots").style.zIndex = "415";
-      Lf.tileLayer(BASEMAP.url, { attribution: BASEMAP.attribution, subdomains: BASEMAP.subdomains || "abc", maxZoom: 19, maxNativeZoom: BASEMAP.maxNativeZoom, className: "lm-base" }).addTo(m);
+      let tileErrors = 0;
+      Lf.tileLayer(BASEMAP.url, { attribution: BASEMAP.attribution, subdomains: BASEMAP.subdomains || "abc", maxZoom: 19, maxNativeZoom: BASEMAP.maxNativeZoom, className: "lm-base" })
+        .on("tileerror", () => { if (++tileErrors === 6 && alive) setNoTiles(true); })
+        .on("tileload", () => { tileErrors = 0; if (alive) setNoTiles(false); })
+        .addTo(m);
       if (BASEMAP.labels) Lf.tileLayer(BASEMAP.labels, { pane: "lm-labels", maxZoom: 19, maxNativeZoom: BASEMAP.maxNativeZoom, className: "lm-labels" }).addTo(m);
       // a phone-width map of the whole country leaves the Peninsula a thumbnail: start there when the views offer it
       const start = (el.current.clientWidth < 640 && views.find((v) => v.id === "pen")) || views[0];
@@ -334,9 +343,16 @@ export function LiveMap({ label, points, layers = [], legend = [], views = MY_VI
       {hasControls && <div ref={strip} className="mb-2 flex min-w-0 gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">{controls(false)}</div>}
       <div className={`relative isolate min-w-0 overflow-hidden rounded-2xl border border-white/80 bg-[#E6EDF6] shadow-glass ${className}`}>
         <div ref={el} role="img" aria-label={label} className="absolute inset-0 z-0" />
-        {!ready && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-            <span className="rounded-full bg-white/85 px-3 py-1.5 text-[12px] text-fg-3 shadow-glass">{failed ? "The map could not load; the lists beside it show the same data." : "Loading the map…"}</span>
+        {(!ready || status) && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6" role="status">
+            <span className="max-w-[min(420px,100%)] rounded-2xl bg-white/90 px-3.5 py-2 text-center text-[12.5px] leading-snug text-fg-2 shadow-glass backdrop-blur">
+              {failed ? "The map could not load; the lists beside it show the same data." : !ready ? "Loading the map…" : status}
+            </span>
+          </div>
+        )}
+        {ready && noTiles && !status && (
+          <div className="pointer-events-none absolute left-2 right-14 top-1/2 z-10 flex -translate-y-1/2 justify-center">
+            <span className="rounded-full bg-white/90 px-3 py-1 text-[11.5px] text-fg-3 shadow-glass">Basemap unavailable: the markers are drawn without the background map.</span>
           </div>
         )}
         {/* top left from sm up (a strip above the map on a phone): region views and layer toggles, clear of the badge */}
@@ -411,7 +427,7 @@ export function LiveBadge({ at, live = true, busy = false, onRefresh, title }: {
         <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: live ? "#DC2626" : "#D97706" }} />
       </span>
       <span className={live ? "text-[#B91C1C]" : "text-[#B45309]"}>{live ? "LIVE" : "SNAPSHOT"}</span>
-      <span className="whitespace-nowrap text-fg-2">· updated <span className="font-mono tabular-nums">{t}</span></span>
+      <span className="whitespace-nowrap text-fg-2">{at ? <>· updated <span className="font-mono tabular-nums">{t}</span></> : "· loading…"}</span>
       {onRefresh && (
         <button onClick={onRefresh} disabled={busy} aria-label="Refresh the map now" title="Refresh now"
           className="ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-fg-2 hover:bg-blue-50 hover:text-cyan">

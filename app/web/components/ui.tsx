@@ -6,20 +6,22 @@ import { PROVENANCE, PROVENANCE_ORDER, SEVERITY, Severity, provenance } from "@/
 /** The plain label of a data source ("live_model" -> "LIVE MODEL"). */
 export const sourceLabel = (kind: string) => PROVENANCE[provenance(kind).kind].label;
 
-/** Provenance badge: one of the eight labels (with its meaning on hover and for screen readers), plus what exactly
- *  produced the value. Placed next to the card, chart or result it describes. */
-export function Source({ kind, text, className = "" }: { kind: string; text?: string; className?: string }) {
+/** Provenance badge: one of the labels (with its meaning on hover and for screen readers), plus what exactly produced
+ *  the value. One quiet style everywhere: a small grey tag with the label's coloured dot, so it never competes with a
+ *  severity, an outcome or an action. `dense` keeps the detail in the tooltip only (crowded rows and cards). */
+export function Source({ kind, text, className = "", dense = false }: { kind: string; text?: string; className?: string; dense?: boolean }) {
   const { kind: k, detail } = provenance(kind, text);
   const s = PROVENANCE[k];
   const help = `${s.label}: ${s.help}${detail ? ` (${detail})` : ""}`;
-  // a grid, not a flex row: the dot and the label keep their width (the chip never shrinks below the label in a
+  const show = detail && !dense;
+  // a grid, not a flex row: the dot and the label keep their width (the tag never shrinks below the label in a
   // crowded row) and only the detail column gives way, truncated
   return (
-    <span className={`chip inline-grid max-w-full ${detail ? "grid-cols-[auto_auto_minmax(0,auto)]" : "grid-cols-[auto_auto]"} ${className}`}
-      style={{ borderColor: s.color + "66", color: s.color, background: s.color + "12" }} title={help} aria-label={help}>
+    <span className={`inline-grid max-w-full items-center gap-1.5 whitespace-nowrap rounded-md bg-slate-500/[0.07] px-1.5 py-[3px] text-[10.5px] font-semibold leading-none text-fg-3 ${show ? "grid-cols-[auto_auto_minmax(0,auto)]" : "grid-cols-[auto_auto]"} ${className}`}
+      title={help} aria-label={help}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} aria-hidden />
-      <span className="tracking-wide">{s.label}</span>
-      {detail && <span className="min-w-0 truncate font-medium text-fg-3" aria-hidden>· {detail}</span>}
+      <span className="tracking-[0.06em]">{s.label}</span>
+      {show && <span className="min-w-0 truncate font-medium normal-case tracking-normal text-fg-4" aria-hidden>· {detail}</span>}
     </span>
   );
 }

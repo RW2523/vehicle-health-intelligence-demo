@@ -1,5 +1,5 @@
 "use client";
-/* The Chat Bot: an operations copilot for hub staff (POST /api/copilot/chat). Every answer is built from numbered facts
+/* The VehicleSense AI assistant: an operations copilot for hub staff (POST /api/copilot/chat). Every answer is built from numbered facts
    taken from the platform's data; the answer cites them as [n], each citation opens its fact and the page it comes
    from, and every answer says which engine wrote it (the local LLM or the template engine). Conversations are kept per
    account: a list on the left (a drawer on phones), new chat, delete. Vehicle chips scope a question to one of the ten
@@ -583,7 +583,7 @@ const fromApi = (m: any): ChatMsg => ({
   vehicle: m.vehicle, plate: m.plate, created_at: m.created_at,
 });
 
-/** The whole Chat Bot: conversation list, the conversation, vehicle chips and the composer. */
+/** The whole assistant: conversation list, the conversation, vehicle chips and the composer. */
 export function CopilotChat() {
   const user = useUser();
   const readOnly = user?.role === "viewer";
@@ -733,7 +733,7 @@ export function CopilotChat() {
         <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-white/80 px-3 py-3 sm:gap-x-3 sm:px-4 lg:px-5">
           <button type="button" className="btn btn-sm lg:hidden" onClick={() => setDrawer(true)} aria-label="Show conversations"><Icon name="history" size={16} /></button>
           <div className="min-w-0 flex-1 sm:flex-none">
-            <div className="eyebrow text-[11px]">Chat Bot</div>
+            <div className="eyebrow text-[11px]">VehicleSense AI assistant</div>
             <h1 className="truncate text-[17px] font-extrabold leading-tight tracking-tight sm:text-[22px]">VehicleSense Assistant</h1>
           </div>
           <button type="button" className="btn btn-sm lg:hidden" onClick={newChat} aria-label="New chat"><Icon name="plus" size={16} /></button>

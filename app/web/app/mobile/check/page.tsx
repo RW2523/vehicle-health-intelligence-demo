@@ -7,9 +7,9 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { refreshUseCase } from "@/components/Demo";
 import { Icon } from "@/components/icons";
 import { MobileShell, useMobileHref, useMobilePlate } from "@/components/MobileShell";
-import { BTN, BTN2, MCard, MList, MRow, MSkeleton, MTitle, Switch, dayLabel } from "@/components/mobileKit";
+import { BTN, BTN2, MCard, MError, MList, MRow, MSkeleton, MTitle, OwnerSource, Switch, dayLabel } from "@/components/mobileKit";
 import { latestCheck, usePassport } from "@/components/mobileData";
-import { Source, toast } from "@/components/ui";
+import { toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useFetch } from "@/lib/live";
 
@@ -141,10 +141,10 @@ function Progress({ stage }: { stage: Stage }) {
   );
 }
 
-function DemoControls({ children, kind = "simulated", text = "Phone check" }: { children: React.ReactNode; kind?: string; text?: string }) {
+function DemoControls({ children, kind = "simulated", text }: { children: React.ReactNode; kind?: string; text?: string }) {
   return (
     <div className="mt-3 rounded-[18px] border border-dashed border-slate-300 bg-white/60 px-1 py-1">
-      <div className="flex items-center justify-between gap-2 px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Demo controls<span className="normal-case tracking-normal"><Source kind={kind} text={text} /></span></div>
+      <div className="flex items-center justify-between gap-2 px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Demo controls<span className="min-w-0 normal-case tracking-normal"><OwnerSource kind={kind} text={text} /></span></div>
       {children}
     </div>
   );
@@ -267,7 +267,7 @@ function CheckScreen() {
         </div>
       ) : undefined}
       actions={stage !== "intro" && stage !== "analysing" ? <button onClick={restart} className="rounded-full px-3 py-2 text-[14px] font-semibold text-[#2563EB] active:bg-blue-50">{stage === "result" ? "Done" : "Cancel"}</button> : undefined}>
-      {!script.data ? <MSkeleton rows={3} h={120} /> : (
+      {script.error && !script.data ? <MError onRetry={script.reload}>The self-check could not start. {script.error}</MError> : !script.data ? <MSkeleton rows={3} h={120} label="Getting the self-check ready…" /> : (
         <>
           {stage === "intro" && (
             <>
@@ -289,15 +289,15 @@ function CheckScreen() {
                 </button>
               </section>
               <MList className="mt-4" label="What the self-check covers">
-                <MRow icon="eye" tone="sky" title="Window tint" sub="Light meter on the front side window" right={<Source kind="simulated" />} chevron={false} />
-                <MRow icon="lamp" tone="amber" title="Headlamps" sub="One photo with both lamps on" right={<Source kind="simulated" />} chevron={false} />
-                <MRow icon="tyre" tone="purple" title="Tyres" sub="A photo of each tyre · Tyre AI" right={<Source kind="live_model" />} chevron={false} />
-                <MRow icon="vib" tone="green" title="Engine sound" sub="20 s at idle · acoustic model" right={<Source kind="live_model" />} chevron={false} />
+                <MRow icon="eye" tone="sky" title="Window tint" sub="Light meter on the front side window" chevron={false}><span className="mt-1 block"><OwnerSource kind="simulated" /></span></MRow>
+                <MRow icon="lamp" tone="amber" title="Headlamps" sub="One photo with both lamps on" chevron={false}><span className="mt-1 block"><OwnerSource kind="simulated" /></span></MRow>
+                <MRow icon="tyre" tone="purple" title="Tyres" sub="A photo of each tyre: tread, cracks and damage" chevron={false}><span className="mt-1 block"><OwnerSource kind="live_model" /></span></MRow>
+                <MRow icon="vib" tone="green" title="Engine sound" sub="20 seconds at idle: knocks, ticks and rattles" chevron={false}><span className="mt-1 block"><OwnerSource kind="live_model" /></span></MRow>
               </MList>
               {lastCheck && (
                 <p className="mt-3 text-center text-[12.5px] text-slate-500">Last check on {dayLabel(lastCheck.date, true)}: {lastFix ? `${lastFix} item${lastFix === 1 ? "" : "s"} to put right` : "nothing to put right"}.</p>
               )}
-              <MTitle action={<Source kind="sample" text="Demo car's captures" />}>Quick run</MTitle>
+              <MTitle action={<OwnerSource kind="sample" text="Demo car's photos" />}>Quick run</MTitle>
               <MCard>
                 <p className="text-[13px] leading-snug text-slate-600">Run the check on the demo car&apos;s captures (tint at 38%, the left headlamp out), then again once they are fixed.</p>
                 <div className="mt-3 flex flex-col gap-2">
@@ -379,8 +379,8 @@ function CheckScreen() {
                   </div>
                 ))}
               </div>
-              <DemoControls kind="sample" text="Sample tyre photos">
-                <Switch checked={worn} onChange={(w) => { setWorn(w); if (tyres > 3) setTyres(3); }} label="Rear right tyre is worn" sub="Use a worn tyre's photo: the Tyre AI should catch it" />
+              <DemoControls kind="sample" text="Tyre photos">
+                <Switch checked={worn} onChange={(w) => { setWorn(w); if (tyres > 3) setTyres(3); }} label="Rear right tyre is worn" sub="Use a worn tyre's photo: the tyre check should catch it" />
               </DemoControls>
             </>
           )}
@@ -409,8 +409,8 @@ function CheckScreen() {
                 </div>
               </Viewfinder>
               {clip && <audio ref={audio} src={`/media/data/${clip}`} onEnded={() => setPlaying(false)} preload="none" />}
-              <DemoControls kind="sample" text="Sample engine clips">
-                <Switch checked={knock} onChange={(v) => { setKnock(v); setRec(""); setPlaying(false); }} label="The engine knocks" sub="Use a knocking engine's clip: the acoustic model should hear it" />
+              <DemoControls kind="sample" text="Engine clips">
+                <Switch checked={knock} onChange={(v) => { setKnock(v); setRec(""); setPlaying(false); }} label="The engine knocks" sub="Use a knocking engine's clip: the engine-sound check should hear it" />
               </DemoControls>
             </>
           )}
@@ -419,7 +419,7 @@ function CheckScreen() {
             <>
               <Progress stage={stage} />
               <h2 className="text-[20px] font-extrabold tracking-tight">Ready to check</h2>
-              <p className="text-[13px] text-slate-500">The tyre photos go to the Tyre AI and the clip to the acoustic model.</p>
+              <p className="text-[13px] text-slate-500">An AI check looks at the tyre photos and listens to the engine clip; the tint and lamps are compared with the limits.</p>
               <MList className="mt-3" label="Captures">
                 <MRow icon="eye" tone="sky" title="Window tint" sub={`VLT ${tint}% measured`} onClick={() => setStage("tint")} label="Retake the tint reading" />
                 <MRow icon="lamp" tone="amber" title="Headlamps" sub={`Left ${lampL === "ok" ? "working" : "not working"} · right working`} onClick={() => setStage("lamps")} label="Retake the headlamp photo" />
@@ -442,8 +442,8 @@ function CheckScreen() {
               </span>
               <h2 className="mt-6 text-[20px] font-extrabold">Checking your captures</h2>
               <ul className="mt-4 flex flex-col gap-2 text-left text-[13.5px] text-slate-600">
-                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Tyre AI is looking at the photos</li>
-                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />The acoustic model is listening to the engine</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Looking at the tyre tread and sidewalls</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Listening to the engine for knocks and rattles</li>
                 <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Comparing tint and lamps with the limits</li>
               </ul>
             </div>
@@ -464,9 +464,11 @@ function CheckScreen() {
                       {it.ok ? <Icon name="check" size={14} color="#fff" width={3} /> : <b className="text-[12px]">!</b>}
                     </span>
                     <div className="min-w-0 flex-1 text-[13.5px] leading-snug">
-                      <div><b>{it.item}</b> · {it.value}{it.p != null && <span className="text-slate-400"> ({Math.round(it.p * 100)}%)</span>}</div>
+                      <div><b>{it.item}</b> · {it.value}</div>
                       {it.advice && <div className="text-[12.5px] text-slate-600">{it.advice}</div>}
-                      <div className="mt-1"><Source kind={/live model/.test(it.source) ? "live_model" : "simulated"} text={it.source.replace(/^.*\((.*)\)$/, "$1")} /></div>
+                      <div className="mt-1">{/live model/.test(it.source)
+                        ? <OwnerSource kind="live_model" text={/^Tyre/.test(it.item) ? "Tyre photo check" : /^Engine/.test(it.item) ? "Engine sound check" : undefined} />
+                        : <OwnerSource kind="simulated" text={/light/.test(it.source) ? "Phone light meter" : "Photo check"} />}</div>
                     </div>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {it.image && <img src={it.image} alt={`${it.item} photo`} className="h-12 w-12 shrink-0 rounded-xl object-cover" />}

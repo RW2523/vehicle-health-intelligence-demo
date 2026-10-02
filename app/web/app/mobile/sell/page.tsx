@@ -5,11 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ReactNode, Suspense, useState } from "react";
 import { Icon } from "@/components/icons";
 import { MobileShell, useMobileHref, useMobilePlate } from "@/components/MobileShell";
-import { MCard, MEmpty, MError, MSkeleton, MTitle, Plate, Segmented, Verdict, dayLabel, scoreCol } from "@/components/mobileKit";
+import { BTN, MCard, MEmpty, MError, MSkeleton, MTitle, OwnerSource, Plate, Segmented, Verdict, dayLabel, scoreCol } from "@/components/mobileKit";
 import { useProfile } from "@/components/mobileData";
 import { MobileVehicleThumb } from "@/components/mobilePhoto";
 import { rm, TRUST_COL, TRUST_MARK } from "@/components/sales";
-import { Source } from "@/components/ui";
 import { fmtN, nextFailNote } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
@@ -167,10 +166,11 @@ function SaleDetail({ d }: { d: any }) {
       {d.report && (
         <Section title="Latest inspection report">
           <div className="flex items-center justify-between gap-2 text-[13px]"><span>{d.report.kind} · {dayLabel(d.report.created_at, true)}</span><Verdict v={d.report.verdict} /></div>
-          <a className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#2563EB]" href={`/verify/${d.report.verify_token}`}><Icon name="shield" size={15} />Verify the report</a>
+          <a className={`${BTN} mt-3 w-full`} href={`/verify/${d.report.verify_token}`}><Icon name="shield" size={17} color="#fff" />Verify the report</a>
+          <p className="mt-1.5 text-center text-[11.5px] text-slate-500">Opens the public check: no login needed, the same page a buyer sees.</p>
         </Section>
       )}
-      <div className="flex flex-wrap gap-1.5"><Source kind="synthetic" text="Listing and history" /><Source kind="live_model" text="Lane reports and health" /></div>
+      <div className="flex flex-wrap gap-1.5"><OwnerSource kind="synthetic" text="Listing and history" /><OwnerSource kind="live_model" text="Lane reports and health" /></div>
     </div>
   );
 }
@@ -208,7 +208,7 @@ function SellScreen() {
   if (listing)
     return (
       <MobileShell tab="vehicle" title={one.data ? `${one.data.vehicle.make} ${one.data.vehicle.model}` : "For sale"} back={href("/mobile/sell")} backLabel="All for sale" scrollKey={listing}>
-        {one.error ? <MError>{one.error}</MError> : !one.data ? <MSkeleton rows={4} h={120} /> : <SaleDetail d={one.data} />}
+        {one.error ? <MError onRetry={one.reload}>This listing could not load. {one.error}</MError> : !one.data ? <MSkeleton rows={4} h={120} label="Loading the vehicle's record…" /> : <SaleDetail d={one.data} />}
       </MobileShell>
     );
   return (
@@ -226,10 +226,10 @@ function SellScreen() {
         </label>
       </div>
       <div className="flex flex-col gap-2.5">
-        {list.error ? <MError onRetry={list.reload}>{list.error}</MError> : !list.data ? <MSkeleton rows={4} h={100} /> : !list.data.listings.length ? <MEmpty icon="search" title="Nothing for sale matches">Try another make, model or plate.</MEmpty>
+        {list.error ? <MError onRetry={list.reload}>The listings could not load. {list.error}</MError> : !list.data ? <MSkeleton rows={4} h={100} label="Loading the listings…" /> : !list.data.listings.length ? <MEmpty icon="search" title="Nothing for sale matches">Try another make, model or plate.</MEmpty>
           : list.data.listings.map((r: any) => <SaleCard key={r.listing_id} r={r} onOpen={() => open(r.listing_id)} />)}
       </div>
-      <div className="mt-4"><Source kind="synthetic" text="Listings of fictional vehicles" /></div>
+      <div className="mt-4"><OwnerSource kind="synthetic" text="Listings of fictional vehicles" /></div>
     </MobileShell>
   );
 }

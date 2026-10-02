@@ -10,12 +10,12 @@ import { Panel, StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { LiveMap, MapPoint, keyOf } from "@/components/LiveMap";
 import { OV_TABS, OversightShell, ovHref } from "@/components/OversightShell";
-import { ErrorState, LoadingState, PageHeader, SeverityBadge, Source, toast } from "@/components/ui";
+import { Empty, ErrorState, LoadingState, PageHeader, SeverityBadge, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { canOpen, useUser } from "@/lib/auth";
 import { STATUS_LABEL, dmy, fmtN, pct, typeLabel } from "@/lib/format";
 import { useFetch, useLive } from "@/lib/live";
-import { OvStat, THEAD, TROW, TableBox } from "../parts";
+import { FlowSteps, OvStat, THEAD, TROW, TableBox } from "../parts";
 
 const STATE: Record<string, { label: string; tone: Tone; color: string }> = {
   open: { label: "Open", tone: "red", color: "#DC2626" },
@@ -27,13 +27,29 @@ const LANE_STATUS: Record<string, string> = { in_lane: "In the lane", review: "E
 const VERDICT_TONE: Record<string, Tone> = { PASS: "green", FAIL: "red", CONDITIONAL: "amber", REFERRED: "blue" };
 const KIND_ICON: Record<string, string> = { integrity: "examiner", equipment: "wrench", capacity: "calendar", audit: "shield" };
 
-/** One exception: why it was raised, the evidence, where to look, and the actions HQ can record. */
-function ExceptionCard({ x, canAct, onDone, first }: { x: any; canAct: boolean; onDone: (x: any) => void; first: boolean }) {
+/** The path every exception takes; the card shows where it is. */
+const EX_STEPS = ["Open exception", "Review evidence", "Record action", "Mark handled"];
+/** The page element an exception card has (the evidence panels link back to it). */
+const exId = (key: string) => "ex-" + key.replace(/[^a-z0-9]+/gi, "-");
+/** The drill-through an exception's evidence link sets (?examiner=, ?device= or ?branch=). */
+const FOCUS_KEYS = ["examiner", "device", "branch"];
+const focusOf = (href: string) => {
+  const q = new URLSearchParams((ovHref(href).split("?")[1] || "").split("#")[0]);
+  return FOCUS_KEYS.map((k) => `${k}=${q.get(k) || ""}`).join("&");
+};
+
+/** One exception: why it was raised, the evidence, where to look, and the actions HQ can record. ``seen``: its
+ *  evidence has been opened, so recording the action is the next step. ``primary``: the first open exception, whose
+ *  action is the page's main button. */
+function ExceptionCard({ x, canAct, onDone, primary, seen, onEvidence }: {
+  x: any; canAct: boolean; onDone: (x: any) => void; primary: boolean; seen: boolean; onEvidence: () => void;
+}) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const st = STATE[x.state.status] || STATE.open;
   const open = x.state.status === "open";
   const accent = open ? (x.severity === "critical" ? "#DC2626" : "#D97706") : "#059669";
+  const at = !open ? EX_STEPS.length : seen ? 2 : 1;
   const act = async (action: string) => {
     setBusy(action);
     try {
@@ -48,8 +64,9 @@ function ExceptionCard({ x, canAct, onDone, first }: { x: any; canAct: boolean; 
     }
   };
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-white/80 bg-white/75 p-4 pl-5 shadow-glass">
+    <article id={exId(x.key)} className="relative scroll-mt-24 overflow-hidden rounded-2xl border border-white/80 bg-white/75 p-4 pl-5 shadow-glass">
       <span className="absolute inset-y-0 left-0 w-1.5" style={{ background: accent }} aria-hidden />
+      <FlowSteps steps={EX_STEPS} at={at} label="Where this exception is" className="mb-3 sm:ml-14" />
       <div className="flex flex-wrap items-start gap-3">
         <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl sm:flex" style={{ background: accent + "14", boxShadow: `inset 0 0 0 1px ${accent}33` }}>
           <Icon name={KIND_ICON[x.kind] || "flag"} size={20} color={accent} width={2} />
@@ -79,18 +96,23 @@ function ExceptionCard({ x, canAct, onDone, first }: { x: any; canAct: boolean; 
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2 sm:ml-14">
-        <Link className="btn btn-sm" href={ovHref(x.href)} scroll={false}>Show the evidence<Icon name="arrow" size={13} /></Link>
+        <Link className={`btn btn-sm ${open && !seen ? "border-cyan/60 text-cyan" : ""}`} href={ovHref(x.href)} scroll={false} onClick={onEvidence}>
+          Show the evidence<Icon name="arrow" size={13} />
+        </Link>
         {canAct && open && (
           <>
-            <input className="input min-w-[160px] flex-1 py-1.5" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} aria-label={`Note for ${x.title}`} />
+            {/* the first action records what HQ does about it (the step to take); acknowledging is the quieter way out.
+                The buttons come first, on the left, clear of the assistant button in the page's bottom-right corner */}
             {x.actions.map((a: any, i: number) => (
-              <button key={a.id} className={`btn btn-sm ${i === 0 && first ? "btn-primary" : ""}`} disabled={!!busy} onClick={() => act(a.id)}
+              <button key={a.id} className={`btn btn-sm ${i === 0 ? (primary ? "btn-primary" : "border-cyan/60 text-cyan") : ""}`} disabled={!!busy} onClick={() => act(a.id)}
                 title={a.mock ? "Mock: recorded only, nothing is sent" : undefined}>
                 {busy === a.id ? "Recording…" : a.label}{a.mock ? " (mock)" : ""}
               </button>
             ))}
+            <input className="input min-w-[160px] flex-1 py-1.5" placeholder="Note to record with it (optional)" value={note} onChange={(e) => setNote(e.target.value)} aria-label={`Note for ${x.title}`} />
           </>
         )}
+        {!canAct && open && <span className="text-[12px] text-fg-3">Read-only account: an HQ operations account records the action.</span>}
       </div>
     </article>
   );
@@ -143,6 +165,32 @@ function HQ() {
   };
   const X = exc.data;
   const openN = X ? X.items.filter((i: any) => i.state.status === "open").length : 0;
+  // the exceptions whose evidence has been opened (this browser tab): their next step is recording the action
+  const [seen, setSeen] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try { setSeen(JSON.parse(sessionStorage.getItem("vhi-hq-seen") || "{}")); } catch {}
+  }, []);
+  const markSeen = (key: string) => setSeen((s) => {
+    if (s[key]) return s;
+    const n = { ...s, [key]: true };
+    try { sessionStorage.setItem("vhi-hq-seen", JSON.stringify(n)); } catch {}
+    return n;
+  });
+  // the exception whose evidence the address points at (?examiner=VE017): its evidence is being reviewed now
+  const focusKey = FOCUS_KEYS.map((k) => `${k}=${sp.get(k) || ""}`).join("&");
+  const reviewing = X && (focusEx || focusDev || focusBranch) ? X.items.find((i: any) => focusOf(i.href) === focusKey) : null;
+  useEffect(() => {
+    if (reviewing) markSeen(reviewing.key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewing?.key]);
+  const firstOpen = X?.items.find((i: any) => i.state.status === "open")?.key;
+  /** In an evidence panel opened from an exception: what is being reviewed, and the way back to record the action. */
+  const back = (target: string) => reviewing && ovHref(reviewing.href).includes(`#${target}`) ? (
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-[12.5px]" role="note">
+      <span className="min-w-0 flex-1"><b className="text-[#1D4ED8]">Reviewing the evidence</b> for: {reviewing.title}</span>
+      <a className="btn btn-sm" href={`#${exId(reviewing.key)}`}>{reviewing.state.status === "open" ? "Next: record the action" : "Back to the exception"}<Icon name="arrow" size={13} /></a>
+    </div>
+  ) : null;
   // decisions and reports made on other screens add evidence entries: keep the audit and the counts current
   useLive(["inspections"], () => {
     if (!ok) return;
@@ -209,18 +257,18 @@ function HQ() {
 
       {/* one row of six from xl; every tile names how its number is produced (the panels below carry the detail) */}
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <OvStat icon="flag" tone={openN ? "red" : "green"} alert={!!openN} label="Open exceptions" value={X ? openN : "…"} sub={X ? `of ${X.items.length} raised` : "Checking every hub"}
+        <OvStat icon="flag" tone={openN ? "red" : "green"} alert={!!openN} label="Open exceptions" value={X ? openN : exc.error ? "–" : "…"} sub={X ? `of ${X.items.length} raised` : exc.error ? "Could not be computed" : "Checking every hub"}
           source={<Source kind="live_logic" />} href="#exceptions" />
-        <OvStat icon="lane" tone="amber" label="Lanes running" value={ops.data ? running : "…"} sub={ops.data ? `${lanes.length} lanes with an inspection today` : ""}
+        <OvStat icon="lane" tone="amber" label="Lanes running" value={ops.data ? running : ops.error ? "–" : "…"} sub={ops.data ? `${lanes.length} lanes with an inspection today` : ops.error ? "Lane data unavailable" : "Loading lane data…"}
           source={<Source kind="live_logic" />} href="#lanes" />
-        <OvStat icon="examiner" tone={I?.flagged.length ? "red" : "green"} alert={!!I?.flagged.length} label="Flagged examiners" value={I ? I.flagged.length : "…"} sub={I ? I.flagged.join(", ") || "none" : ""}
+        <OvStat icon="examiner" tone={I?.flagged.length ? "red" : "green"} alert={!!I?.flagged.length} label="Flagged examiners" value={I ? I.flagged.length : integ.error ? "–" : "…"} sub={I ? I.flagged.join(", ") || "none" : integ.error ? "Could not be computed" : "Comparing examiners…"}
           source={<Source kind="live_model" />} href="#integrity" />
-        <OvStat icon="wrench" tone={eqLow ? "red" : "green"} alert={!!eqLow} label="Equipment below 50% health" value={eq.data ? eqLow : "…"} sub="of all lane devices"
+        <OvStat icon="wrench" tone={eqLow ? "red" : "green"} alert={!!eqLow} label="Equipment below 50% health" value={eq.data ? eqLow : eq.error ? "–" : "…"} sub={eq.error && !eq.data ? "Device data unavailable" : "of all lane devices"}
           source={<Source kind="live_model" />} href="#equipment" />
-        <OvStat icon="calendar" tone={D?.summary.days_over_capacity ? "amber" : "green"} alert={!!D?.summary.days_over_capacity} label="Days over capacity" value={D ? D.summary.days_over_capacity : "…"}
-          sub={D ? `${D.branch} · ${D.summary.extra_slots_needed} extra slots in 14 days` : ""} source={<Source kind="live_model" />} href="#demand" />
-        <OvStat icon="shield" tone={audit.data && !audit.data.verify.intact ? "red" : "green"} alert label="Evidence chain" value={audit.data ? (audit.data.verify.intact ? "Intact" : "Broken") : "…"}
-          sub={audit.data ? `${fmtN(audit.data.verify.checked)} entries re-verified` : ""} source={<Source kind="live_logic" />} href="#audit" />
+        <OvStat icon="calendar" tone={D?.summary.days_over_capacity ? "amber" : "green"} alert={!!D?.summary.days_over_capacity} label="Days over capacity" value={D ? D.summary.days_over_capacity : dem.error ? "–" : "…"}
+          sub={D ? `${D.branch} · ${D.summary.extra_slots_needed} extra slots in 14 days` : dem.error ? "Forecast unavailable" : "Forecasting demand…"} source={<Source kind="live_model" />} href="#demand" />
+        <OvStat icon="shield" tone={audit.data && !audit.data.verify.intact ? "red" : "green"} alert label="Evidence chain" value={audit.data ? (audit.data.verify.intact ? "Intact" : "Broken") : audit.error ? "–" : "…"}
+          sub={audit.data ? `${fmtN(audit.data.verify.checked)} entries re-verified` : audit.error ? "Could not be checked" : "Re-checking the chain…"} source={<Source kind="live_logic" />} href="#audit" />
       </div>
 
       <section id="exceptions" className="mb-5 scroll-mt-24" aria-label="Exceptions">
@@ -233,7 +281,7 @@ function HQ() {
             ) : (
               <div className="flex flex-col gap-3">
                 {openN === 0 && <div className="rounded-xl border border-ok/40 bg-ok/5 px-4 py-2.5 text-[13px]"><b className="text-ok">Every exception has been handled.</b> <span className="text-fg-3">The records below show who did what, and when.</span></div>}
-                {X.items.map((x: any) => <ExceptionCard key={x.key} x={x} canAct={canAct} onDone={done} first={x.key === X.items.find((i: any) => i.state.status === "open")?.key} />)}
+                {X.items.map((x: any) => <ExceptionCard key={x.key} x={x} canAct={canAct} onDone={done} primary={x.key === firstOpen} seen={!!seen[x.key]} onEvidence={() => markSeen(x.key)} />)}
               </div>
             )}
         </Panel>
@@ -242,7 +290,12 @@ function HQ() {
       <div id="lanes" className="mb-5 grid scroll-mt-24 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <Panel title="Lanes across hubs" sub={`${liveTotal ?? "…"} live inspections${ops.data ? ` · ${Object.entries(ops.data.inspections_by_status).map(([k, v]) => `${v} ${STATUS_LABEL[k]?.toLowerCase() || k}`).join(" · ")}` : ""}`}
           action={<>{hub && <button className="chip border-cyan/50 text-cyan" onClick={() => setHub(null)}>{names[hub] || hub} ✕</button>}<Source kind="live_logic" text="Live inspections" /></>}>
-          {!ops.data ? <LoadingState label="Loading the lanes…" rows={3} /> : !shownLanes.length ? <p className="text-[13px] text-fg-3">No lane has run yet today. Start a use case from the demo control to see one here.</p> : (
+          {ops.error && !ops.data ? <ErrorState title="Lane data could not load" onRetry={ops.reload}>{ops.error}</ErrorState>
+            : !ops.data ? <LoadingState label="Loading lane data…" rows={3} />
+            : !shownLanes.length ? <Empty title={hub ? `No lane inspection at ${names[hub] || hub} today` : "No lane has run yet today"}
+                actions={hub ? <button className="btn btn-sm" onClick={() => setHub(null)}>Show every hub</button> : undefined}>
+                {hub ? "Pick another hub on the map, or show every hub." : "Start a use case from the demo control to see one here."}
+              </Empty> : (
             <TableBox className="max-h-[420px]">
               <table className="w-full min-w-[600px] whitespace-nowrap text-[13px]">
                 <thead className={THEAD}><tr><th>Hub and lane</th><th>Vehicle · started</th><th>Status</th><th className="!text-right">Health</th><th>Result</th><th></th></tr></thead>
@@ -265,6 +318,7 @@ function HQ() {
         </Panel>
         <Panel title="Hubs on the map" sub="Click a hub to list its lanes" action={<><Source kind="synthetic" text="Hub locations: fictional" /><Source kind="live_logic" text="Lane status" /></>}>
           <LiveMap label="Inspection hubs and what their lanes are doing" points={hubPoints} className="h-[340px] xl:h-[380px] 2xl:h-[420px]"
+            status={branches.error && !branches.data ? "Hub locations could not load: the lanes table lists every hub." : !branches.data || !ops.data ? "Loading lane data…" : null}
             views={[{ id: "kv", label: "Klang Valley", bounds: [[2.85, 101.35], [3.4, 101.85]] }, { id: "my", label: "Malaysia", bounds: [[0.85, 99.6], [7.45, 119.3]] }]}
             selected={hub ? keyOf({ layer: "hubs", id: hub }) : null} onSelect={(p) => setHub((h) => (h === p.id ? null : p.id))}
             legend={[{ label: "Lane in use", color: "#D97706", shape: "pulse" }, { label: "In review", color: "#7C3AED", shape: "hub" }, { label: "Reported", color: "#059669", shape: "hub" }, { label: "No inspection today", color: "#64748B", shape: "hub" }]} />
@@ -274,7 +328,9 @@ function HQ() {
       {/* the two panels differ in height: each keeps its own, no stretched blank card */}
       <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2 xl:items-start">
         <Panel className="scroll-mt-24" title={<h2 id="integrity" className="scroll-mt-24 text-[18px] font-bold tracking-tight">Examiner integrity · heavy vehicles</h2>} action={<Source kind="live_model" text="z-score + Isolation Forest" />}>
-          {!I ? <LoadingState label="Comparing every examiner with their peers…" rows={4} /> : (
+          {back("integrity")}
+          {integ.error && !I ? <ErrorState title="Examiner integrity could not be computed" onRetry={integ.reload}>{integ.error}</ErrorState>
+            : !I ? <LoadingState label="Comparing every examiner with their peers…" rows={4} /> : (
             <>
               <Scatter height={260} xLabel="Pass rate (heavy vehicles)" yLabel="Passes that conflict with the sensor evidence"
                 xFmt={(v) => pct(v)} yFmt={(v) => pct(v)}
@@ -309,7 +365,9 @@ function HQ() {
           <select aria-label="Branch" className="input max-w-full py-1.5" value={branch} onChange={(e) => setBranch(e.target.value)}>
             {(branches.data || []).map((b) => <option key={b.branch_id} value={b.branch_id}>{b.name}</option>)}
           </select>}>
-          {!D ? <LoadingState label="Forecasting demand…" rows={4} /> : (
+          {back("demand")}
+          {dem.error && !D ? <ErrorState title="The demand forecast could not load" onRetry={dem.reload}>{dem.error}</ErrorState>
+            : !D ? <LoadingState label="Forecasting demand…" rows={4} /> : (
             <>
               <Bars height={200} values={[...D.recent.slice(-14).map((r: any) => r.demand), ...D.forecast.map((f: any) => f.demand)]}
                 secondary={[...D.recent.slice(-14).map((r: any) => r.capacity), ...D.forecast.map((f: any) => f.capacity)]}
@@ -333,9 +391,14 @@ function HQ() {
 
       <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
         <Panel title={<h2 className="scroll-mt-24 text-[18px] font-bold tracking-tight" id="equipment">Lane equipment health</h2>} action={<Source kind="live_model" text="Isolation Forest + trend" />}>
-          {!eq.data && <LoadingState label="Checking lane devices…" rows={4} />}
+          {back("equipment")}
+          {eq.error && !eq.data ? <ErrorState title="Lane device data could not load" onRetry={eq.reload}>{eq.error}</ErrorState>
+            : !eq.data ? <LoadingState label="Checking lane devices…" rows={4} />
+            : !eq.data.devices.length && <p className="text-[13px] text-fg-3">No lane device reports telemetry yet.</p>}
           <div className="flex max-h-[360px] flex-col gap-1.5 overflow-auto pr-1">
-            {(eq.data?.devices || []).slice(0, 14).map((d: any, i: number) => {
+            {/* the fourteen least healthy, and the device an exception points at wherever it ranks */}
+            {(eq.data?.devices || []).map((d: any, i: number) => {
+              if (i >= 14 && i !== devIdx) return null;
               const c = d.health < 50 ? "#DC2626" : d.health < 75 ? "#D97706" : "#059669";
               return (
                 <button key={i} onClick={() => setDevIdx(i)} aria-pressed={devIdx === i}
@@ -349,7 +412,9 @@ function HQ() {
           </div>
         </Panel>
         <Panel title={dev ? `${names[dev.branch_id] || dev.branch_id} lane ${dev.lane} · ${dev.device.replaceAll("_", " ")} · vibration (g RMS)` : "Equipment"} action={<Source kind="simulated" text="Telemetry: simulated" />}>
-          {dev && (
+          {!dev ? (eq.error ? <p className="text-[13px] text-fg-3">The device&apos;s vibration trend appears here once the device data loads.</p>
+            : !eq.data ? <LoadingState label="Loading the device's vibration trend…" rows={4} />
+            : <p className="text-[13px] text-fg-3">No device to show yet.</p>) : (
             <>
               <LineChart height={240} yFmt={(v) => v.toFixed(2)}
                 hlines={[{ y: dev.vibration_limit_g, color: "#DC2626", label: `limit ${dev.vibration_limit_g} g` }]}
@@ -366,10 +431,15 @@ function HQ() {
         </Panel>
       </div>
 
-      <Panel title="Evidence audit" action={<><Source kind="live_logic" text="SHA-256 hash chain" /><button className="btn btn-sm btn-primary" disabled={busy} onClick={runTamper}>{busy ? "Testing…" : "Run tamper test"}</button></>}>
+      <Panel title="Evidence audit" action={<><Source kind="live_logic" text="SHA-256 hash chain" /><button className={`btn btn-sm ${X && !openN ? "btn-primary" : ""}`} disabled={busy} onClick={runTamper}>{busy ? "Testing…" : "Run tamper test"}</button></>}>
         <div id="audit" className="mb-3 flex scroll-mt-24 flex-wrap items-center gap-3 text-[13px]">
-          <StatusPill tone={audit.data?.verify.intact ? "green" : "red"} dot>{audit.data?.verify.intact ? "All records intact" : "Chain broken"}</StatusPill>
-          <span className="break-all text-fg-3">{fmtN(audit.data?.verify.checked)} entries · head <span className="font-mono">{audit.data?.verify.head?.slice(0, 16)}…</span></span>
+          {audit.data ? (
+            <>
+              <StatusPill tone={audit.data.verify.intact ? "green" : "red"} dot>{audit.data.verify.intact ? "All records intact" : "Chain broken"}</StatusPill>
+              <span className="break-all text-fg-3">{fmtN(audit.data.verify.checked)} entries · head <span className="font-mono">{audit.data.verify.head?.slice(0, 16)}…</span></span>
+            </>
+          ) : audit.error ? <ErrorState title="The evidence log could not be checked" onRetry={audit.reload}>{audit.error}</ErrorState>
+            : <LoadingState label="Re-checking every entry of the evidence chain…" rows={1} className="min-w-[240px]" />}
           {tamper && (
             <span className={tamper.detected ? "text-ok" : "text-bad"}>
               Test: edited entry #{tamper.edited_seq} directly in the database → verification {tamper.detected ? `failed at #${tamper.verify_after_edit.broken_at_seq} (${tamper.verify_after_edit.reason})` : "did not notice"}; restored → {tamper.verify_after_restore.intact ? "intact again" : "still broken"}.
@@ -383,6 +453,8 @@ function HQ() {
               {(audit.data?.recent || []).slice().reverse().map((e: any) => (
                 <tr key={e.seq} className={`${TROW} [&>td]:py-1.5`}><td className="text-right font-semibold tabular-nums">{e.seq}</td><td className="tabular-nums">{e.ts.slice(0, 19).replace("T", " ")}</td><td>{e.kind}</td><td>{e.inspection_id || "–"}</td><td>{e.actor}</td><td className="font-mono text-fg-3">{e.hash.slice(0, 16)}…</td></tr>
               ))}
+              {!audit.data && !audit.error && <tr><td colSpan={6} className="px-3 py-4 text-center text-fg-3">Loading the latest evidence entries…</td></tr>}
+              {audit.data && !audit.data.recent?.length && <tr><td colSpan={6} className="px-3 py-4 text-center text-fg-3">No evidence entries yet: run a lane session from the demo control to add some.</td></tr>}
             </tbody>
           </table>
         </TableBox>

@@ -14,7 +14,7 @@ import { FLAGS, PRICES, RESULT_COL, rm, TRUST_COL, TRUST_MARK, VehicleThumb } fr
 import { Empty, ErrorState, LoadingState, Modal, PageHeader, Pill, ScoreRing, Source, Tabs } from "@/components/ui";
 import { nextFailNote, dmy, fmtN, pct, scoreColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
-import { FilterPill, OvStat, THEAD, TableBox, useNarrow } from "../parts";
+import { FilterPill, FlowSteps, OvStat, THEAD, TableBox, useNarrow, vehicleRecordHref } from "../parts";
 
 const BASE = "/oversight/sales";
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -22,6 +22,8 @@ const short = (iso: string) => `${MON[Number(iso.slice(5, 7)) - 1]} '${iso.slice
 const days = (iso: string) => new Date(iso + "T00:00:00").getTime() / 86_400_000;
 const num = (v: number) => fmtN(v, Math.abs(v) < 10 ? 2 : Math.abs(v) < 100 ? 1 : 0);
 const TRUST_TONE: Record<string, "green" | "amber" | "red" | "blue"> = { ok: "green", warn: "amber", bad: "red", info: "blue" };
+/** The buyer's path through a listing; the listings and each record show where the user is on it. */
+const SALE_STEPS = ["Search", "Vehicle record", "Red flags/history", "Latest report", "Public verification"];
 
 function Filter({ label, value, options, onChange }: { label: string; value: string; options: { v: string; l: string }[]; onChange: (v: string) => void }) {
   return (
@@ -109,6 +111,10 @@ function Listings() {
         </div>
       )}
       <section className="card mb-5 flex flex-col gap-4 p-4 lg:p-5" aria-label="Filters">
+        <div className="flex flex-col gap-2 border-b border-ink-600/70 pb-3.5 xl:flex-row xl:items-center xl:gap-4">
+          <FlowSteps steps={SALE_STEPS} at={0} label="Checking a used vehicle" className="xl:shrink-0" />
+          <p className="min-w-0 text-[12.5px] leading-snug text-fg-2 xl:ml-auto xl:text-right">Search by plate, make or model, then open a vehicle for its whole record.</p>
+        </div>
         {/* one height for every control in the row: the segmented control, the search box and the two selects */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
@@ -184,6 +190,10 @@ function Listings() {
                                   <Link href={`${BASE}?id=${r.listing_id}`} onClick={(e) => e.stopPropagation()} className="text-[14px] font-bold hover:text-cyan">{r.plate}</Link>
                                   <span className="text-[11.5px] text-fg-2">{r.make} {r.model} · {r.year}</span>
                                   <span className="text-[11.5px] text-fg-3">{r.vtype} · {fmtN(r.odometer_km)} km{r.images ? ` · ${r.images} photo${r.images > 1 ? "s" : ""}` : ""}</span>
+                                  {vehicleRecordHref(r.plate) && (
+                                    <Link href={vehicleRecordHref(r.plate)!} onClick={(e) => e.stopPropagation()} className="text-[11.5px] font-semibold text-cyan hover:underline"
+                                      title="This vehicle's record in the inspection app">Inspection app record ›</Link>
+                                  )}
                                 </span>
                               </div>
                             </td>
@@ -269,11 +279,22 @@ function Dossier({ id }: { id: string }) {
   const lib: LibImage[] = d.images.library;
   const ins = [...d.inspections].reverse();
   const thumb = d.images.photo || lib[0]?.web_url || d.images.lane[0]?.url;
+  const record = vehicleRecordHref(v.plate);
+  const verifyHref = d.report ? `/verify/${d.report.verify_token}` : null;
   return (
     <>
       <PageHeader eyebrow={<Link href={BASE} className="hover:text-cyan">Oversight · Used-vehicle sales</Link>} title={`${v.plate} · ${v.make} ${v.model} ${v.year}`}
         sub="The whole record a buyer should see before paying: every inspection, the odometer, fault codes, claims and photos."
-        actions={back} />
+        actions={<>{back}{record && <Link className="btn" href={record}>Record in the inspection app<Icon name="arrow" size={15} /></Link>}</>} />
+      <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/70 px-3.5 py-2.5 shadow-glass xl:flex-row xl:items-center xl:gap-4">
+        <FlowSteps steps={SALE_STEPS} at={showReport ? 3 : 2} label="Checking this vehicle" className="xl:shrink-0"
+          links={[BASE, null, "#record", d.report ? "#report" : null, verifyHref]} />
+        <p className="min-w-0 text-[12.5px] leading-snug text-fg-2 xl:ml-auto xl:text-right">
+          {!d.report ? "Check the red flags and the history below. No lane report has been issued for this vehicle yet, so there is nothing to verify."
+            : showReport ? "Then verify the report: the public page re-checks it without a login, as a buyer would."
+            : "Check the red flags and the history, then review the latest report and verify it."}
+        </p>
+      </div>
       <section className="card mb-5 flex flex-wrap items-center gap-5 p-4 lg:p-5">
         <VehicleThumb src={thumb} vtype={v.vtype} className="h-28 w-44 shrink-0 rounded-2xl" icon={34} />
         <div className="flex min-w-[200px] flex-1 flex-col gap-1">
@@ -288,6 +309,7 @@ function Dossier({ id }: { id: string }) {
         </div>
       </section>
       <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:items-start">
+        <div id="record" className="scroll-mt-24">
         <Panel title="What the record says" action={<Source kind="live_logic" text="Checks on the record" />}>
           <ul className="flex flex-col gap-2" aria-label="Trust summary">
             {t.points.map((p: any, i: number) => (
@@ -304,6 +326,7 @@ function Dossier({ id }: { id: string }) {
             <div><div className="text-fg-3">Registered in</div><b>{v.state || x.state}</b></div>
           </div>
         </Panel>
+        </div>
         <div className="flex flex-col gap-5">
           <Panel title="Health" action={<Source kind="live_model" text="Health model (LightGBM)" />}>
             <div className="flex items-center gap-4">

@@ -61,7 +61,7 @@ export function StagePill({ stage, className = "" }: { stage: string; className?
 export function PayChip({ a }: { a: Appt }) {
   const t = TONE[PAY_TONE[a.payment.state] || "gray"];
   return (
-    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11.5px] font-semibold" style={{ color: t.fg, background: t.bg }}>
+    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11.5px] font-semibold" style={{ color: t.fg }}>
       <Icon name={a.payment.state === "paid" ? "checkc" : "wallet"} size={12} />{a.payment.label}
     </span>
   );
@@ -247,8 +247,10 @@ function NowLine({ time }: { time: string }) {
 }
 
 /** The day (or the week, day by day) grouped by time. */
-export function Agenda({ mode, selected, today, now, items, selectedId, onOpen, onBook }: {
-  mode: "day" | "week"; selected: string; today: string; now: string; items: Appt[]; selectedId?: string | null; onOpen: (a: Appt) => void; onBook: (day: string) => void;
+export function Agenda({ mode, selected, today, now, items, selectedId, onOpen, onBook, filtered = false }: {
+  mode: "day" | "week"; selected: string; today: string; now: string; items: Appt[]; selectedId?: string | null; onOpen: (a: Appt) => void;
+  /** staff who can book get a quiet "Book a slot" on an empty future day (the page's New appointment stays the primary) */
+  onBook?: (day: string) => void; filtered?: boolean;
 }) {
   const days = mode === "day" ? [selected] : Array.from({ length: 7 }, (_, i) => addDays(weekStart(selected), i));
   return (
@@ -270,14 +272,14 @@ export function Agenda({ mode, selected, today, now, items, selectedId, onOpen, 
               <p className="py-3 text-[13px] text-fg-4">The hubs are closed on Sundays.</p>
             ) : mode === "week" ? (
               <div className="flex flex-wrap items-center justify-between gap-2 py-3 text-[13px] text-fg-4">
-                No appointments{d >= today && <button className="btn btn-sm" onClick={() => onBook(d)}><Icon name="plus" size={13} />Book</button>}
+                No appointments{d >= today && onBook && !filtered && <button className="btn btn-sm" onClick={() => onBook(d)}><Icon name="plus" size={13} />Book</button>}
               </div>
             ) : (
-              <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-ink-500 bg-white/40 px-6 py-10 text-center">
-                <Icon name="calendar" size={34} width={1.4} color="#94A3B8" />
-                <b className="text-[16px]">No appointments on {dayShort(d)}</b>
-                <span className="max-w-[360px] text-[13px] text-fg-3">{d < today ? "Nothing was booked for this day." : "Nothing booked yet for this day (with these filters)."}</span>
-                {d >= today && <button className="btn btn-primary mt-1" onClick={() => onBook(d)}><Icon name="plus" size={15} />New appointment</button>}
+              <div className="flex min-h-[180px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-ink-500 bg-white/40 px-6 py-8 text-center" role="status">
+                <Icon name="calendar" size={30} width={1.4} color="#94A3B8" />
+                <b className="text-[16px]">No appointments for this period.</b>
+                <span className="max-w-[360px] text-[13px] text-fg-3">{dayShort(d)} · {filtered ? "Nothing matches these filters." : d < today ? "Nothing was booked for this day." : "Nothing is booked yet for this day."}</span>
+                {d >= today && onBook && !filtered && <button className="btn btn-sm mt-1.5" onClick={() => onBook(d)}><Icon name="plus" size={14} />Book a slot</button>}
               </div>
             )}
           </section>
@@ -455,7 +457,7 @@ export function ApptDetail({ a, today, options, canWrite, onChanged, onClose }: 
 
       <div className="flex flex-wrap gap-2">
         <Link className="btn btn-sm" href={`/vehicles/${encodeURIComponent(a.plate)}`}><Icon name="car" size={14} />Vehicle record</Link>
-        {a.inspection_id && <Link className="btn btn-sm btn-primary" href={`/inspection/${a.inspection_id}`}><Icon name="clipboard" size={14} />Open the inspection</Link>}
+        {a.inspection_id && <Link className={`btn btn-sm ${canWrite && a.can.checkin ? "" : "btn-primary"}`} href={`/inspection/${a.inspection_id}`}><Icon name="clipboard" size={14} />Open the inspection</Link>}
         {a.report?.verify_token && <Link className="btn btn-sm" href={`/verify/${a.report.verify_token}`}><Icon name="shield" size={14} />Verify the report</Link>}
       </div>
       <div className="flex flex-wrap gap-1.5">

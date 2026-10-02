@@ -5,8 +5,7 @@ import { Suspense, use, useEffect } from "react";
 import { visitStep } from "@/components/Demo";
 import { Icon } from "@/components/icons";
 import { MobileShell } from "@/components/MobileShell";
-import { BTN2, MCard, MSkeleton, Plate, Verdict } from "@/components/mobileKit";
-import { Source } from "@/components/ui";
+import { BTN2, MCard, MSkeleton, OwnerSource, Plate, Verdict } from "@/components/mobileKit";
 import { dmy, fmtN, pct } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
@@ -61,10 +60,10 @@ function Verify({ token }: { token: string }) {
                 </div>
               </div>
             </div>
-            <div className="mt-3 truncate rounded-xl bg-black/15 px-3 py-1.5 font-mono text-[11.5px] text-white/90">anchor {v.chain.report_anchor.slice(0, 12)}…</div>
+            <div className="mt-3 truncate rounded-xl bg-black/15 px-3 py-1.5 text-[11.5px] text-white/90">Record seal <span className="font-mono">{v.chain.report_anchor.slice(0, 12)}</span></div>
           </section>
           <MCard label="Report">
-            <div className="flex flex-wrap items-center gap-2"><span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{v.kind}</span>{v.synthetic && <Source kind="synthetic" text="Seeded demo record" />}</div>
+            <div className="flex flex-wrap items-center gap-2"><span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{v.kind}</span>{v.synthetic && <OwnerSource kind="synthetic" text="Demo record" />}</div>
             <div className="mt-2 flex items-center justify-between gap-2">
               <Plate plate={v.plate} size="lg" />
               <Verdict v={v.verdict} className="!px-3 !py-1.5 !text-[14px]" />
@@ -86,7 +85,7 @@ function Verify({ token }: { token: string }) {
               ? <ul className="flex flex-col gap-1.5">{v.findings.map((f: any, i: number) => <li key={i} className="flex items-start gap-2 text-[13.5px] leading-snug"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />{f.title}</li>)}</ul>
               : <p className="text-[13.5px] text-slate-500">No findings were confirmed.</p>}
           </MCard>
-          <p className="px-2 text-center text-[11.5px] leading-relaxed text-slate-400">VehicleSense AI concept demo · fictional vehicle · the evidence log is SHA-256 hash-chained, so any later change to the record is detected.</p>
+          <p className="px-2 text-center text-[11.5px] leading-relaxed text-slate-400">VehicleSense AI concept demo · fictional vehicle · every record behind this report is sealed, so any later change to it is detected.</p>
         </div>
       )}
     </MobileShell>

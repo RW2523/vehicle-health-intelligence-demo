@@ -8,9 +8,9 @@ import { refreshUseCase } from "@/components/Demo";
 import { StatusPill } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { MobileSheet, MobileShell, useMobileHref, useMobilePlate } from "@/components/MobileShell";
-import { BTN, BTN2, MCard, MEmpty, MError, MList, MSkeleton, MTitle, Plate, Segmented, Switch, dayLabel } from "@/components/mobileKit";
+import { BTN, BTN2, MCard, MEmpty, MError, MList, MSkeleton, MTitle, OwnerSource, Plate, Segmented, Switch, dayLabel } from "@/components/mobileKit";
 import { Booking, BOOKING_STATUS, checkinCode, openBookings, useBookings } from "@/components/mobileData";
-import { Source, toast } from "@/components/ui";
+import { toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useFetch } from "@/lib/live";
 
@@ -126,7 +126,7 @@ function Reschedule({ b, open, onClose, onDone }: { b: Booking; open: boolean; o
       <div className="mb-2 mt-3 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Day</div>
       {gear.data && <DayStrip start={b.gear ? gear.data.date : gear.data.date} value={date} onChange={setDate} />}
       <div className="mb-2 mt-3 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Time</div>
-      {!slots.data ? <MSkeleton rows={1} h={90} /> : <Slots slots={list} picked={slot} onPick={(s) => setSlot(s.time)} only={b.gear ? "express" : "normal"} />}
+      {slots.error && !slots.data ? <MError onRetry={slots.reload}>The free times could not load. {slots.error}</MError> : !slots.data ? <MSkeleton rows={1} h={90} label="Finding free times…" /> : <Slots slots={list} picked={slot} onPick={(s) => setSlot(s.time)} only={b.gear ? "express" : "normal"} />}
       <button disabled={!slot || busy} className={`${BTN} mt-4 w-full`} onClick={save}>{slot ? `Move to ${dayLabel(date)} ${slot}` : "Choose a new time"}</button>
     </MobileSheet>
   );
@@ -369,7 +369,7 @@ function BookScreen() {
       <MobileShell tab="book" badges={{ book: count }} title="Your ticket" back={href("/mobile/book", { ticket: null, view: "bookings" })} backLabel="Bookings" scrollKey={ticket}>
         {shown ? <TicketView b={shown} fresh={fresh?.booking_id === ticket} href={href} readOnly={readOnly} onChange={(nb) => { if (nb) setFresh(nb); setK((x) => x + 1); }} />
           : books.error ? <MError onRetry={books.reload}>{books.error}</MError>
-          : !books.data ? <MSkeleton rows={2} h={160} /> : <MEmpty icon="calendar" title="No such booking">It may belong to another vehicle.</MEmpty>}
+          : !books.data ? <MSkeleton rows={2} h={160} label="Loading your ticket…" /> : <MEmpty icon="calendar" title="No such booking" action={<a className="inline-block px-3 py-2.5 text-[14px] font-semibold text-[#2563EB]" href={href("/mobile/book", { ticket: null, view: "bookings" })}>See my bookings</a>}>It may belong to another vehicle.</MEmpty>}
       </MobileShell>
     );
 
@@ -394,7 +394,7 @@ function BookScreen() {
       <Segmented label="Bookings" value={view} onChange={(v) => router.replace(href("/mobile/book", { view: v === "bookings" ? "bookings" : null }), { scroll: false })}
         items={[{ id: "new", label: "New booking" }, { id: "bookings", label: `My bookings${count ? ` · ${count}` : ""}` }]} />
 
-      {view === "bookings" ? (books.error ? <MError onRetry={books.reload}>{books.error}</MError> : !books.data ? <div className="mt-4"><MSkeleton rows={3} /></div> : <MyBookings list={books.data} href={href} />) : (
+      {view === "bookings" ? (books.error ? <MError onRetry={books.reload}>Your bookings could not load. {books.error}</MError> : !books.data ? <div className="mt-4"><MSkeleton rows={3} label="Loading your bookings…" /></div> : <MyBookings list={books.data} href={href} />) : (
         <>
           <MTitle>1 · What is it for?</MTitle>
           <MList label="What the inspection is for">
@@ -402,7 +402,7 @@ function BookScreen() {
             <Switch checked={loan} onChange={setLoan} label="Buyer takes a bank loan" sub="The bank asks for a financing inspection" />
           </MList>
           <div className="mt-2.5 flex flex-col gap-2">
-            {!types.data ? <MSkeleton rows={3} h={56} /> : types.data.types.map((x: any) => {
+            {types.error && !types.data ? <MError onRetry={types.reload}>The inspection types could not load. {types.error}</MError> : !types.data ? <MSkeleton rows={3} h={56} label="Loading the inspection types…" /> : types.data.types.map((x: any) => {
               const on = itype === x.code;
               const rec = types.data.recommended.includes(x.code);
               return (
@@ -443,7 +443,7 @@ function BookScreen() {
               <span className="min-w-0 text-balance">{`Express next\u2011day slots on ${dayLabel(gear.data.date)}`} <span className="whitespace-nowrap">(+RM {gear.data.surcharge_rm})</span></span>
             </div>
           )}
-          <div className="mt-2.5">{!slots.data ? <MSkeleton rows={1} h={120} /> : (
+          <div className="mt-2.5">{slots.error && !slots.data ? <MError onRetry={slots.reload}>The free times could not load. {slots.error}</MError> : !slots.data ? <MSkeleton rows={1} h={120} label="Finding free times…" /> : (
             <Slots slots={slots.data.slots} picked={slot?.time} wanted={wanted} onPick={(s) => { setSlot(s); setWanted(null); }} onFull={(tm) => { setSlot(null); setWanted(tm); }} />
           )}</div>
           {(wanted || dayFull) && (
@@ -464,7 +464,7 @@ function BookScreen() {
             </div>
           )}
 
-          <MTitle action={<Source kind="mock" text="Payment gateway" />}>4 · Payment</MTitle>
+          <MTitle action={<OwnerSource kind="mock" text="Payment" />}>4 · Payment</MTitle>
           <Segmented label="Payment method" value={method} onChange={setMethod} items={[{ id: "FPX", label: "FPX online banking" }, { id: "CARD", label: "Debit or credit card" }]} />
           <MCard className="mt-2.5">
             {method === "FPX" ? (

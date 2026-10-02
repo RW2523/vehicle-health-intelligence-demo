@@ -193,3 +193,53 @@ def test_who_may_ask(client):
     assert owner.get("/api/copilot/conversations").status_code == 403
     assert owner.post("/api/copilot/chat", json={"message": "hi"}).status_code == 403
     assert len(client.get("/api/copilot/vehicles").json()) == 10
+
+
+def test_screen_context(client, s1):
+    """The floating assistant sends what is on the screen: "why was this flagged?" on a finding answers about that finding
+    (with the evidence it recorded), "summarise this" on an inspection about that inspection, and ids that do not exist are
+    ignored."""
+    from sqlalchemy import select
+
+    from vhi.db import session_scope
+    from vhi.tables import Alert
+
+    iid = s1["inspection_id"]
+    with session_scope() as s:
+        a = s.execute(select(Alert).where(Alert.inspection_id == iid).order_by(Alert.rank)).scalars().first()
+        aid, title = a.alert_id, a.title
+    r = client.post("/api/copilot/chat", json={"message": "Why was this flagged?", "context": {"inspection_id": iid, "alert_id": aid}})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["vehicle"] == s1["plate"]
+    focus = next(f for f in d["facts"] if f["kind"] == "finding")
+    assert aid in focus["text"] and title in focus["text"]
+    assert focus["href"] == f"/inspection/{iid}/findings?finding={aid}"
+    assert any(f["text"].startswith("Why it was flagged:") for f in d["facts"])
+
+    r = client.post("/api/copilot/chat", json={"message": "Summarise this inspection", "context": {"inspection_id": iid}})
+    d = r.json()
+    assert d["vehicle"] == s1["plate"]
+    assert any(f["kind"] == "inspection" and f["href"] == f"/inspection/{iid}" for f in d["facts"])
+
+    # a question that names another vehicle is about that vehicle, whatever the screen shows
+    r = client.post("/api/copilot/chat", json={"message": "Show the history of the Myvi", "context": {"inspection_id": iid}})
+    assert r.json()["vehicle"] == "DMO 9006"
+    # made-up ids answer nothing about them
+    assert copilot.screen_of({"inspection_id": "LInope", "alert_id": "ALnope", "report_id": "x' or 1=1", "lane_id": "BR00-L9x"}) == {}
+    assert copilot.screen_of({"lane_id": "BR00-L3"}) == {"lane": 3}
+    # the session address the inspection pages use (/inspection/S1) is its newest inspection
+    assert copilot.screen_of({"inspection_id": "S1"})["iid"] == iid
+
+
+def test_screen_context_keeps_hub_questions(client):
+    """On a vehicle's page, "show the history" is about that vehicle, but "summarise today at the hub" and "which vehicles
+    have appointments this week?" stay questions about the hub."""
+    def chat(m):
+        r = client.post("/api/copilot/chat", json={"message": m, "context": {"plate": "DMO 9006"}})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    assert chat("Show the history")["vehicle"] == "DMO 9006"
+    assert chat("Summarise today at the hub")["vehicle"] is None
+    assert chat("Which vehicles have appointments this week?")["vehicle"] is None

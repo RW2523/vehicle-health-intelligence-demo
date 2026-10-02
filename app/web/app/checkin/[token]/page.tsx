@@ -5,16 +5,15 @@ import { Suspense, use, useEffect } from "react";
 import { StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { MobileShell } from "@/components/MobileShell";
-import { BTN2, MCard, MSkeleton, MTitle, Plate, dayLabel } from "@/components/mobileKit";
+import { BTN2, MCard, MSkeleton, MTitle, OwnerSource, Plate, dayLabel } from "@/components/mobileKit";
 import { BOOKING_STATUS } from "@/components/mobileData";
-import { Source } from "@/components/ui";
 import { useFetch } from "@/lib/live";
 
 // the status card: white on the deeper colours, dark ink on amber (white on amber cannot be read)
 const LIGHT = { ink: "text-white", sub: "text-white/90", iconCol: "#fff", tile: "bg-white/20 ring-white/40" };
 const STATE: Record<string, { head: string; text: string; tone: Tone; icon: string; bg: string; ink: string; sub: string; iconCol: string; tile: string }> = {
   checked_in: { head: "Checked in at the lane", text: "The plate camera matched the booking. Follow the lane signs.", tone: "green", icon: "check", bg: "from-emerald-600 to-emerald-700", ...LIGHT },
-  confirmed: { head: "Ready for check-in", text: "Paid · ready for check-in (ANPR confirms the plate at the lane)", tone: "blue", icon: "qr", bg: "from-[#2563EB] to-[#1D4ED8]", ...LIGHT },
+  confirmed: { head: "Ready for check-in", text: "Paid · ready for check-in (the plate camera confirms your plate at the lane)", tone: "blue", icon: "qr", bg: "from-[#2563EB] to-[#1D4ED8]", ...LIGHT },
   pending_payment: { head: "Payment pending", text: "Finish the payment in the app before you come to the lane.", tone: "amber", icon: "clock", bg: "from-amber-300 to-amber-400",
     ink: "text-amber-950", sub: "text-amber-900", iconCol: "#78350F", tile: "bg-white/50 ring-amber-900/15" },
   cancelled: { head: "Booking cancelled", text: "This booking was cancelled and its code no longer checks in.", tone: "gray", icon: "close", bg: "from-slate-500 to-slate-600", ...LIGHT },
@@ -37,7 +36,7 @@ function CheckIn({ token }: { token: string }) {
           <p className="mt-1 text-[13px] text-slate-500">Scan the whole QR code on the booking ticket again, or open the ticket in the app.</p>
           <a className={`${BTN2} mt-4 w-full`} href="/mobile/book?view=bookings">Open VehicleSense<Icon name="arrow" size={15} /></a>
         </MCard>
-      ) : !b ? <MSkeleton rows={3} h={110} /> : (
+      ) : !b ? <MSkeleton rows={3} h={110} label="Looking up the booking…" /> : (
         <div className="flex flex-col gap-3">
           <section className={`m-pop rounded-[26px] bg-gradient-to-br ${st!.bg} ${st!.ink} p-5 shadow-lg`} role="status">
             <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ring-1 ${st!.tile}`}><Icon name={st!.icon} size={26} color={st!.iconCol} width={2.2} /></span>
@@ -69,7 +68,7 @@ function CheckIn({ token }: { token: string }) {
               </MCard>
             </>
           )}
-          <div className="mt-1 flex flex-wrap gap-1.5"><Source kind="mock" text="Mock payment gateway" /><Source kind="live_logic" text="Booking status, live" /></div>
+          <div className="mt-1 flex flex-wrap gap-1.5"><OwnerSource kind="mock" text="Payment" /><OwnerSource kind="live_logic" text="Booking status, live" /></div>
           <p className="text-center text-[11.5px] text-slate-400">VehicleSense concept demo · fictional vehicle and owner.</p>
         </div>
       )}

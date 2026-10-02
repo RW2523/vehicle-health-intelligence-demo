@@ -5,10 +5,9 @@ import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { MobileShell, useMobileHref, useMobilePlate } from "@/components/MobileShell";
-import { Segmented } from "@/components/mobileKit";
-import { Source, toast } from "@/components/ui";
+import { OwnerSource, Segmented } from "@/components/mobileKit";
+import { toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { llmLabel } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 type Msg = { role: "user" | "assistant"; text: string; at: string; source?: string; tool?: any; lang?: string; failed?: boolean };
@@ -27,7 +26,8 @@ function Bot({ size = 30 }: { size?: number }) {
 
 function Bubble({ m, href }: { m: Msg; href: (p: string, q?: Record<string, string | null>) => string }) {
   const mine = m.role === "user";
-  const engine = m.source && m.source !== "template" ? llmLabel(m.source) : null;
+  // how the answer was written, in plain words (which language model, if any, is not the owner's concern)
+  const ai = !!m.source && m.source !== "template";
   return (
     <div className={`m-pop flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
       {!mine && <Bot size={28} />}
@@ -46,7 +46,7 @@ function Bubble({ m, href }: { m: Msg; href: (p: string, q?: Record<string, stri
         </div>
         <div className={`flex items-center gap-1.5 px-1 text-[10.5px] text-slate-400 ${mine ? "flex-row-reverse" : ""}`}>
           <span>{m.at}</span>
-          {!mine && m.source !== undefined && m.source !== "" && <span title={engine || undefined}>· {engine ? "local LLM" : "knowledge base"}</span>}
+          {!mine && m.source !== undefined && m.source !== "" && <span>· {ai ? "AI answer from the help guide" : "from the help guide"}</span>}
           {mine && <Icon name="check" size={12} color="#60A5FA" width={2.4} />}
         </div>
       </div>
@@ -149,7 +149,7 @@ function AssistantScreen() {
       <div className="flex flex-col gap-3 px-4 pb-4 pt-2">
         <Segmented label="Answer language" value={lang} onChange={setLang} className="mb-1"
           items={[{ id: "auto", label: "Auto" }, { id: "ms", label: "BM" }, { id: "en", label: "English" }, { id: "zh", label: "中文" }]} />
-        <div className="flex justify-center"><Source kind="live_logic" text="Knowledge base · live booking slots" /></div>
+        <div className="flex justify-center"><OwnerSource kind="live_logic" text="Help guide and live booking slots" /></div>
         {msgs.map((m, i) => <Bubble key={i} m={m} href={href} />)}
         {busy && <Typing />}
         <div ref={end} />

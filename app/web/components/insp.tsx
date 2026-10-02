@@ -7,9 +7,10 @@ import { ReactNode, useEffect, useState } from "react";
 import { BrakeChart, ENoseChart, PNChart } from "@/components/lanebits";
 import { Card, LoadingState, Pill, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { STATUS_LABEL, fmtN, laneLabel, llmLabel, pct } from "@/lib/format";
+import { STATUS_LABEL, dmy, fmtN, laneLabel, llmLabel, pct } from "@/lib/format";
 import { useInspection } from "@/lib/inspection";
 import { useUser } from "@/lib/auth";
+import { useFetch } from "@/lib/live";
 import { PlayerControls, useSessions } from "./Player";
 import { StatusPill, Tone } from "./glass";
 import { Icon } from "./icons";
@@ -118,6 +119,16 @@ export function ucFor(uc: any, insp: any) {
   return uc && uc.session && sid === uc.session && (!uc.inspection || uc.inspection.inspection_id === insp.inspection_id) ? uc : null;
 }
 
+/** The running use case unless its next step is where the page's own main action already goes (one dominant action):
+ *  `cta` is the action's address with "{id}" for the inspection, matched by its id and by its lane-replay alias. */
+export function ucUnlessSame(uc: any, insp: any, cta: string | null) {
+  const u = ucFor(uc, insp);
+  if (!u || u.complete || !cta || !u.next?.href) return u;
+  const next = String(u.next.href).split(/[?#]/)[0];
+  const ids = [insp?.inspection_id, insp?.session_id || insp?.session].filter(Boolean);
+  return ids.some((x) => cta.replace("{id}", x).split(/[?#]/)[0] === next) ? null : u;
+}
+
 /** The vehicle strip at the top of every inspection screen. */
 export function VehicleStrip({ insp, right }: { insp: any; right?: ReactNode }) {
   const v = insp?.vehicle || {};
@@ -138,7 +149,11 @@ export function VehicleStrip({ insp, right }: { insp: any; right?: ReactNode }) 
         {insp?.photo ? <VehicleImage plate={insp.plate} vtype={o.vtype} photo={insp.photo} size="480" className="h-full w-full" /> : <VehicleArt vtype={o.vtype} seed={insp?.plate} className="h-[86px] w-[164px]" />}
       </div>
       <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-5 gap-y-3 sm:min-w-[320px] sm:grid-cols-3 2xl:grid-cols-6">
-        <div className="min-w-0"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-3">Vehicle No.</div><div className="whitespace-nowrap text-[24px] font-extrabold leading-tight tracking-tight sm:text-[26px]">{insp?.plate}</div></div>
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-3">Vehicle No.</div>
+          <div className="whitespace-nowrap text-[24px] font-extrabold leading-tight tracking-tight sm:text-[26px]">{insp?.plate}</div>
+          {insp?.plate && <Link href={`/vehicles/${encodeURIComponent(insp.plate)}`} className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-cyan hover:underline">Vehicle record<Icon name="chev" size={13} /></Link>}
+        </div>
         {field("Vehicle Type", o.vtype || "–", v.fuel ? fuelLabel(v.fuel) : undefined)}
         {field("Make / Model", `${v.make || ""} ${v.model || ""}`.trim() || "–", v.year || o.year)}
         {field("Owner", o.name || "–", insp?.inspection_type)}
@@ -260,6 +275,81 @@ export function measureOf(a: any, L: any): { observed: string; limit: string; de
   if (code === "identity:engine" && ev.fingerprint) return { observed: `similarity ${ev.fingerprint.similarity}`, limit: `at least ${ev.fingerprint.threshold} to match`, delta: `${(ev.fingerprint.threshold - ev.fingerprint.similarity).toFixed(2)} under`, status: "Under the match threshold" };
   if (code === "flood" && ev.flood) return { observed: pct(ev.flood.p), limit: "flagged from 50%", status: "At or above the flag level" };
   return null;
+}
+
+/** What the module or instrument reported, for a finding that is not a measurement against a limit (a fault code, a
+ *  model's class, a recording's top class): only what the evidence holds, never invented. */
+export function observedOf(a: any): string | null {
+  const ev = a.evidence || {};
+  if (ev.dtc) return `${ev.dtc.code}: ${ev.dtc.description}`;
+  if (ev.image?.label) return ev.image.label;
+  if (ev.acoustic?.ranked?.[0]) return ev.acoustic.ranked[0].label;
+  if (ev.ev?.pack_soh_pct != null) return `Pack state of health ${ev.ev.pack_soh_pct}%`;
+  if (ev.pack?.max_c != null) return `${ev.pack.max_c} °C at ${ev.pack.hotspot_cell}${ev.pack.mean_c != null ? ` (pack mean ${ev.pack.mean_c} °C)` : ""}`;
+  if (ev.flags?.length) return `Disagree: ${ev.flags.map((f: string) => f.split(":")[1] || f).join(", ")}`;
+  return null;
+}
+
+/** Which module or instrument produced the finding, in words. */
+export function moduleOf(a: any): string {
+  const img = a.evidence?.image;
+  if (img) return [img.camera, img.model].filter(Boolean).join(" · ");
+  if (a.evidence?.acoustic) return "Roller-bed microphone · sound classifier";
+  if (a.evidence?.fingerprint) return "Engine sound fingerprint";
+  if (a.evidence?.dtc) return `OBD scanner${a.evidence.source || a.evidence.dtc.source ? ` · ${a.evidence.source || a.evidence.dtc.source}` : ""}`;
+  return a.system || "Inspection pipeline";
+}
+
+/* The earlier readings of the measurement behind a finding, from the vehicle's inspection history (shown only when the
+   history has the value and this inspection measured it too). */
+const TREND: [string, string, string, (v: number) => string][] = [
+  ["brake:efficiency", "brake_efficiency_pct", "Brake efficiency", (v) => `${fmtN(v, 1)}%`],
+  ["brake:imbalance", "brake_imbalance_pct", "Brake imbalance", (v) => `${fmtN(v, 1)}%`],
+  ["brake:drag", "brake_drag_pct", "Brake drag", (v) => `${fmtN(v, 1)}%`],
+  ["pn:", "pn_per_cm3", "Particle number at idle", (v) => (v >= 1e6 ? `${(v / 1e6).toFixed(2)} M/cm³` : `${fmtN(v)} /cm³`)],
+  ["suspension", "suspension_efficiency_pct", "Suspension efficiency", (v) => `${fmtN(v)}%`],
+  ["headlamp", "headlamp_aim_dev_pct", "Headlamp aim deviation", (v) => `${fmtN(v, 1)}%`],
+  ["tint", "tint_vlt_front_pct", "Front window light transmission", (v) => `${fmtN(v)}%`],
+  ["corrosion:undercarriage", "corrosion_score_0_10", "Corrosion score", (v) => `${fmtN(v, 1)}/10`],
+  ["emissions:co_pct", "co_pct", "CO at idle", (v) => `${fmtN(v, 2)}%`],
+  ["emissions:hc_ppm", "hc_ppm", "HC at idle", (v) => `${fmtN(v)} ppm`],
+  ["emissions:lambda", "lambda", "Lambda", (v) => v.toFixed(2)],
+  ["ev:hv_isolation", "hv_isolation_mohm", "HV isolation", (v) => `${fmtN(v, 1)} MΩ`],
+  ["ev:soh", "ev_soh_pct", "Battery state of health", (v) => `${fmtN(v, 1)}%`],
+  ["identity:odometer", "odometer_km", "Odometer", (v) => `${fmtN(v)} km`],
+];
+
+export function PreviousTrend({ a, insp }: { a: any; insp: any }) {
+  const hist = useFetch<any>(insp?.plate ? `/api/vehicles/${encodeURIComponent(insp.plate)}/history` : null);
+  const t = TREND.find(([p]) => (a.code || "").startsWith(p));
+  if (!t || !hist.data) return null;
+  const [, key, label, fmt] = t;
+  const today = insp?.measurements?.[key];
+  const before = (hist.data.inspections || []).filter((x: any) => typeof x[key] === "number").slice(-4);
+  if (typeof today !== "number" || !before.length) return null;
+  return (
+    <div className="mb-4">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-[15px] font-bold"><Icon name="trend" size={17} />Previous trend · {label}</span>
+        <Source kind="synthetic" text="Earlier inspections" />
+      </div>
+      <ol className="flex flex-wrap items-stretch gap-2 text-[13px]">
+        {before.map((x: any) => (
+          <li key={x.inspection_id} className="flex items-center gap-2">
+            <span className="rounded-xl bg-white/80 px-3 py-2 ring-1 ring-ink-600">
+              <span className="block text-[11.5px] text-fg-3">{dmy(x.date)}{x.result ? ` · ${x.result}` : ""}</span>
+              <b className="text-[14.5px]">{fmt(x[key])}</b>
+            </span>
+            <Icon name="chev" size={14} color="#94A3B8" />
+          </li>
+        ))}
+        <li className="rounded-xl bg-blue-50 px-3 py-2 ring-1 ring-blue-200">
+          <span className="block text-[11.5px] font-semibold text-[#1D4ED8]">This inspection</span>
+          <b className="text-[14.5px]">{fmt(today)}</b>
+        </li>
+      </ol>
+    </div>
+  );
 }
 
 /** The health-score deduction this finding caused, when the rule layer names it. */

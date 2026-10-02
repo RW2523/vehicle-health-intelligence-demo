@@ -3,15 +3,20 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { useActiveUseCase } from "@/components/Demo";
-import { StatCard, StatusPill, Tone } from "@/components/glass";
+import { StatusPill, TONE, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { Shell } from "@/components/Shell";
 import { Empty, LoadingState, PageHeader, Source } from "@/components/ui";
 import { VehicleImage } from "@/components/VehicleImage";
 import { dmy, fmtN, riskColor } from "@/lib/format";
+import { dayShort, mytToday } from "@/components/appointments";
 import { useFetch } from "@/lib/live";
 
-const RES: Record<string, Tone> = { PASS: "green", FAIL: "red", CONDITIONAL: "amber", REFERRED: "blue" };
+const RES: Record<string, Tone> = { PASS: "green", FAIL: "red", CONDITIONAL: "amber", REFERRED: "blue", PASS_ADVISORY: "amber" };
+/** A result in the words the rest of the app uses. */
+const RES_WORD: Record<string, string> = { PASS: "Pass", FAIL: "Fail", CONDITIONAL: "Conditional", REFERRED: "Referred", PASS_ADVISORY: "Pass · advisory" };
+/** A latest result that is itself a risk to act on. */
+const RES_RISK: Record<string, string> = { FAIL: "failed its latest inspection", CONDITIONAL: "conditions on its latest certificate", REFERRED: "referred to a senior examiner" };
 const TODAY: Record<string, { label: string; tone: Tone }> = {
   completed: { label: "Inspected today", tone: "green" }, in_progress: { label: "On a lane now", tone: "amber" },
   in_queue: { label: "Waiting", tone: "blue" }, scheduled: { label: "Expected today", tone: "gray" },
@@ -35,7 +40,80 @@ const weeksOf = (label?: string | null) => {
   return /^\s*>/.test(label || "") ? n + 1 : n;
 };
 
-const needsAttention = (v: any) => v.latest?.result === "FAIL" || v.today?.result === "FAIL" || v.health?.risk === "High";
+// today's result counts once the inspection is done (the plan already knows the results of the vehicles still to come)
+const needsAttention = (v: any) => v.latest?.result === "FAIL" || (v.today?.status === "completed" && v.today?.result === "FAIL") || v.health?.risk === "High";
+
+/** One of the page's four numbers, compact. */
+function MiniStat({ icon, tone, label, value, sub }: { icon: string; tone: Tone; label: string; value: string; sub: string }) {
+  return (
+    <div className="card flex min-w-0 flex-col px-3.5 py-2.5 sm:px-4 sm:py-3">
+      <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-medium text-fg-3"><Icon name={icon} size={14} width={2.2} color={TONE[tone].solid} /><span className="truncate">{label}</span></span>
+      <b className="text-[24px] font-bold leading-tight tracking-tight">{value}</b>
+      <span className="truncate text-[12px] text-fg-4">{sub}</span>
+    </div>
+  );
+}
+
+/** A vehicle at a glance: its latest result, its health, the risk to act on and its next appointment. The whole card
+ *  opens the record. */
+function VehicleCard({ v, today }: { v: any; today: string }) {
+  const res = v.latest?.result;
+  const h = v.health;
+  const nb = v.next_booking;
+  return (
+    <Link href={`/vehicles/${encodeURIComponent(v.plate)}`} aria-label={`${v.plate}, ${v.make} ${v.model}`}
+      className="card group flex flex-col overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-float">
+      <div className="relative aspect-[2.1/1] sm:aspect-[16/9] overflow-hidden bg-gradient-to-b from-[#F1F5FB] to-[#DEE6F2]">
+        <VehicleImage plate={v.plate} vtype={v.vtype} photo={v.photo} className="h-full w-full transition duration-500 group-hover:scale-[1.04]" />
+        {v.today && <span className="absolute left-3 top-3"><StatusPill tone={TODAY[v.today.status].tone} dot className="shadow-sm">{TODAY[v.today.status].label}</StatusPill></span>}
+        <span className="absolute bottom-3 left-3 rounded-lg bg-[#0F172A]/85 px-2.5 py-1 font-mono text-[13px] font-bold tracking-wider text-white">{v.plate}</span>
+      </div>
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="min-w-0 leading-tight">
+          <b className="block truncate text-[16px]">{v.make} {v.model}</b>
+          <span className="block truncate text-[12.5px] text-fg-3">{v.year} · {v.vtype} · {fuelLabel(v.fuel)} · {v.owner}{v.session ? ` · lane ${v.lane?.split("-L")[1]} replay` : ""}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="min-w-0">
+            <div className="text-[11.5px] font-medium text-fg-3">Latest inspection</div>
+            <div className="truncate text-[17px] font-bold leading-snug" style={{ color: res ? TONE[RES[res] || "gray"].fg : "#64748B" }}>{res ? RES_WORD[res] || res : "None yet"}</div>
+            <div className="truncate text-[12px] text-fg-3">{v.latest ? (v.latest.source === "today" ? "today" : dmy(v.latest.date)) : "no inspection on record"}</div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11.5px] font-medium text-fg-3">Health trend</div>
+            {h ? (
+              <>
+                <div className="truncate text-[17px] font-bold leading-snug" style={{ color: riskColor(h.risk) }}>{h.risk} risk</div>
+                <div className="truncate text-[12px] text-fg-3">{h.weeks_label} to the fail limit</div>
+              </>
+            ) : (
+              <>
+                <div className="truncate text-[15px] font-semibold leading-snug text-fg-3">Not tracked</div>
+                <div className="truncate text-[12px] text-fg-4">{v.fleet_id ? "no telematics readings" : "private · no telematics"}</div>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+          {h?.attention ? (
+            <><Icon name="trend" size={15} color={riskColor(h.risk)} /><span className="min-w-0 truncate"><span className="text-fg-3">Active risk: </span><b style={{ color: riskColor(h.risk) }}>{h.metric}</b></span></>
+          ) : res && RES_RISK[res] ? (
+            <><Icon name="warn" size={15} color={TONE[RES[res]].solid} /><span className="min-w-0 truncate"><span className="text-fg-3">Active risk: </span><b style={{ color: TONE[RES[res]].fg }}>{RES_RISK[res]}</b></span></>
+          ) : (
+            <><Icon name="checkc" size={15} color="#94A3B8" /><span className="truncate text-fg-3">No active risk on record</span></>
+          )}
+        </div>
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-ink-600/60 pt-2.5 text-[12.5px]">
+          <span className="flex min-w-0 items-center gap-1.5 text-fg-2">
+            <Icon name="calendar" size={14} color="#64748B" />
+            <span className="truncate" title={nb ? `${nb.type_label}${nb.status === "pending_payment" ? " · awaiting payment" : ""}` : undefined}>{nb ? <>Next: <b>{nb.date === today ? "today" : dayShort(nb.date)} · {nb.slot}</b></> : <span className="text-fg-3">No inspection booked</span>}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-0.5 font-semibold text-cyan">Open vehicle<Icon name="chev" size={14} /></span>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 /** The fleet vehicles' health at a glance: risk, the soonest to reach a fail limit, and FLEET07's next-inspection risk. */
 function FleetHealth({ items }: { items: any[] }) {
@@ -90,15 +168,16 @@ function Records() {
   }), [items, seg, q]);
   const ucCar = uc && items.find((v) => v.plate === uc.plate);
   const today = items.filter((v) => v.today);
+  const todayIso = mytToday();
   return (
     <Shell>
       <PageHeader eyebrow="Vehicle Records" title="Vehicle Records" sub="The ten vehicles at the Central Inspection Hub: each one's inspections, health trends, photos, claims and bookings."
         actions={<Source kind="synthetic" text="Fictional vehicles · stock photos" />} />
-      <div className="mb-5 grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard icon="car" tone="blue" label="Vehicles" value={d.data ? String(items.length) : "…"} sub={`${items.filter((v) => v.fleet_id).length} fleet · ${items.filter((v) => !v.fleet_id).length} private`} />
-        <StatCard icon="checkc" tone="green" label="Inspected today" value={d.data ? String(today.filter((v) => v.today.status === "completed").length) : "…"} sub={`${today.length} at the hub today`} />
-        <StatCard icon="lane" tone="amber" label="On a lane now" value={d.data ? String(today.filter((v) => v.today.status === "in_progress").length) : "…"} sub="live and scheduled" />
-        <StatCard icon="warn" tone="red" label="Needs attention" value={d.data ? String(items.filter(needsAttention).length) : "…"} sub="a fail or a high-risk trend" />
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
+        <MiniStat icon="car" tone="blue" label="Vehicles" value={d.data ? String(items.length) : "…"} sub={d.data ? `${items.filter((v) => v.fleet_id).length} fleet · ${items.filter((v) => !v.fleet_id).length} private` : "Loading…"} />
+        <MiniStat icon="checkc" tone="green" label="Inspected today" value={d.data ? String(today.filter((v) => v.today.status === "completed").length) : "…"} sub={d.data ? `${today.length} at the hub today` : "Loading…"} />
+        <MiniStat icon="lane" tone="amber" label="On a lane now" value={d.data ? String(today.filter((v) => v.today.status === "in_progress").length) : "…"} sub="live and scheduled" />
+        <MiniStat icon="warn" tone="red" label="Needs attention" value={d.data ? String(items.filter(needsAttention).length) : "…"} sub="a fail or a high-risk trend" />
       </div>
       {ucCar && (
         <section className="card mb-5 flex flex-wrap items-center gap-4 border-blue-100 bg-gradient-to-r from-blue-50/90 to-white/80 p-4" aria-label={`${uc.id} vehicle`}>
@@ -129,40 +208,8 @@ function Records() {
       {!d.data ? <div className="card p-6"><LoadingState label="Loading the vehicles…" rows={6} /></div> : !shown.length ? (
         <Empty title="No vehicle matches" actions={<button className="btn" onClick={() => { setQ(""); router.replace("/vehicles"); }}>Show all ten</button>}>Try another filter.</Empty>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {shown.map((v) => (
-            <Link key={v.plate} href={`/vehicles/${encodeURIComponent(v.plate)}`} aria-label={`${v.plate}, ${v.make} ${v.model}`}
-              className="card group flex flex-col overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-float">
-              <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-b from-[#F1F5FB] to-[#DEE6F2]">
-                <VehicleImage plate={v.plate} vtype={v.vtype} photo={v.photo} className="h-full w-full transition duration-500 group-hover:scale-[1.04]" />
-                <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-                  {v.today && <StatusPill tone={TODAY[v.today.status].tone} dot>{TODAY[v.today.status].label}</StatusPill>}
-                  {v.session && <span className="pill bg-white/90 text-[11.5px] text-fg-2 backdrop-blur">Lane {v.lane?.split("-L")[1]} replay</span>}
-                </div>
-                <span className="absolute bottom-3 left-3 rounded-lg bg-[#0F172A]/85 px-2.5 py-1 font-mono text-[13px] font-bold tracking-wider text-white">{v.plate}</span>
-              </div>
-              <div className="flex flex-1 flex-col gap-2 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 leading-tight">
-                    <b className="block truncate text-[16px]">{v.make} {v.model}</b>
-                    <span className="block truncate text-[12.5px] text-fg-3">{v.year} · {v.vtype} · {fuelLabel(v.fuel)} · {v.owner}</span>
-                  </div>
-                  {v.latest ? <StatusPill tone={RES[v.latest.result] || "gray"}>{v.latest.result}</StatusPill> : <StatusPill tone="gray">New</StatusPill>}
-                </div>
-                <p className="line-clamp-2 text-[12.5px] leading-snug text-fg-2">{v.story}</p>
-                {v.health && (
-                  <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-[12px]" style={{ background: riskColor(v.health.risk) + "14", color: riskColor(v.health.risk) }}>
-                    <Icon name="trend" size={15} color={riskColor(v.health.risk)} />
-                    <span className="min-w-0 truncate"><b>{v.health.metric}</b> · {v.health.weeks_label} to the limit</span>
-                  </div>
-                )}
-                <div className="mt-auto flex items-center justify-between border-t border-ink-600/60 pt-2.5 text-[12px] text-fg-3">
-                  <span>{fmtN(v.odometer_km)} km · {v.inspections} inspection{v.inspections === 1 ? "" : "s"}</span>
-                  <span>{v.latest ? (v.latest.source === "today" ? "today" : dmy(v.latest.date)) : "–"}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {shown.map((v) => <VehicleCard key={v.plate} v={v} today={todayIso} />)}
         </div>
       )}
     </Shell>

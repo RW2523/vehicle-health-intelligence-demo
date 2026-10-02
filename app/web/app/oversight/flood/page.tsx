@@ -12,12 +12,12 @@ import { Panel, StatusPill } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { LiveBadge, LiveMap, MapPoint, keyOf } from "@/components/LiveMap";
 import { OversightShell, useEdgeFade } from "@/components/OversightShell";
-import { Empty, LoadingState, Modal, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
+import { Empty, ErrorState, LoadingState, Modal, PageHeader, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dmy, fmtN, pct } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 import { VERDICT } from "@/lib/present";
-import { FilterPill, OvStat, THEAD, TableBox, useNarrow } from "../parts";
+import { FilterPill, FlowSteps, OvStat, THEAD, TableBox, useNarrow, vehicleRecordHref } from "../parts";
 
 const BASE = "/oversight/flood";
 const POLL_MS = 45_000;
@@ -40,6 +40,18 @@ const SRC: Record<string, { kind: string; text: string }> = {
 };
 const SRC_DOT: Record<string, string> = { real: "#059669", public_record: "#059669", synthetic: "#EA580C", live_model: "#2563EB" };
 const RISK_FILTERS = [{ v: 70, l: "High risk (70+)" }, { v: 45, l: "All to inspect (45+)" }, { v: 0, l: "All exposed" }];
+
+/** The path from a flood risk to an inspection result; the page and the vehicle's record show where it is. */
+const FLOOD_STEPS = ["Select risk area/vehicle", "Review reasons", "Invite for inspection (mock)", "View inspection result"];
+const utcMs = (iso?: string | null) => (iso ? Date.parse(iso + (/Z|[+-]\d\d:\d\d$/.test(iso) ? "" : "Z")) : 0);
+/** The lane reports issued since the owner was invited (the result of the invitation), and the earlier ones. */
+function resultsOf(d: any) {
+  const t0 = utcMs(d.invited_at);
+  const all: any[] = d.lane_reports || [];
+  return { after: all.filter((r) => !t0 || utcMs(r.created_at) >= t0), before: all.filter((r) => t0 && utcMs(r.created_at) < t0) };
+}
+/** Where a vehicle is on the path: reasons to review (1), invited and waiting (3), or its result is in (4). */
+const vehicleStep = (d: any) => (!d.invited_at ? 1 : resultsOf(d).after.length ? 4 : 3);
 
 const bandColor = (b: string) => (b === "High" ? "#DC2626" : b === "Medium" ? "#D97706" : "#3B82F6");
 const exposureColor = (e: number) => (e >= 0.6 ? "#DC2626" : e >= 0.3 ? "#EA580C" : "#CA8A04");
@@ -117,12 +129,27 @@ function StationTrend({ h, height = 200 }: { h: any; height?: number }) {
 
 function VehicleDetail({ d, onInvite, busy }: { d: any; onInvite: () => void; busy: boolean }) {
   const corr = d.inspections.filter((i: any) => i.corrosion != null);
+  const { after, before } = resultsOf(d);
+  const record = vehicleRecordHref(d.plate);
+  const latest = [...(d.lane_reports || [])].sort((a: any, b: any) => utcMs(b.created_at) - utcMs(a.created_at))[0];
   return (
     <div className="flex w-[min(820px,calc(100vw-5rem))] flex-col gap-4 text-[13px]">
+      <FlowSteps steps={FLOOD_STEPS} at={vehicleStep(d)} label="Where this vehicle is" />
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-[38px] font-extrabold leading-none tracking-tight" style={{ color: bandColor(d.band) }}>{d.risk}</span>
-        <span className="flex flex-col"><b className="text-[15px]">{d.plate} · {d.make} {d.model}</b><span className="text-fg-3">{d.vtype} · {d.fuel} · {d.year} · {d.district}, {d.state} <span className="text-fg-4">(synthetic district)</span></span></span>
+        <span className="flex min-w-0 flex-col"><b className="text-[15px]">{d.plate} · {d.make} {d.model}</b><span className="text-fg-3">{d.vtype} · {d.fuel} · {d.year} · {d.district}, {d.state} <span className="text-fg-4">(synthetic district)</span></span></span>
         <span className="ml-auto flex flex-wrap gap-2"><Pill color={bandColor(d.band)}>{d.band} risk</Pill><Pill color={REC_COL[d.recommendation]}>{d.recommendation}</Pill></span>
+      </div>
+      {/* the one thing to do here, then where else this vehicle has a record */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#F4F7FB] px-3 py-2.5 ring-1 ring-ink-600/60">
+        {d.invited_at ? <span className="font-semibold text-ok">Invitation recorded {whenUtc(d.invited_at)}</span> : (
+          <button className="btn btn-primary" disabled={busy} onClick={onInvite}>Invite the owner for a flood inspection</button>
+        )}
+        <Source kind="mock" text="Recorded only: no SMS, e-mail or letter is sent" className="max-sm:whitespace-normal max-sm:rounded-xl max-sm:[&>span]:whitespace-normal" />
+        <span className="flex flex-wrap gap-2 sm:ml-auto">
+          {latest?.inspection_id && <Link className="btn btn-sm" href={`/inspection/${latest.inspection_id}`}>Latest inspection<Icon name="arrow" size={13} /></Link>}
+          {record && <Link className="btn btn-sm" href={record}>Vehicle record<Icon name="arrow" size={13} /></Link>}
+        </span>
       </div>
       <section>
         <div className="mb-1 flex flex-wrap items-center gap-2"><h3 className="h-title">How the score adds up</h3><Source kind="live_logic" text="Scoring logic" /></div>
@@ -160,13 +187,8 @@ function VehicleDetail({ d, onInvite, busy }: { d: any; onInvite: () => void; bu
       </div>
       <section aria-label="Inspection result">
         <div className="mb-1 flex flex-wrap items-center gap-2"><h3 className="h-title">Inspection result</h3><Source kind="live_logic" text="Issued lane reports" /></div>
-        {(() => {
-          // after an invitation, the result is an inspection issued since; anything older is earlier history
-          const t0 = d.invited_at ? Date.parse(d.invited_at + (/Z|[+-]\d\d:\d\d$/.test(d.invited_at) ? "" : "Z")) : 0;
-          const at = (r: any) => Date.parse(r.created_at + (/Z|[+-]\d\d:\d\d$/.test(r.created_at || "") ? "" : "Z"));
-          const after = (d.lane_reports || []).filter((r: any) => !t0 || at(r) >= t0);
-          const before = (d.lane_reports || []).filter((r: any) => t0 && at(r) < t0);
-          return (<>
+        {/* after an invitation, the result is an inspection issued since; anything older is earlier history */}
+        <>
             {after.length ? (
               <ul className="flex flex-col gap-1.5">
                 {after.map((r: any) => (
@@ -174,36 +196,37 @@ function VehicleDetail({ d, onInvite, busy }: { d: any; onInvite: () => void; bu
                     <b style={{ color: VERDICT[r.verdict]?.color }}>{r.verdict}</b>
                     <span>{r.kind} · {dmy(r.issued_at || r.created_at)}{r.health != null ? ` · health ${r.health}` : ""}{r.synthetic ? " · synthetic record" : ""}</span>
                     {r.findings?.length > 0 && <span className="text-fg-3">· {r.findings.slice(0, 2).join("; ")}</span>}
-                    <span className="ml-auto flex gap-2"><Link className="btn btn-sm" href={`/report?id=${r.report_id}`}>Report</Link><Link className="btn btn-sm" href={`/verify/${r.verify_token}`}>Verify</Link></span>
+                    <span className="ml-auto flex flex-wrap gap-2">
+                      {r.inspection_id && <Link className="btn btn-sm" href={`/inspection/${r.inspection_id}`}>Inspection</Link>}
+                      <Link className="btn btn-sm" href={`/report?id=${r.report_id}`}>Report</Link><Link className="btn btn-sm" href={`/verify/${r.verify_token}`}>Verify</Link>
+                    </span>
                   </li>
                 ))}
               </ul>
             ) : <p className="text-fg-3">{d.invited_at ? "Invited: the result appears here once the vehicle has been inspected." : "No inspection since the flood risk was raised."}</p>}
             {before.length > 0 && <p className="mt-1.5 text-[12px] text-fg-4">Earlier: {before.map((r: any) => `${r.verdict} on ${dmy(r.issued_at || r.created_at)}`).join(", ")}.</p>}
-          </>);
-        })()}
+        </>
       </section>
-      <div className="flex flex-wrap items-center gap-3 border-t border-ink-600 pt-3">
-        {d.invited_at ? <span className="text-ok">Invitation recorded {whenUtc(d.invited_at)}</span> : (
-          <button className="btn btn-primary" disabled={busy} onClick={onInvite}>Invite the owner for a flood inspection</button>
-        )}
-        <Source kind="mock" text="Recorded only: no SMS, e-mail or letter is sent" className="max-sm:whitespace-normal max-sm:rounded-xl max-sm:[&>span]:whitespace-normal" />
-      </div>
     </div>
   );
 }
 
 /** What was clicked on the map (or in the lists): a river station, a district or a vehicle. */
-function Selected({ pick, stations, areas, vehicles, pinned, hist, ev, onArea, onOpen, area }: {
+function Selected({ pick, stations, areas, vehicles, pinned, hist, ev, onArea, onOpen, onInvite, busy, area }: {
   pick: string | null; stations: any[]; areas: any[]; vehicles: any[]; pinned: any; hist: any; ev: any;
-  onArea: (a: any) => void; onOpen: (plate: string) => void; area: { state: string; district: string } | null;
+  onArea: (a: any) => void; onOpen: (plate: string) => void; onInvite: (plate: string) => void; busy: boolean; area: { state: string; district: string } | null;
 }) {
-  if (!pick) return <p className="text-[13px] text-fg-3">Click a river station, a district or a vehicle on the map to see it here.</p>;
+  if (!pick) return (
+    <div className="flex items-start gap-3 text-[13px]">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 ring-1 ring-blue-100"><Icon name="map" size={18} color="#2563EB" /></span>
+      <span className="text-fg-2"><b className="block text-fg">Start here: pick a district or a vehicle at risk</b>Click one on the map, or in the lists below. Its reasons appear here, with the invitation to inspect.</span>
+    </div>
+  );
   const [layer, ...rest] = pick.split(":");
   const id = rest.join(":");
   if (layer === "stations") {
     const s = stations.find((x) => x.id === id);
-    if (!s) return <p className="text-[13px] text-fg-3">This station is not in the latest reading.</p>;
+    if (!s) return <p className="text-[13px] text-fg-3">This station is not in the latest reading. Pick another station, or a district or vehicle at risk.</p>;
     return (
       <div className="fade-in">
         <div className="eyebrow mb-1 text-[10.5px]">River station</div>
@@ -220,7 +243,7 @@ function Selected({ pick, stations, areas, vehicles, pinned, hist, ev, onArea, o
   }
   if (layer === "districts") {
     const a = areas.find((x) => `${x.state}|${x.district}` === id);
-    if (!a) return <p className="text-[13px] text-fg-3">This district is not exposed in this view.</p>;
+    if (!a) return <p className="text-[13px] text-fg-3">This district is not exposed in this view. Pick a district from the list below.</p>;
     const on = area?.state === a.state && area?.district === a.district;
     return (
       <div className="fade-in">
@@ -237,8 +260,9 @@ function Selected({ pick, stations, areas, vehicles, pinned, hist, ev, onArea, o
     );
   }
   const v = layer === "focus" ? pinned : vehicles.find((x) => x.plate === id) || (pinned?.plate === id ? pinned : null);
-  if (!v) return <p className="text-[13px] text-fg-3">This vehicle is not in the current list.</p>;
+  if (!v) return <p className="text-[13px] text-fg-3">This vehicle is not in the current list. Lower the risk filter, or pick another vehicle.</p>;
   const own = (v.reasons || []).filter((x: any) => !x.district);
+  const record = vehicleRecordHref(v.plate);
   return (
     <div className="fade-in">
       <div className="eyebrow mb-1 text-[10.5px]">Vehicle at risk</div>
@@ -251,7 +275,15 @@ function Selected({ pick, stations, areas, vehicles, pinned, hist, ev, onArea, o
         {v.exposure_headline && !own.some((x: any) => x.kind === "exposure") && <WhyDot r={{ text: v.exposure_headline, source: v.exposure_source }} />}
         {own.slice(0, 3).map((x: any, i: number) => <WhyDot key={i} r={x} />)}
       </ul>
-      <button className="btn btn-sm btn-primary mt-3" onClick={() => onOpen(v.plate)}>Open the full record<Icon name="arrow" size={13} /></button>
+      {/* the next step for this vehicle: invite the owner, or (invited) look at the result */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {v.invited_at
+          ? <button className="btn btn-sm btn-primary" onClick={() => onOpen(v.plate)}>View inspection result<Icon name="arrow" size={13} /></button>
+          : <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => onInvite(v.plate)} title="Mock: recorded only, no SMS, e-mail or letter is sent">Invite for inspection</button>}
+        {!v.invited_at && <button className="btn btn-sm" onClick={() => onOpen(v.plate)}>Full record</button>}
+        {record && <Link className="btn btn-sm" href={record}>Vehicle record<Icon name="arrow" size={13} /></Link>}
+      </div>
+      {!v.invited_at && <p className="mt-1.5 text-[11.5px] text-fg-4">Mock: the invitation is recorded only; no message is sent.</p>}
     </div>
   );
 }
@@ -395,6 +427,18 @@ function FloodWatch() {
   const trend = (o?.trend || []).map((t: any, i: number) => ({ x: i, y: AT_RISK.reduce((n, k) => n + (t.counts[k] || 0), 0), t: t.fetched_at }));
   const live = src?.mode === "live";
 
+  // where the follow-up is: nothing picked yet, reasons to review, invited and waiting, or the result is in
+  const [pickLayer, ...pickRest] = (pick || "").split(":");
+  const pickId = pickRest.join(":");
+  const pickedVeh = pickLayer === "focus" ? pinned : pickLayer === "vehicles" ? MV.find((x) => x.plate === pickId) || (pinned?.plate === pickId ? pinned : null) : null;
+  const openD = open && detail.data?.plate === open ? detail.data : null;
+  const flowAt = openD ? vehicleStep(openD) : pickedVeh ? (pickedVeh.invited_at ? 3 : 1) : pickLayer === "districts" ? 1 : 0;
+  const flowPlate = openD?.plate || pickedVeh?.plate;
+  const flowHint = flowAt === 0 ? "Start with a district or a vehicle at risk: click it on the map, or pick it from the lists."
+    : flowAt === 1 ? (flowPlate ? `${flowPlate}: its reasons are beside the map. Next: invite the owner for an inspection (mock).` : "The district's reasons are beside the map. Next: pick one of its vehicles.")
+    : flowAt === 3 ? `${flowPlate} has been invited (mock). Its result shows in its record once the vehicle has been inspected.`
+    : `${flowPlate}'s inspection result is in its record.`;
+
   // every district in the list is on the map (a district picked in the list is always there to see)
   const mapAreas = useMemo(() => A.filter((a) => a.lat != null), [A]);
   const points = useMemo<MapPoint[]>(() => {
@@ -454,7 +498,7 @@ function FloodWatch() {
           <p className="mt-2 text-[12.5px] text-fg-3" role="status">
             {src.mode === "live"
               ? <>Last updated <b className="text-fg-2">{when(src.fetched_at)}</b> from a live fetch{src.refreshing ? " · fetching newer data in the background" : ""}{src.last_error ? " · the latest fetch failed, so these are the last fetched levels" : ""}.</>
-              : <><b className="text-warn">Live feed unavailable:</b> showing the stored snapshot from {when(src.fetched_at)}{src.refreshing ? " · trying a live fetch now" : ""}.</>}
+              : <><b className="text-warn">Live feed unavailable:</b> showing the latest stored snapshot, from {when(src.fetched_at)}{src.refreshing ? " · trying a live fetch now" : ""}.</>}
           </p>
         )}
       </PageHeader>
@@ -497,6 +541,12 @@ function FloodWatch() {
             </div>
           )}
 
+          {/* the path from a risk to a result, and where this follow-up is on it */}
+          <section aria-label="Follow-up path" className="mb-4 flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/70 px-3.5 py-2.5 shadow-glass xl:flex-row xl:items-center xl:gap-4">
+            <FlowSteps steps={FLOOD_STEPS} at={flowAt} label="Flood follow-up" className="xl:shrink-0" />
+            <p className="min-w-0 text-[12.5px] leading-snug text-fg-2 xl:ml-auto xl:text-right" aria-live="polite">{flowHint}</p>
+          </section>
+
           <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
             <section className="card min-w-0 p-2 sm:p-3" aria-label="Live map">
               <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1.5 pt-1">
@@ -504,6 +554,7 @@ function FloodWatch() {
                 <span className="ml-auto flex flex-wrap gap-1.5"><JpsSource s={src} short /><Source kind="synthetic" text="Districts, vehicles" /></span>
               </div>
               <LiveMap label="JPS water-level stations by status" points={points} className={MAP_H}
+                status={st.error && !st.data ? "River stations could not load: the district and vehicle lists still work." : !st.data ? "Loading river stations…" : null}
                 selected={pick} onSelect={onMap} focus={focus}
                 layers={[
                   { id: "stations", label: "Stations", color: "#059669", count: S.length },
@@ -532,7 +583,7 @@ function FloodWatch() {
               <section className="card max-h-[60vh] shrink-0 overflow-auto p-4 xl:max-h-[44%]" aria-label="Selected on the map">
                 <Selected pick={pick} stations={S} areas={A} vehicles={MV} pinned={pinned} hist={hist.data} ev={ev} area={area}
                   onArea={(a) => { pickArea(a); setTimeout(() => table.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
-                  onOpen={(plate) => setOpen(plate)} />
+                  onOpen={(plate) => setOpen(plate)} onInvite={(plate) => invite([plate])} busy={busy} />
               </section>
               <section className="card flex min-h-[220px] flex-1 flex-col overflow-hidden xl:min-h-0" aria-label={side === "districts" ? "Districts" : "Vehicles"}>
                 <div className="flex flex-wrap items-center gap-1.5 border-b border-ink-600/70 px-3 py-2.5">
@@ -542,7 +593,9 @@ function FloodWatch() {
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto p-2.5">
                   {side === "districts" ? (
-                    !A.length ? (
+                    areas.error && !areas.data ? <ErrorState title="Districts could not load" onRetry={areas.reload}>{areas.error}</ErrorState>
+                    : !areas.data ? <LoadingState label="Working out which districts are exposed…" rows={4} />
+                    : !A.length ? (
                       <Empty title="No district is exposed right now">No JPS station is above its alert level and no district had 60 mm of rain in a day this week. Pick a past flood above to see the ranking at work.</Empty>
                     ) : (
                       <div className="flex flex-col gap-1.5">
@@ -573,7 +626,8 @@ function FloodWatch() {
                         )}
                       </div>
                     )
-                  ) : !vmap.data ? <LoadingState label="Ranking vehicles…" rows={4} /> : !MV.length ? (
+                  ) : vmap.error && !vmap.data ? <ErrorState title="The vehicle ranking could not load" onRetry={vmap.reload}>{vmap.error}</ErrorState>
+                    : !vmap.data ? <LoadingState label="Ranking vehicles…" rows={4} /> : !MV.length ? (
                     <Empty title={vmap.data.counts.exposed ? `No vehicle at risk ${minRisk} or more` : "No vehicle is exposed in this view"}>Lower the risk filter under the map, or pick a past flood above.</Empty>
                   ) : (
                     <ul className="flex flex-col gap-1">
@@ -611,7 +665,8 @@ function FloodWatch() {
               </div>
               {selected.length > 0 && <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => invite(selected)}>Invite {selected.length} for flood inspection</button>}
             </div>
-            {!V ? <div className="px-4 pb-4"><LoadingState label="Ranking vehicles…" rows={4} /></div> : !V.items.length ? (
+            {veh.error && !V ? <div className="px-4 pb-4"><ErrorState title="The vehicles to inspect could not load" onRetry={veh.reload}>{veh.error}</ErrorState></div>
+              : !V ? <div className="px-4 pb-4"><LoadingState label="Ranking the registered vehicles by flood risk…" rows={4} /></div> : !V.items.length ? (
               <div className="px-4 pb-4">
                 <Empty title={V.counts.exposed ? `No vehicle at risk ${minRisk} or more` : "No vehicle is exposed in this view"}>
                   {V.counts.exposed ? `${fmtN(V.counts.exposed)} vehicles are registered in exposed districts; lower the risk filter to see them.` : "Pick a past flood above, or wait for a JPS station to pass its alert level."}
@@ -656,6 +711,7 @@ function FloodWatch() {
                               <td className="text-right">
                                 <button className="btn btn-sm" onClick={() => setOpen(r.plate)}>Details</button>
                                 {r.invited_at && <div className="mt-1 text-[11px] text-ok">Invited</div>}
+                                {vehicleRecordHref(r.plate) && <Link className="mt-1 block whitespace-nowrap text-[11.5px] font-semibold text-cyan hover:underline" href={vehicleRecordHref(r.plate)!}>Vehicle record ›</Link>}
                               </td>
                             </tr>
                           );
@@ -687,7 +743,8 @@ function FloodWatch() {
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <Pill color={REC_COL[r.recommendation]}>{r.recommendation}</Pill>
                               {r.invited_at && <span className="text-[11.5px] font-semibold text-ok">Invited</span>}
-                              <button className="btn btn-sm ml-auto" onClick={() => setOpen(r.plate)}>Details</button>
+                              {vehicleRecordHref(r.plate) && <Link className="ml-auto text-[12px] font-semibold text-cyan" href={vehicleRecordHref(r.plate)!}>Vehicle record</Link>}
+                              <button className={`btn btn-sm ${vehicleRecordHref(r.plate) ? "" : "ml-auto"}`} onClick={() => setOpen(r.plate)}>Details</button>
                             </div>
                           </div>
                         </div>
@@ -772,7 +829,9 @@ function FloodWatch() {
         </>
       )}
       <Modal open={!!open} onClose={close} title={open ? `${open} · flood and corrosion risk` : ""}>
-        {detail.data && detail.data.plate === open ? <VehicleDetail d={detail.data} busy={busy} onInvite={() => invite([detail.data.plate])} /> : <p className="text-fg-3">Loading…</p>}
+        {detail.data && detail.data.plate === open ? <VehicleDetail d={detail.data} busy={busy} onInvite={() => invite([detail.data.plate])} />
+          : detail.error ? <div className="w-[min(560px,calc(100vw-5rem))]"><ErrorState title={`${open}'s flood record could not load`} onRetry={detail.reload}>{detail.error}</ErrorState></div>
+          : <div className="w-[min(560px,calc(100vw-5rem))]"><LoadingState label={`Loading ${open}'s flood and corrosion record…`} rows={4} /></div>}
       </Modal>
     </OversightShell>
   );

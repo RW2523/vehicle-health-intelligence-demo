@@ -57,6 +57,47 @@ export function FilterPill({ on, onClick, children, count, tone = "blue" }: { on
   );
 }
 
+/** The ten main vehicles (vhi/services/showcase.py on the API): each has a full record in the inspection app. */
+export const MAIN_PLATES = new Set(["DMO 9001", "DMO 9002", "DMO 9003", "DMO 9006", "VJM 7412", "WXD 2291", "BHY 7783", "VKR 3128", "PKE 4410", "JTR 5510"]);
+/** The vehicle's record in the inspection app, for a main vehicle (null for the others: they have no record there). */
+export const vehicleRecordHref = (plate?: string | null) => (plate && MAIN_PLATES.has(plate) ? `/vehicles/${encodeURIComponent(plate)}` : null);
+
+/** A short workflow as numbered steps, showing where this item is: the steps before ``at`` are done, ``at`` is the
+ *  current one (``at`` past the last step: all done). Wraps onto a second line on a narrow screen. A step with an
+ *  entry in ``links`` is a link there (a step of a page the user can move along). */
+export function FlowSteps({ steps, at, label, className = "", links }: { steps: string[]; at: number; label: string; className?: string; links?: (string | null | undefined)[] }) {
+  const n = steps.length;
+  const cur = Math.max(0, Math.min(at, n));
+  return (
+    <ol aria-label={`${label}: ${cur >= n ? "every step done" : `step ${cur + 1} of ${n}, ${steps[cur]}`}`}
+      className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[11.5px] font-semibold sm:gap-x-1 ${className}`}>
+      {steps.map((s, i) => {
+        const st = i < cur ? "done" : i === cur ? "now" : "next";
+        return (
+          <li key={s} aria-current={st === "now" ? "step" : undefined} className="flex min-w-0 items-center gap-1">
+            {/* on a phone the steps wrap: the numbers carry the order, a chevron would start a line */}
+            {i > 0 && <svg className="hidden shrink-0 sm:block" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>}
+            <Step href={links?.[i]} className={`inline-flex min-w-0 items-center gap-1.5 rounded-full py-[3px] pl-[3px] pr-2.5 ${st === "now" ? "bg-blue-50 text-[#1D4ED8] ring-1 ring-blue-300"
+              : st === "done" ? "bg-emerald-50/80 text-emerald-800 ring-1 ring-emerald-200/80" : "bg-white/60 text-fg-3 ring-1 ring-ink-600/80"} ${links?.[i] ? "transition hover:ring-cyan/60 hover:brightness-[.98]" : ""}`}>
+              <span className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[10px] ${st === "now" ? "bg-[#2563EB] text-white"
+                : st === "done" ? "bg-emerald-600 text-white" : "bg-ink-700 text-fg-3"}`} aria-hidden>
+                {st === "done" ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> : i + 1}
+              </span>
+              <span className="min-w-0 truncate">{s}</span>
+              {st !== "next" && <span className="sr-only">{st === "done" ? " (done)" : " (current step)"}</span>}
+            </Step>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function Step({ href, className, children }: { href?: string | null; className: string; children: ReactNode }) {
+  if (!href) return <span className={className}>{children}</span>;
+  return href.startsWith("#") ? <a href={href} className={className}>{children}</a> : <Link href={href} className={className}>{children}</Link>;
+}
+
 /** Whether the screen is phone-width (narrower than Tailwind's sm, 640 px). */
 export function useNarrow() {
   const [narrow, setNarrow] = useState(false);

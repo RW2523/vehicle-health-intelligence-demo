@@ -1,20 +1,21 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useState } from "react";
+import { ReactNode, use, useState } from "react";
 import { NextAction, refreshUseCase, useActiveUseCase } from "@/components/Demo";
 import { IconTile, Panel, Ring, StatusPill, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { ITEM_STATUS, NoInspection, PageLoading, StepNav, atTime, checklistOf, fuelLabel, useInspectionParam } from "@/components/insp";
-import { ucFor } from "@/components/insp";
+import { ucFor, ucUnlessSame } from "@/components/insp";
 import { Shell } from "@/components/Shell";
 import { PageHeader, Source, toast } from "@/components/ui";
 import { VehicleArt } from "@/components/VehicleArt";
 import { VehicleImage } from "@/components/VehicleImage";
 import { api } from "@/lib/api";
+import { useAssistantContext } from "@/lib/assistantContext";
 import { useUser } from "@/lib/auth";
-import { dmy, fmtN, laneLabel, llmLabel } from "@/lib/format";
-import { isRequired } from "@/lib/present";
+import { dmy, fmtN, laneLabel, llmLabel, scoreColor } from "@/lib/format";
+import { SEVERITY, isRequired, scoreSeverity } from "@/lib/present";
 
 const BANNER: Record<string, { word: string; tone: Tone; color: string; text: string; icon: string }> = {
   PASS: { word: "Passed", tone: "green", color: "#059669", text: "The vehicle meets the inspection requirements", icon: "check" },
@@ -35,6 +36,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [sent, setSent] = useState(false);
   const [rebook, setRebook] = useState<any>(null);
   const insp = L.insp;
+  useAssistantContext(insp ? { inspection_id: insp.inspection_id, plate: insp.plate } : {});
   if (!insp) return <Shell>{L.notFound ? <NoInspection id={id} /> : <PageLoading />}</Shell>;
   const sid = session || insp.inspection_id;
   const examiner = user?.examiner_id || picked;
@@ -110,23 +112,45 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   };
 
   let issueBtn;
-  if (rep) issueBtn = <Link className="btn btn-primary btn-lg w-full justify-start" href={`/report?id=${rep.report_id}`}><Icon name="award" size={18} />Certificate issued · open report</Link>;
-  else if (running) issueBtn = <button className="btn btn-primary btn-lg w-full justify-start" disabled><Icon name="clock" size={18} />Lane still running</button>;
-  else if (openReq) issueBtn = <Link className="btn btn-primary btn-lg w-full justify-start" href={`/inspection/${sid}/findings`}><Icon name="warn" size={18} />Decide {openReq} critical finding{openReq > 1 ? "s" : ""} first</Link>;
-  else if (needSenior && !isSenior && !routed) issueBtn = <button className="btn btn-primary btn-lg w-full justify-start" disabled={!!busy || !canAct} onClick={refer}><Icon name="user" size={18} />Refer to the senior examiner</button>;
-  else if (needSenior && !isSenior) issueBtn = <button className="btn btn-primary btn-lg w-full justify-start" disabled><Icon name="user" size={18} />Waiting for the senior examiner</button>;
-  else issueBtn = <button className="btn btn-primary btn-lg w-full justify-start" disabled={!!busy || !canAct} onClick={issue}><Icon name="award" size={18} />{busy === "issue" ? "Issuing…" : needSenior ? "Sign off and issue certificate" : "Issue Certificate"}</button>;
+  if (rep) issueBtn = null;
+  else if (running) issueBtn = <button className="btn btn-primary btn-lg w-full" disabled><Icon name="clock" size={18} />Lane still running</button>;
+  else if (openReq) issueBtn = <Link className="btn btn-primary btn-lg w-full" href={`/inspection/${sid}/findings`}><Icon name="warn" size={18} />Decide {openReq} critical finding{openReq > 1 ? "s" : ""} first</Link>;
+  else if (needSenior && !isSenior && !routed) issueBtn = <button className="btn btn-primary btn-lg w-full" disabled={!!busy || !canAct} onClick={refer}><Icon name="user" size={18} />Refer to the senior examiner</button>;
+  else if (needSenior && !isSenior) issueBtn = <button className="btn btn-primary btn-lg w-full" disabled><Icon name="user" size={18} />Waiting for the senior examiner</button>;
+  else issueBtn = <button className="btn btn-primary btn-lg w-full" disabled={!!busy || !canAct} onClick={issue}><Icon name="award" size={18} />{busy === "issue" ? "Issuing…" : needSenior ? "Sign off and issue certificate" : "Issue Certificate"}</button>;
+  const issueNote = running ? "The outcome is known once every lane step has finished."
+    : openReq ? "The final review opens once every critical finding has a decision."
+    : needSenior && !isSenior ? (routed ? "Referred: the senior examiner signs this report off." : "Identity checks disagree: a senior examiner signs this report off.")
+    : !canAct ? "Only an examiner can issue the report."
+    : verdict === "FAIL" ? "Issues the FAIL report with its QR code; a certificate follows a passed re-inspection."
+    : "Creates the report, its QR code and its entry in the evidence chain.";
 
-  const action = (label: string, icon: string, onClick: (() => void) | undefined, disabled: boolean, note?: string, href?: string) => {
-    const body = (<><Icon name={icon} size={18} color="#2563EB" /><span className="flex-1 text-left">{label}{note && <span className="block text-[11.5px] font-normal text-fg-3">{note}</span>}</span><Icon name="chev" size={15} color="#94A3B8" /></>);
-    return href ? <Link href={href} className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/70 px-3.5 py-2.5 text-[14px] font-medium hover:bg-white">{body}</Link>
-      : <button onClick={onClick} disabled={disabled} className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/70 px-3.5 py-2.5 text-[14px] font-medium hover:bg-white disabled:opacity-50">{body}</button>;
-  };
+  const hs: number | null = insp.fusion?.health?.score ?? insp.health_score ?? null;
+  const sev = scoreSeverity(hs);
+  const decidedN = L.alerts.length - openAll;
+  const reportStatus = rep ? "Issued" : verdict === "FAIL" && ready ? "Re-inspection required" : ready ? "Ready to Issue" : "Not ready yet";
+  const reportSub = rep ? `${rep.report_id} · ${dmy(rep.created_at)} ${atTime(rep.created_at)}` : running ? "The lane is still running" : openReq ? `${openReq} critical finding${openReq === 1 ? "" : "s"} to decide` : needSenior && !isSenior ? "Needs the senior examiner" : "Every critical finding is decided";
+  const ucx = ucFor(uc, insp);
+  const here = [`/inspection/${sid}/review`, `/inspection/${insp.inspection_id}/review`, `/inspection/${insp.session_id}/review`];
+  const plateQ = encodeURIComponent(insp.plate);
+  const passport = `/mobile/vehicle?plate=${plateQ}`;
+  // the use case's next step may already be one of the links below: show it once
+  const nextHref = ucx && !ucx.complete ? ucx.next?.href : null;
+  const individual = o.type === "individual";
+  const keyFindings = [...L.alerts.filter((a) => a.status === "open" && isRequired(a)), ...fails, ...advis];
+  const SHOW_KEY = 6;
+  const fact = (k: string, val: ReactNode, sub?: ReactNode) => (
+    <div className="min-w-0 rounded-xl bg-white/75 px-3.5 py-2.5 ring-1 ring-ink-600/70">
+      <dt className="text-[11.5px] font-semibold uppercase tracking-[0.1em] text-fg-3">{k}</dt>
+      <dd className="mt-0.5 text-[15px] font-bold leading-snug">{val}</dd>
+      {sub && <dd className="truncate text-[12px] text-fg-3">{sub}</dd>}
+    </div>
+  );
 
   return (
     <Shell>
       <div className="mb-2"><Link href={`/inspection/${sid}`} className="inline-flex items-center gap-1 text-[14px] text-fg-2 hover:text-cyan"><Icon name="back" size={16} />Back to Inspection</Link></div>
-      <PageHeader eyebrow="Inspection" title="Final Review and Approval" sub="Review all results and advisory items, then complete the inspection."
+      <PageHeader eyebrow="Inspection" title="Final Review and Approval" sub="The outcome these decisions lead to, the key findings, and issuing the report."
         actions={<>
           {user?.role === "presenter" && !rep && (
             <label className="flex items-center gap-2 text-[13px] text-fg-3">Acting as
@@ -135,38 +159,134 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </select>
             </label>
           )}
-          <NextAction uc={ucFor(uc, insp)} here={[`/inspection/${sid}/review`, `/inspection/${insp.inspection_id}/review`]} />
+          {!rep && <NextAction uc={ucUnlessSame(uc, insp, openReq && !running ? "/inspection/{id}/findings" : null)} here={here} />}
         </>} />
       <StepNav id={sid} at="review" findings={L.alerts.length} open={openAll} />
 
-      <section className="card mb-5 grid grid-cols-1 items-center gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto]" aria-label="Outcome"
-        style={{ background: `linear-gradient(110deg, ${b.color}14, rgba(255,255,255,0.8) 45%)` }}>
-        <div className="flex items-center gap-4 sm:gap-5">
-          <span className="flex h-[64px] w-[64px] shrink-0 items-center justify-center rounded-full sm:h-[84px] sm:w-[84px]" style={{ background: `${b.color}1A`, boxShadow: `inset 0 0 0 1px ${b.color}40` }}>
-            <Icon name={b.icon} size={36} color={b.color} width={2.6} />
-          </span>
-          <div className="min-w-0">
-            {pending ? (
-              <h2 className="text-[26px] font-extrabold tracking-tight sm:text-[32px]" style={{ color: b.color }}>Decision pending</h2>
-            ) : (
-              <h2 className="text-[26px] font-extrabold tracking-tight sm:text-[32px]">Inspection <span style={{ color: b.color }}>{b.word}</span>{!rep && <span className="ml-2 align-middle text-[13px] font-semibold text-fg-3">(if issued now)</span>}</h2>
-            )}
-            <p className="mt-1 max-w-[620px] text-[14.5px] text-fg-2">
-              {running ? "The lane is still running: the outcome is known once every step has finished." : openReq ? `${openReq} critical finding${openReq > 1 ? "s" : ""} still need${openReq > 1 ? "" : "s"} a decision. The outcome follows from those decisions.` : `${b.text}${advis.length ? `, with ${advis.length} advisory item${advis.length > 1 ? "s" : ""}` : ""}.`}
-            </p>
+      {/* the completion point: who, when, the outcome, and the one action (then what follows it) */}
+      <section className="card mb-5 p-4 sm:p-5" aria-label="Outcome" style={{ background: `linear-gradient(110deg, ${b.color}14, rgba(255,255,255,0.82) 45%)` }}>
+        <div className="flex min-w-0 items-center gap-3.5 border-b border-ink-600/60 pb-4">
+          <Link href={`/vehicles/${plateQ}`} className="block h-[60px] w-[92px] shrink-0 overflow-hidden rounded-xl bg-gradient-to-b from-[#F1F5FB] to-[#E3EAF5] sm:h-[72px] sm:w-[112px]" aria-label={`${insp.plate}: vehicle record`}>
+            {insp.photo ? <VehicleImage plate={insp.plate} vtype={o.vtype} photo={insp.photo} size="480" className="h-full w-full" /> : <VehicleArt vtype={o.vtype} seed={insp.plate} className="h-full w-full" />}
+          </Link>
+          <div className="min-w-0 leading-tight">
+            <div className="flex flex-wrap items-baseline gap-x-2.5"><span className="whitespace-nowrap text-[22px] font-extrabold tracking-tight sm:text-[24px]">{insp.plate}</span><span className="text-[14px] text-fg-2">{[v.make, v.model, v.year || o.year].filter(Boolean).join(" ")}</span></div>
+            <div className="mt-1 text-[13px] text-fg-2">{insp.inspection_type}</div>
+            <div className="mt-0.5 text-[12.5px] text-fg-3">Inspected {dmy(insp.started_at)}, {atTime(insp.started_at)} · {laneLabel(insp.lane_id)} · <span className="font-mono text-[11.5px]">{insp.inspection_id}</span></div>
           </div>
         </div>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-1.5 border-ink-600/60 text-[14px] lg:border-l lg:pl-6 [&>dt]:whitespace-nowrap">
-          <dt className="text-fg-3">Inspection No.</dt><dd className="font-semibold">{insp.inspection_id}</dd>
-          <dt className="text-fg-3">Inspection Date</dt><dd className="font-semibold">{dmy(insp.started_at)}, {atTime(insp.started_at)}</dd>
-          <dt className="text-fg-3">Inspection Type</dt><dd className="max-w-[260px] font-semibold">{insp.inspection_type}</dd>
+
+        <div className="mt-4 grid grid-cols-1 items-center gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full sm:h-[72px] sm:w-[72px]" style={{ background: `${b.color}1A`, boxShadow: `inset 0 0 0 1px ${b.color}40` }}>
+              <Icon name={b.icon} size={32} color={b.color} width={2.6} />
+            </span>
+            <div className="min-w-0">
+              {pending ? (
+                <h2 className="text-[26px] font-extrabold tracking-tight sm:text-[32px]" style={{ color: b.color }}>Decision pending</h2>
+              ) : (
+                <h2 className="text-[26px] font-extrabold tracking-tight sm:text-[32px]">Inspection <span style={{ color: b.color }}>{b.word}</span>{!rep && <span className="ml-2 align-middle text-[13px] font-semibold text-fg-3">(if issued now)</span>}</h2>
+              )}
+              <p className="mt-1 max-w-[620px] text-[14.5px] text-fg-2">
+                {running ? "The lane is still running: the outcome is known once every step has finished." : openReq ? `${openReq} critical finding${openReq > 1 ? "s" : ""} still need${openReq > 1 ? "" : "s"} a decision. The outcome follows from those decisions.` : `${b.text}${advis.length ? `, with ${advis.length} advisory item${advis.length > 1 ? "s" : ""}` : ""}.`}
+              </p>
+            </div>
+          </div>
+          {!rep && (
+            <div className="flex min-w-0 flex-col gap-1.5">
+              {issueBtn}
+              <p className="text-[12px] leading-snug text-fg-3">{issueNote}</p>
+            </div>
+          )}
+        </div>
+
+        <dl className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {fact("Health score", hs != null ? <><span style={{ color: scoreColor(hs) }}>{Math.round(hs)}</span><span className="text-[13px] font-semibold text-fg-3"> / 100</span></> : <span className="text-fg-3">Not scored yet</span>,
+            sev ? SEVERITY[sev].label : running ? "Scored when the lane finishes" : undefined)}
+          {fact("Findings", L.alerts.length ? `${decidedN} of ${L.alerts.length} decided` : "None", L.alerts.length ? `${fails.length} fail · ${advis.length} advisory${openAll ? ` · ${openAll} open` : ""}` : "Nothing to decide")}
+          {fact("Examiner", <span className="block truncate">{insp.examiner?.name || "–"}{insp.examiner?.senior ? " (Senior Examiner)" : ""}</span>, insp.examiner?.senior ? "Senior sign-off" : needSenior ? "Senior sign-off needed" : undefined)}
+          {fact("Report status", <span style={{ color: rep ? "#047857" : verdict === "FAIL" && ready ? "#B91C1C" : ready ? "#047857" : "#B45309" }}>{reportStatus}</span>, reportSub)}
         </dl>
+
+        {rep && (
+          <div className="mt-4 rounded-2xl bg-emerald-50/90 p-4 ring-1 ring-emerald-200" role="status">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <Link href={`/report?id=${rep.report_id}`} className="inline-flex items-center gap-2 text-[17px] font-bold text-[#047857] hover:underline">
+                  <Icon name="award" size={20} />Certificate issued · open report<Icon name="arrow" size={16} />
+                </Link>
+                <p className="mt-0.5 text-[13px] text-fg-2">{rep.kind} · {rep.report_id} · anyone can check it with the QR code.</p>
+              </div>
+              {verdict === "FAIL" && (rebook ? (
+                <div className="flex items-center gap-2.5 rounded-xl bg-white/90 px-3.5 py-2.5 text-[13.5px] ring-1 ring-emerald-200">
+                  <Icon name="calendar" size={18} color="#047857" /><span><b>Re-inspection booked</b> · {dmy(rebook.date)} {rebook.slot}<span className="block text-[12px] text-fg-3">{rebook.branch_name}</span></span>
+                </div>
+              ) : (
+                <button className="btn btn-primary btn-lg shrink-0" disabled={!canAct || busy === "rebook"} onClick={reinspect}><Icon name="calendar" size={18} />{busy === "rebook" ? "Booking…" : "Schedule Reinspection"}</button>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-emerald-200/80 pt-3">
+              {ucx && <NextAction uc={ucx} here={here} />}
+              <Link className="btn" href={`/report?id=${rep.report_id}`}><Icon name="doc" size={15} />View Report</Link>
+              <Link className="btn" href={`/verify/${rep.verify_token}`}><Icon name="qr" size={15} />Verify by QR</Link>
+              {nextHref?.split(/[?#]/)[0] !== `/vehicles/${plateQ}` && <Link className="btn" href={`/vehicles/${plateQ}`}><Icon name="car" size={15} />View Vehicle Record</Link>}
+              {individual && nextHref !== passport && <Link className="btn" href={passport}><Icon name="owner" size={15} />Open Owner Passport</Link>}
+              <button className="btn" disabled={sent || !canAct || busy === "send"} onClick={send}><Icon name="send" size={15} />{sent ? "Report sent to the owner" : busy === "send" ? "Sending…" : "Send Report to Owner"}</button>
+              {verdict === "REFERRED" && (
+                <button className="btn" disabled={!!rebook || !canAct || busy === "rebook"} onClick={reinspect}><Icon name="calendar" size={15} />{rebook ? `Re-inspection booked · ${dmy(rebook.date)} ${rebook.slot}` : "Schedule Reinspection"}</button>
+              )}
+              <button className="ml-auto text-[13px] font-semibold text-fg-3 hover:text-cyan" onClick={() => router.push("/")}>Finish Inspection</button>
+            </div>
+            <p className="mt-2 text-[11.5px] text-fg-3">Sending is a mock: it is recorded, no message leaves the demo.</p>
+          </div>
+        )}
       </section>
 
-      {/* two columns that keep their own heights: what was inspected and found (left), the decision and what follows (right) */}
+      {/* what was found and inspected (left), the certificate and the record (right) */}
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-5">
-          <Panel title="Vehicle Summary" href={`/vehicles/${encodeURIComponent(insp.plate)}`} actionLabel="Vehicle record">
+          <Panel title={<span className="flex items-center gap-2 text-[18px] font-bold">Key findings ({keyFindings.length})</span>}
+            sub={pending && openReq ? "Critical findings still to decide come first, then failed and advisory items." : fails.length ? "Failed items must be fixed; advisory items do not affect the result." : "Minor issues noted. Not critical and do not affect the pass result."}
+            href={L.alerts.length ? `/inspection/${sid}/findings` : undefined} actionLabel={`All ${L.alerts.length} findings`}>
+            {!keyFindings.length ? (
+              pending ? <p className="rounded-xl bg-white/70 px-4 py-3 text-[13.5px] text-fg-3 ring-1 ring-ink-600">Nothing decided as failed or advisory yet.</p>
+                : <p className="rounded-xl bg-emerald-50 px-4 py-3 text-[13.5px] text-emerald-800 ring-1 ring-emerald-200">{L.alerts.length ? "No failed or advisory items." : "No anomalies: every measurement is within its limit and the AI modules found nothing."}</p>
+            ) : (
+              <ol className="flex flex-col">
+                {keyFindings.slice(0, SHOW_KEY).map((a, i) => {
+                  const isOpen = a.status === "open";
+                  const isFail = a.fail_item && a.status === "confirmed";
+                  return (
+                    <li key={a.alert_id}>
+                      <Link href={`/inspection/${sid}/findings?finding=${a.alert_id}`} className="flex items-center gap-3 border-b border-ink-600/50 py-2.5 hover:bg-white/60">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[12px] font-bold ring-1 ring-ink-600">{i + 1}</span>
+                        <IconTile icon={a.system?.includes("Tyre") ? "tyre" : a.system?.includes("Brake") ? "brake" : a.system?.includes("Lights") ? "lamp" : "warn"} tone={isOpen ? "purple" : a.fail_item ? "red" : "amber"} size={36} />
+                        <span className="min-w-0 flex-1 leading-tight"><b className="block truncate text-[13.5px]">{a.title}</b><span className="block truncate text-[12px] text-fg-3">{a.evidence?.recommendation ? `${a.evidence.recommendation} · ` : ""}{a.reason || a.detail}</span></span>
+                        <StatusPill tone={isOpen ? "purple" : isFail ? "red" : "amber"}>{isOpen ? "To decide" : isFail ? "Fail" : "Advisory"}</StatusPill>
+                      </Link>
+                    </li>
+                  );
+                })}
+                {keyFindings.length > SHOW_KEY && <li className="pt-2.5 text-[13px]"><Link className="font-semibold text-cyan hover:underline" href={`/inspection/${sid}/findings`}>+{keyFindings.length - SHOW_KEY} more</Link></li>}
+              </ol>
+            )}
+          </Panel>
+          <Panel title={`Inspection Checklist (${ck.done === ck.total ? "Completed" : `${ck.done} of ${ck.total}`})`} href={`/inspection/${sid}`} actionLabel="View full checklist">
+            <div className="grid grid-cols-1 items-center gap-5 md:grid-cols-[150px_minmax(0,1fr)]">
+              <div className="justify-self-center md:justify-self-start"><Ring value={pct} size={140} stroke={14} color={pct === 100 ? "#10B981" : "#2563EB"}><span className="text-[26px] font-bold">{ck.done} / {ck.total}</span><span className="text-[11.5px] text-fg-3">Items completed</span></Ring></div>
+              <ul className="grid grid-cols-1 gap-x-6 2xl:grid-cols-2">
+                {ck.items.map((it) => (
+                  <li key={it.id} className="flex min-w-0 items-center gap-2.5 border-b border-ink-600/50 py-2 text-[13.5px] 2xl:[&:nth-last-child(-n+2)]:border-0 [&:last-child]:border-0">
+                    <Icon name={it.icon} size={17} color="#64748B" />
+                    <span className="min-w-0 flex-1 truncate">{it.label}</span>
+                    {it.findings > 0 && <span className="whitespace-nowrap text-[12px] text-fg-3" title={`${it.findings - it.open} of ${it.findings} findings decided`}>{it.findings - it.open}/{it.findings}</span>}
+                    <StatusPill tone={ITEM_STATUS[it.status].tone}>{ITEM_STATUS[it.status].label}</StatusPill>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Panel>
+          <Panel title="Vehicle Summary" href={`/vehicles/${plateQ}`} actionLabel="Vehicle record">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-[200px_minmax(0,1fr)]">
               <div className="flex h-[150px] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-[#F1F5FB] to-[#E3EAF5]">{insp.photo ? <VehicleImage plate={insp.plate} vtype={o.vtype} photo={insp.photo} className="h-full w-full" /> : <VehicleArt vtype={o.vtype} seed={insp.plate} className="h-[130px] w-[190px]" />}</div>
               <div className="min-w-0 text-[14px]">
@@ -190,68 +310,17 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
           </Panel>
-          <Panel title={`Inspection Checklist (${ck.done === ck.total ? "Completed" : `${ck.done} of ${ck.total}`})`} href={`/inspection/${sid}`} actionLabel="View full checklist">
-            <div className="grid grid-cols-1 items-center gap-5 md:grid-cols-[150px_minmax(0,1fr)]">
-              <div className="justify-self-center md:justify-self-start"><Ring value={pct} size={140} stroke={14} color={pct === 100 ? "#10B981" : "#2563EB"}><span className="text-[26px] font-bold">{ck.done} / {ck.total}</span><span className="text-[11.5px] text-fg-3">Items completed</span></Ring></div>
-              <ul className="grid grid-cols-1 gap-x-6 2xl:grid-cols-2">
-                {ck.items.map((it) => (
-                  <li key={it.id} className="flex min-w-0 items-center gap-2.5 border-b border-ink-600/50 py-2 text-[13.5px] 2xl:[&:nth-last-child(-n+2)]:border-0 [&:last-child]:border-0">
-                    <Icon name={it.icon} size={17} color="#64748B" />
-                    <span className="min-w-0 flex-1 truncate">{it.label}</span>
-                    {it.findings > 0 && <span className="whitespace-nowrap text-[12px] text-fg-3" title={`${it.findings - it.open} of ${it.findings} findings decided`}>{it.findings - it.open}/{it.findings}</span>}
-                    <StatusPill tone={ITEM_STATUS[it.status].tone}>{ITEM_STATUS[it.status].label}</StatusPill>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Panel>
-          <Panel title={<span className="flex items-center gap-2 text-[18px] font-bold">{fails.length ? "Failed and Advisory Findings" : "Advisory Findings"} ({fails.length + advis.length})</span>}
-            sub={fails.length ? "Failed items must be fixed; advisory items do not affect the result." : pending ? "Findings decided as failed or advisory are listed here." : "Minor issues noted. Not critical and do not affect the pass result."}
-            href={`/inspection/${sid}/findings`} actionLabel="View details">
-            {!(fails.length + advis.length) ? (
-              pending ? <p className="rounded-xl bg-white/70 px-4 py-3 text-[13.5px] text-fg-3 ring-1 ring-ink-600">Nothing decided as failed or advisory yet.</p>
-                : <p className="rounded-xl bg-emerald-50 px-4 py-3 text-[13.5px] text-emerald-800 ring-1 ring-emerald-200">No failed or advisory items.</p>
-            ) : (
-              <ol className="flex flex-col">
-                {[...fails, ...advis].map((a, i) => (
-                  <li key={a.alert_id} className="flex items-center gap-3 border-b border-ink-600/50 py-2.5 last:border-0">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[12px] font-bold ring-1 ring-ink-600">{i + 1}</span>
-                    <IconTile icon={a.system?.includes("Tyre") ? "tyre" : a.system?.includes("Brake") ? "brake" : a.system?.includes("Lights") ? "lamp" : "warn"} tone={a.fail_item ? "red" : "amber"} size={36} />
-                    <span className="min-w-0 flex-1 leading-tight"><b className="block truncate text-[13.5px]">{a.title}</b><span className="block truncate text-[12px] text-fg-3">{a.evidence?.recommendation ? `${a.evidence.recommendation} · ` : ""}{a.reason || a.detail}</span></span>
-                    <StatusPill tone={a.fail_item && a.status === "confirmed" ? "red" : "amber"}>{a.fail_item && a.status === "confirmed" ? "Fail" : "Advisory"}</StatusPill>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Panel>
         </div>
         <div className="flex min-w-0 flex-col gap-5">
-          <Panel title="Certificate Status">
-            <div className={`mb-4 flex items-center gap-4 rounded-2xl p-4 ring-1 ${rep ? "bg-emerald-50 ring-emerald-200" : ready && verdict !== "FAIL" ? "bg-emerald-50/70 ring-emerald-200" : verdict === "FAIL" ? "bg-red-50 ring-red-100" : "bg-amber-50 ring-amber-200"}`}>
-              <IconTile icon={rep ? "award" : ready ? "doc" : "clock"} tone={rep || (ready && verdict !== "FAIL") ? "green" : verdict === "FAIL" ? "red" : "amber"} size={56} />
-              <div>
-                <div className="text-[20px] font-bold" style={{ color: rep ? "#047857" : verdict === "FAIL" ? "#B91C1C" : ready ? "#047857" : "#B45309" }}>
-                  {rep ? "Issued" : verdict === "FAIL" && ready ? "Re-inspection required" : ready ? "Ready to Issue" : "Not ready yet"}
-                </div>
-                <div className="text-[13px] text-fg-2">
-                  {rep ? `${rep.kind} · ${dmy(rep.created_at)}` : verdict === "FAIL" && ready ? "Issue the report; a certificate follows a passed re-inspection." : ready ? "Every critical finding is decided. The certificate can be issued now." : running ? "The lane is still running." : `${openReq} critical finding${openReq === 1 ? "" : "s"} to decide.`}
-                </div>
-              </div>
-            </div>
+          <Panel title="Certificate Details">
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-1.5 text-[14px] [&>dt]:whitespace-nowrap">
               <dt className="text-fg-3">Certificate type</dt><dd className="font-semibold">{verdict === "CONDITIONAL" ? "EV Health Certificate (conditional)" : insp.fusion?.report_kind || insp.inspection_type}</dd>
               <dt className="text-fg-3">Validity</dt><dd>{verdict === "FAIL" ? "None until a passed re-inspection" : "12 months from issue (demo assumption)"}</dd>
               <dt className="text-fg-3">Remarks</dt><dd>{advis.length ? `With ${advis.length} advisory item${advis.length > 1 ? "s" : ""}` : fails.length ? `${fails.length} failed item${fails.length > 1 ? "s" : ""}` : "None"}</dd>
               <dt className="text-fg-3">Examiner</dt><dd>{insp.examiner?.name}{insp.examiner?.senior ? " (Senior Examiner)" : ""}</dd>
+              <dt className="text-fg-3">Hub</dt><dd>{insp.branch_name} · {laneLabel(insp.lane_id)}</dd>
             </dl>
-          </Panel>
-          <Panel title="Actions">
-            <div className="flex flex-col gap-2.5">
-              {issueBtn}
-              {action(sent ? "Report sent to the owner" : "Send Report to Owner", "send", send, !rep || sent || !canAct || busy === "send", "Mock: recorded only")}
-              {(verdict === "FAIL" || verdict === "REFERRED") && action(rebook ? `Re-inspection ${dmy(rebook.date)} ${rebook.slot}` : "Schedule Reinspection", "calendar", reinspect, !rep || !!rebook || !canAct || busy === "rebook", rebook ? rebook.branch_name : "First free slot from tomorrow")}
-              {action("Finish Inspection", "checkc", () => router.push("/"), !rep, "Back to the dashboard")}
-            </div>
+            {!rep && <p className="mt-3 rounded-xl bg-white/70 px-3 py-2 text-[12.5px] text-fg-3 ring-1 ring-ink-600">Once issued: send the report to the owner{verdict === "FAIL" || verdict === "REFERRED" ? ", schedule the re-inspection" : ""}, and anyone can verify it by its QR code.</p>}
           </Panel>
           <Panel title="Digital Report Preview" href={rep ? `/report?id=${rep.report_id}` : undefined} actionLabel="View full report">
             <div className="flex flex-wrap items-center gap-5">
@@ -269,12 +338,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 <div className="font-bold">Inspection Report</div>
                 <div className="text-[14px] text-fg-2">{rep ? rep.report_id : "Not issued yet"}</div>
                 <div className="text-[12.5px] text-fg-3">{rep ? `${rep.kind} · ${llmLabel(rep.summary_source) ? "summary by the local LLM" : "template summary"}` : "Generated, hash-chained and QR-verifiable when issued"}</div>
-                {rep ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Link className="btn btn-sm" href={`/report?id=${rep.report_id}`}><Icon name="eye" size={15} />Preview Report</Link>
-                    <Link className="btn btn-sm" href={`/verify/${rep.verify_token}`}><Icon name="checkc" size={15} />Public verification</Link>
-                  </div>
-                ) : <Source kind="live_logic" text="Hash chain on issue" className="mt-3" />}
               </div>
             </div>
           </Panel>
@@ -298,6 +361,18 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
           </Panel>
         </div>
       </div>
+      {/* the proof, kept quiet: where the decisions are recorded and where each finding's data comes from */}
+      <details className="mt-5 rounded-2xl bg-white/60 px-4 py-3 ring-1 ring-ink-600/70">
+        <summary className="cursor-pointer text-[13.5px] font-semibold text-fg-2">Proof: evidence chain and data sources</summary>
+        <div className="mt-3 flex flex-col gap-2.5 text-[13px] text-fg-2">
+          <p className="flex flex-wrap items-center gap-2"><Source kind="live_logic" text="Hash chain" />Every decision, remark and the report are appended to the hash-chained evidence log as they happen.</p>
+          {rep?.chain_hash && <div><div className="text-[12px] text-fg-3">Report anchor (SHA-256)</div><div className="break-all font-mono text-[11.5px]">{rep.chain_hash}</div></div>}
+          {L.alerts.length > 0 && (
+            <p className="flex flex-wrap items-center gap-1.5">Findings come from: {Array.from(new Set(L.alerts.map((a) => a.source))).map((k) => <Source key={k} kind={k} />)}</p>
+          )}
+          <Link href="/oversight/hq#audit" className="text-cyan hover:underline">Open the audit log →</Link>
+        </div>
+      </details>
       <p className="mt-4 text-[12px] text-fg-4">{laneLabel(insp.lane_id)} · {insp.branch_name} · decisions and the report are hash-chained in the evidence log.</p>
     </Shell>
   );

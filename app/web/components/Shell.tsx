@@ -1,7 +1,7 @@
 "use client";
-/* The inspection app's shell: a floating glass frame with the brand, global search, the app switcher, notifications and
-   the profile menu on top, the seven sections on the left and the page. On phones the navigation becomes a drawer.
-   The header pieces are shared with the mobile and oversight apps. */
+/* The inspection app's shell: a floating glass frame with the brand, global search, the guided demo, the app switcher,
+   notifications and the profile menu on top, the five sections on the left, the page, and the floating assistant in the
+   corner. On phones the navigation becomes a drawer. The header pieces are shared with the mobile and oversight apps. */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useId, useRef, useState } from "react";
@@ -9,12 +9,14 @@ import { api } from "@/lib/api";
 import { APPS, AppId } from "@/lib/apps";
 import { ROLE_HOME, User, canOpen, logout, useUser } from "@/lib/auth";
 import { llmLabel } from "@/lib/format";
-import { DemoBar } from "./Demo";
+import { AssistantDock } from "./AssistantDock";
+import { DemoBar, DemoProgressBar } from "./Demo";
 import { Icon } from "./icons";
 import { Modal, ProvenanceLegend } from "./ui";
 
-type NavItem = { href: string; label: string; sub: string; icon: string; roles: string[] };
-/** The inspection app's seven sections; `roles` open each one besides the presenter and the read-only viewer ("*" = everyone). */
+type NavItem = { href: string; label: string; sub: string; icon: string; roles: string[]; hidden?: boolean };
+/** The inspection app's five sections; `roles` open each one besides the presenter and the read-only viewer ("*" = everyone).
+ *  The full assistant and Settings are pages too, but are reached from the floating assistant and the profile menu. */
 export const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: "Inspection",
@@ -24,8 +26,8 @@ export const NAV: { group: string; items: NavItem[] }[] = [
       { href: "/inspection", label: "Inspection Management", sub: "Capture, findings, approval, reports", icon: "clipboard", roles: ["examiner", "hq", "regulator"] },
       { href: "/vehicles", label: "Vehicle Records", sub: "History, health trends, photos", icon: "car", roles: ["examiner", "hq", "regulator", "fleet"] },
       { href: "/appointments", label: "Appointments", sub: "Bookings, slots, check-in", icon: "calendar", roles: ["examiner", "hq", "fleet"] },
-      { href: "/assistant", label: "Chat Bot", sub: "Ask about vehicles, lanes, rules", icon: "bot", roles: ["examiner", "hq", "regulator", "fleet"] },
-      { href: "/settings", label: "Settings", sub: "Account, images, demo, system", icon: "gear", roles: ["*"] },
+      { href: "/assistant", label: "VehicleSense AI assistant", sub: "Ask about vehicles, lanes, rules", icon: "bot", roles: ["examiner", "hq", "regulator", "fleet"], hidden: true },
+      { href: "/settings", label: "Settings", sub: "Account, images, demo, system", icon: "gear", roles: ["*"], hidden: true },
     ],
   },
 ];
@@ -207,6 +209,9 @@ export function Notifications() {
   );
 }
 
+const ITEM = "flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] hover:bg-blue-50";
+
+/** The profile menu: account, settings, the presenter's demo controls, the data labels and sign out. */
 export function UserMenu({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   const [labels, setLabels] = useState(false);
@@ -239,15 +244,26 @@ export function UserMenu({ user }: { user: User }) {
             <span className={`h-2 w-2 rounded-full ${status ? "bg-ok" : "bg-fg-4"}`} />
             {status ? `Pipeline live · ${llmLabel(status.llm?.backend) ? "local LLM on" : "template engine"}` : "Checking the pipeline…"}
           </div>
-          <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13.5px] hover:bg-blue-50" onClick={() => { setLabels(true); setOpen(false); }}>
-            <Icon name="info" size={17} color="#2563EB" />What the data labels mean
-          </button>
-          <Link className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] hover:bg-blue-50" href="/settings" onClick={() => setOpen(false)}>
-            <Icon name="gear" size={17} color="#2563EB" />Settings
-          </Link>
-          <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13.5px] text-bad hover:bg-red-50" onClick={logout}>
-            <Icon name="logout" size={17} color="#DC2626" />Log out
-          </button>
+          <nav aria-label="Account" className="flex flex-col">
+            <Link className={ITEM} href="/settings?tab=account" onClick={() => setOpen(false)}>
+              <Icon name="user" size={17} color="#2563EB" />Profile and account
+            </Link>
+            <Link className={ITEM} href="/settings" onClick={() => setOpen(false)}>
+              <Icon name="gear" size={17} color="#2563EB" />Settings
+            </Link>
+            {user.role === "presenter" && (
+              <Link className={ITEM} href="/demo" onClick={() => setOpen(false)}>
+                <Icon name="play" size={17} color="#2563EB" />Demo controls
+              </Link>
+            )}
+            <button className={`${ITEM} w-full text-left`} onClick={() => { setLabels(true); setOpen(false); }}>
+              <Icon name="info" size={17} color="#2563EB" />What the data labels mean
+            </button>
+            <div className="mx-3 my-1 border-t border-ink-600" />
+            <button className={`${ITEM} w-full text-left text-bad hover:!bg-red-50`} onClick={logout}>
+              <Icon name="logout" size={17} color="#DC2626" />Sign out
+            </button>
+          </nav>
         </div>
       )}
       <Modal open={labels} onClose={() => setLabels(false)} title="What the data labels mean">
@@ -314,7 +330,7 @@ function OtherApps({ role }: { role?: string }) {
 function NavLinks({ role, onNavigate }: { role?: string; onNavigate?: () => void }) {
   const path = usePathname();
   const cur = navMatch(path);
-  const items = NAV.flatMap((g) => g.items).filter((it) => canOpen(role, it.roles));
+  const items = NAV.flatMap((g) => g.items).filter((it) => !it.hidden && canOpen(role, it.roles));
   return (
     <nav aria-label="Sections" className="flex flex-col gap-1">
       {items.map((it) => {
@@ -382,7 +398,9 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
               <p className="px-2 text-[11px] leading-relaxed text-fg-4">Concept demo · fictional vehicles, owners, examiners and hubs.</p>
             </div>
           </aside>
-          <main className={`mx-auto w-full min-w-0 flex-1 px-4 py-4 lg:px-6 lg:py-2 ${wide ? "" : "max-w-[1640px]"}`}>
+          <main className={`mx-auto w-full min-w-0 flex-1 px-4 py-4 pb-24 lg:px-6 lg:py-2 lg:pb-24 ${wide ? "" : "max-w-[1640px]"}`}>
+            {/* the dashboard shows the running scenario in its own card */}
+            {guided && path !== "/" && <DemoProgressBar className="mb-4" />}
             {!user ? null : allowed ? children : (
               <div className="card card-pad mx-auto mt-10 max-w-[520px] text-center">
                 <h1 className="text-[20px] font-bold">Not available to this account</h1>
@@ -396,6 +414,7 @@ export function Shell({ children, context, wide = false }: { children: ReactNode
           </main>
         </div>
       </div>
+      {user && user.role !== "owner" && path !== "/assistant" && <AssistantDock />}
     </div>
   );
 }

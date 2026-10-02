@@ -36,6 +36,14 @@ function ReportView() {
   const kinds = Array.from(new Set(findings.map((f) => provenance(f.source).kind)));
   const nMeasures = Object.keys(d.measurements || {}).length;
   const hs = d.health?.score;
+  // who owns the vehicle decides where the result shows downstream: the owner's passport is for individual owners
+  const veh = useFetch<any>(r?.plate ? `/api/vehicles/${encodeURIComponent(r.plate)}` : null);
+  const plateQ = r ? encodeURIComponent(r.plate) : "";
+  const passport = `/mobile/vehicle?plate=${plateQ}`;
+  const individual = veh.data?.owner_type === "individual";
+  const nextHref = mine && !mine.complete ? mine.next?.href : null;
+  // the downstream record, unless a link below already goes there
+  const history = r?.history_href && r.history_href !== nextHref && !r.history_href.startsWith("/fleet/") && !(individual && r.history_href === passport) ? r.history_href : null;
   // the verification address as seen from here: the public host when the app is opened through it
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
@@ -43,7 +51,7 @@ function ReportView() {
     <Shell>
       <div className="mb-2"><Link href="/inspection?tab=reports" className="inline-flex items-center gap-1 text-[14px] text-fg-2 hover:text-cyan"><Icon name="back" size={16} />All reports</Link></div>
       <PageHeader eyebrow="Inspection Management" title="Inspection report" sub="The decision in plain words, every finding with the examiner's decision, the evidence behind it, and the QR code anyone can scan to check it."
-        actions={r && !d.synthetic && r.inspection ? <Link className="btn" href={`/inspection/${r.inspection_id}/review`}>Open the inspection</Link> : null}>
+>
         {(list.data || []).length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2" aria-label="Issued reports">
             {(list.data || []).slice(0, 10).map((x) => (
@@ -74,9 +82,12 @@ function ReportView() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <NextAction uc={mine} here="/report">{!mine ? <Link className="btn btn-primary" href={`/verify/${r.verify_token}`}>Open public verification<Icon name="arrow" size={15} /></Link> : undefined}</NextAction>
-                  {r.history_href && mine?.next?.href !== r.history_href && <Link className="btn" href={r.history_href}>{r.history_label}</Link>}
-                  {mine && <Link className="btn" href={`/verify/${r.verify_token}`}>Public verification</Link>}
+                  <NextAction uc={mine} here="/report">{!mine ? <Link className="btn btn-primary" href={`/verify/${r.verify_token}`}><Icon name="qr" size={15} />Verify by QR<Icon name="arrow" size={15} /></Link> : undefined}</NextAction>
+                  {mine && <Link className="btn" href={`/verify/${r.verify_token}`}><Icon name="qr" size={15} />Verify by QR</Link>}
+                  {nextHref?.split("?")[0] !== `/vehicles/${plateQ}` && <Link className="btn" href={`/vehicles/${plateQ}`}><Icon name="car" size={15} />Vehicle Record</Link>}
+                  {individual && nextHref !== passport && <Link className="btn" href={passport}><Icon name="owner" size={15} />Owner Passport</Link>}
+                  {history && <Link className="btn" href={history}>{r.history_label}</Link>}
+                  {!d.synthetic && r.inspection && <Link className="btn" href={`/inspection/${r.inspection_id}/review`}><Icon name="clipboard" size={15} />Open the inspection</Link>}
                   <button className="btn" onClick={() => window.print()}>Print / save as PDF</button>
                 </div>
               </section>

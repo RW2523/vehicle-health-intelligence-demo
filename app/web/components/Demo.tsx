@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ReactNode, Suspense, useEffect, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
 import { useLive } from "@/lib/live";
@@ -54,6 +55,12 @@ function subscribe(f: () => void) {
 /** The running use case with its live progress (null when none runs). */
 export function useActiveUseCase() {
   return useSyncExternalStore(subscribe, () => state, () => state);
+}
+
+const idle = () => () => {};
+/** The same, but only asking the server while `on`: a public page (no login) must not ask, or it is sent to the login. */
+export function useActiveUseCaseWhen(on: boolean) {
+  return useSyncExternalStore(on ? subscribe : idle, () => state, () => state);
 }
 
 /** Start (or restart) a use case and go to its first step. */
@@ -134,26 +141,88 @@ export function NextAction({ uc, here, children }: { uc: UseCase | null; here?: 
   return <Link className="btn btn-primary" href={n.href}>{n.cta}<Icon name="arrow" size={15} /></Link>;
 }
 
-/* ---------------------------------------------------------------- the header bar */
+/* ---------------------------------------------------------------- the header bar, the launcher, the progress bar */
+const guidedRole = (role?: string) => role === "presenter" || role === "viewer";
+
+/** The nine scenarios in a launcher: pick one and it starts at its first screen (only that scenario's own demo state
+ *  is reset). Opened from the header's Guided demo button and the progress bar. */
+export function ScenarioLauncher({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const user = useUser();
+  const { active } = useActiveUseCase();
+  const [list, setList] = useState<UseCase[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    api.get("/api/usecases").then((c) => setList(c.items)).catch(() => setList([]));
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [open, onClose]);
+  if (!open) return null;
+  const canStart = user?.role === "presenter";
+  return createPortal(
+    <div className="fade-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-3 backdrop-blur-[3px] sm:p-8" role="dialog" aria-modal="true" aria-label="Demo scenarios" onClick={onClose}>
+      <div className="w-full max-w-[1040px] rounded-3xl border border-white bg-white p-4 shadow-float sm:p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="eyebrow">Guided demo</div>
+            <h2 className="text-[24px] font-extrabold tracking-tight">Demo scenarios</h2>
+            <p className="text-[13.5px] text-fg-3">Nine end-to-end stories. Starting one resets only that scenario's own demo state and opens its first screen; a bar then shows where you are and what to do next.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link className="btn btn-sm" href="/demo" onClick={onClose}>Demo control (lane replays)</Link>
+            <button className="btn btn-sm" onClick={onClose} aria-label="Close">Close</button>
+          </div>
+        </div>
+        {!list ? <p className="py-10 text-center text-[13.5px] text-fg-3">Loading the scenarios…</p> : (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {list.map((uc) => {
+              const running = active?.id === uc.id;
+              return (
+                <li key={uc.id} className={`flex flex-col gap-2 rounded-2xl border p-3.5 ${running ? "border-blue-200 bg-blue-50/70" : "border-ink-600 bg-white"}`}>
+                  <div className="flex items-center gap-2 text-[11.5px] font-semibold">
+                    <span className="shrink-0 whitespace-nowrap rounded-md bg-blue-50 px-1.5 py-0.5 text-[#1D4ED8]">{uc.id}</span>
+                    <span className="truncate text-fg-3">{uc.plate ? `${uc.plate} · ` : ""}{uc.vehicle}</span>
+                    <span className="ml-auto shrink-0 text-fg-4">~{uc.minutes} min</span>
+                  </div>
+                  <b className="text-[14.5px] leading-snug">{uc.title}</b>
+                  <p className="line-clamp-2 text-[12.5px] text-fg-3">{uc.outcome}</p>
+                  <div className="mt-auto flex items-center gap-2 pt-1">
+                    <button className={running ? "btn btn-sm" : "btn btn-primary btn-sm"} disabled={!canStart || busy !== null}
+                      onClick={async () => { setBusy(uc.id); await startUseCase(uc.id, (h) => router.push(h)); setBusy(null); onClose(); }}>
+                      {busy === uc.id ? "Starting…" : running ? "Restart" : "Start"}
+                    </button>
+                    {running && <span className="text-[11.5px] font-semibold text-cyan">{uc.complete ? "Complete" : "Running"}</span>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {!canStart && <p className="mt-3 text-[12px] text-fg-4">Only the presenter can start a scenario; the guest viewer can follow one that is running.</p>}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function DemoBarInner() {
   const { active } = useActiveUseCase();
   const user = useUser();
-  const path = usePathname();
+  const [open, setOpen] = useState(false);
   useLive(active ? ["usecases", "inspections"] : [], () => refreshUseCase());
-  const guided = user?.role === "presenter" || user?.role === "viewer";
-  if (!guided) return null;
-  if (!active)
-    return <Link href="/demo#usecases" className="chip hidden h-11 border-white/80 bg-white/80 px-4 text-[12.5px] text-fg-2 shadow-glass hover:border-cyan/60 hover:bg-white md:inline-flex">Guided demo</Link>;
-  const n = active.next;
+  if (!guidedRole(user?.role)) return null;
+  // the header opens the scenarios; a running one's step and next action are in the progress bar under the header
   return (
-    <Link href={active.complete ? "/demo#usecases" : n?.href || "/"} title={`${active.id} ${active.title}${n ? ` · next: ${n.label}` : ""}`}
-      aria-current={n && n.href.split("#")[0] === path ? "step" : undefined}
-      className="chip h-11 max-w-[46vw] border-cyan/60 bg-cyan/10 text-fg shadow-glass hover:bg-cyan/20 sm:px-3.5 sm:text-[12.5px]">
-      <b className="text-cyan">{active.id}</b>
-      <span className="hidden text-fg-3 sm:inline">{active.complete ? "complete" : `step ${Math.min(active.done + 1, active.steps.length)}/${active.steps.length}`}</span>
-      <span className="hidden truncate lg:inline">{active.complete ? "· back to the use cases" : `· ${n?.stage}`}</span>
-      <Icon name="arrow" size={13} />
-    </Link>
+    <>
+      <button onClick={() => setOpen(true)} aria-label={active ? `Guided demo: ${active.id} running` : "Guided demo"}
+        className={`chip hidden h-11 px-4 text-[12.5px] shadow-glass md:inline-flex ${active ? "border-cyan/60 bg-cyan/10 text-fg hover:bg-cyan/20" : "border-white/80 bg-white/80 text-fg-2 hover:border-cyan/60 hover:bg-white"}`}>
+        <Icon name="play" size={13} />Guided demo
+        {active && <b className="text-cyan">{active.id}</b>}
+      </button>
+      <ScenarioLauncher open={open} onClose={() => setOpen(false)} />
+    </>
   );
 }
 
@@ -163,6 +232,49 @@ export function DemoBar() {
       <VisitTracker />
       <DemoBarInner />
     </Suspense>
+  );
+}
+
+/** While a scenario runs: which one, which step of how many, the next action and Exit demo - under every app's
+ *  header, so the presenter and the audience never lose the thread. */
+export function DemoProgressBar({ className = "" }: { className?: string }) {
+  const { active } = useActiveUseCase();
+  const user = useUser();
+  const path = usePathname();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  if (!active || !guidedRole(user?.role)) return null;
+  const n = active.next;
+  const total = active.steps.length;
+  const at = Math.min(active.done + 1, total);
+  const here = n && n.href.split("#")[0].split("?")[0] === path;
+  return (
+    <section className={`fade-in flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-blue-100 bg-white/90 px-4 py-2.5 shadow-glass backdrop-blur-xl ${className}`} aria-label="Guided demo progress">
+      <div className="flex min-w-0 max-w-full items-center gap-2.5">
+        <span className="shrink-0 rounded-lg bg-gradient-to-b from-[#3B82F6] to-[#1D4ED8] px-2 py-1 text-[11.5px] font-bold text-white">{active.id}</span>
+        <span className="min-w-0 leading-tight">
+          <b className="block truncate text-[13.5px]">{active.title}</b>
+          <span className="block truncate text-[11.5px] text-fg-3">{active.plate ? `${active.plate} · ` : ""}{active.vehicle}</span>
+        </span>
+      </div>
+      <div className="flex shrink-0 items-center gap-2.5">
+        <span className="text-[12px] font-semibold text-fg-2">{active.complete ? "Complete" : `Step ${at} of ${total}`}</span>
+        <span className="flex gap-1" aria-hidden>
+          {active.steps.map((s) => <span key={s.id} className={`h-1.5 w-3 rounded-full sm:w-4 ${s.done ? "bg-ok" : s.current ? "bg-cyan" : "bg-ink-600"}`} />)}
+        </span>
+      </div>
+      <span className="hidden min-w-0 flex-1 truncate text-[12.5px] text-fg-3 md:block">{!active.complete && n ? `Next: ${n.label}${here ? " (on this screen)" : ""}` : ""}</span>
+      <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
+        {active.complete ? (
+          <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>Run another scenario</button>
+        ) : n && !here ? (
+          <button className="btn btn-primary btn-sm" onClick={() => router.push(n.href)}>{n.cta}<Icon name="arrow" size={13} color="#fff" /></button>
+        ) : null}
+        <button className="btn btn-sm" onClick={() => setOpen(true)} aria-label="Demo scenarios">Scenarios</button>
+        {user?.role === "presenter" && <button className="btn btn-sm" onClick={() => stopUseCase()}>Exit demo</button>}
+      </div>
+      <ScenarioLauncher open={open} onClose={() => setOpen(false)} />
+    </section>
   );
 }
 

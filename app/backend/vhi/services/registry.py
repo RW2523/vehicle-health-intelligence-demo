@@ -107,10 +107,20 @@ def listing(q: str = "", vtype: str = "", fuel: str = "", state: str = "", resul
         if main:
             c = hubday.clock()
             today = {x["plate"]: x for x in hubday.day_states("BR00", c)}
+            # each vehicle's next appointment (booked or awaiting payment, from today on); today's booking of a vehicle in
+            # today's plan is that plan item (shown as "today"), not a next appointment
+            nxt: dict[str, dict] = {}
+            for b in s.execute(select(Booking).where(Booking.plate.in_(showcase.MAIN_PLATES), Booking.status.in_(("pending_payment", "confirmed")),
+                                                     Booking.date >= booking_svc.today().isoformat())
+                               .order_by(Booking.date, Booking.slot)).scalars():
+                if b.date == c["date"] and b.plate in today:
+                    continue
+                nxt.setdefault(b.plate, {"booking_id": b.booking_id, "date": b.date, "slot": b.slot, "status": b.status,
+                                         "type_label": booking_svc.TYPES.get(b.inspection_type, {}).get("label", b.inspection_type)})
             for r, v in zip(rows, vs):
                 m = showcase.BY_PLATE[v.plate]
                 t = today.get(v.plate)
-                r.update(story=m["story"], session=m["session"], lane=m["lane"], photo=_photo(v.plate), health=_health(v),
+                r.update(story=m["story"], session=m["session"], lane=m["lane"], photo=_photo(v.plate), health=_health(v), next_booking=nxt.get(v.plate),
                          today={k: t[k] for k in ("status", "lane", "arrival_at", "end_at", "result", "inspection_type", "issues")} if t else None)
                 if t and t["status"] == "completed" and (not r["latest"] or r["latest"]["source"] == "history"):
                     r["inspections"] += 1

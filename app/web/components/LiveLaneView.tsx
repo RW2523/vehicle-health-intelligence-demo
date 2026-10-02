@@ -990,7 +990,7 @@ function FindingPop({ a, station, insp, onClose, onHover, reduced }: { a: any; s
               <SeverityBadge s={sev} className="!px-1.5 !py-0 !text-[10.5px]" />
               <span className="truncate" title={`${mod ? `${mod} · ` : ""}${a.system}`}>{meta}</span>
             </span>
-            {insp && <Link href={`/inspection/${insp.inspection_id}/findings?finding=${a.alert_id}`} className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-blue-50 px-2 py-0.5 text-[12px] font-semibold text-[#1D4ED8] ring-1 ring-blue-100 hover:bg-blue-100">Open<Icon name="chev" size={13} /></Link>}
+            {insp && <Link href={`/inspection/${insp.inspection_id}/findings?finding=${a.alert_id}`} className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-blue-50 px-2 py-0.5 text-[12px] font-semibold text-[#1D4ED8] ring-1 ring-blue-100 hover:bg-blue-100">Open finding<Icon name="chev" size={13} /></Link>}
           </div>
         </div>
       </div>

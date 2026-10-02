@@ -26,9 +26,11 @@ function Metric({ value, label, color }: { value: ReactNode; label: string; colo
   );
 }
 
-/** One oversight view: what it is for, two live numbers and where they come from. */
-function AppTile({ href, icon, tone, title, sub, metrics, source, loading, error }: {
+/** One oversight view: what it is for, two live numbers, where they come from, and the one thing to do there (the
+ *  call to action at the foot; the whole tile is the link). */
+function AppTile({ href, icon, tone, title, sub, metrics, source, loading, error, cta, loadingLabel }: {
   href: string; icon: string; tone: Tone; title: string; sub: string; metrics: ReactNode; source: ReactNode; loading: boolean; error?: string | null;
+  cta: string; loadingLabel: string;
 }) {
   const t = TONE[tone];
   return (
@@ -43,12 +45,17 @@ function AppTile({ href, icon, tone, title, sub, metrics, source, loading, error
           <b className="block text-[18px] leading-tight tracking-tight">{title}</b>
           <span className="mt-0.5 block text-[13px] leading-snug text-fg-3">{sub}</span>
         </span>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/80 text-fg-3 ring-1 ring-ink-600 transition group-hover:bg-blue-50 group-hover:text-cyan"><Icon name="arrow" size={16} /></span>
       </div>
       <div className="relative mt-4 grid grid-cols-2 gap-2.5">
-        {error ? <div className="col-span-2 text-[12.5px] text-bad">Could not load: {error}</div> : loading ? <div className="col-span-2"><LoadingState label="Loading…" rows={2} /></div> : metrics}
+        {error ? (
+          <div className="col-span-2 rounded-xl border border-bad/30 bg-bad/5 px-3 py-2 text-[12.5px] leading-snug"><b className="text-bad">The numbers could not load.</b> <span className="text-fg-3">Open the view to try again ({error}).</span></div>
+        ) : loading ? <div className="col-span-2"><LoadingState label={loadingLabel} rows={2} /></div> : metrics}
       </div>
       <div className="relative mt-auto flex flex-wrap items-center gap-1.5 pt-4">{source}</div>
+      <span className="relative mt-3.5 flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-[13.5px] font-semibold transition group-hover:brightness-95"
+        style={{ background: t.bg, color: t.fg, boxShadow: `inset 0 0 0 1px ${t.ring}` }}>
+        <span className="min-w-0">{cta}</span><Icon name="arrow" size={16} />
+      </span>
     </Link>
   );
 }
@@ -108,25 +115,27 @@ export default function Overview() {
   const tiles = [
     can("/oversight/hq") && (
       <AppTile key="hq" href="/oversight/hq" icon="hq" tone="blue" title="HQ operations · Lanes" sub="Exceptions across every hub, lanes, examiner integrity, equipment and the audit."
-        loading={!X && !ops.data} error={!X ? exc.error : null}
+        loading={!X && !ops.data} error={!X ? exc.error : null} loadingLabel="Checking every hub for exceptions…"
+        cta={X && openN ? `Review ${openN} open exception${openN === 1 ? "" : "s"}` : "Open HQ operations"}
         metrics={<><Metric value={X ? openN : "…"} label="Open exceptions" color={openN ? "#DC2626" : "#059669"} /><Metric value={ops.data ? running : "…"} label={ops.data ? `Lanes running · ${lanes.length} used today` : "Lanes running"} /></>}
         source={<><Source kind="live_logic" text="Live inspections" /><Source kind="live_model" text="Exception models" /></>} />
     ),
     can("/oversight/regulator") && (
       <AppTile key="reg" href="/oversight/regulator" icon="regulator" tone="green" title="Regulator · Registrations" sub="National registrations, inspection fail rates, roadside emissions and EVs."
-        loading={!R} error={!R ? reg.error : null}
+        loading={!R} error={!R ? reg.error : null} loadingLabel="Loading registrations and fail rates…" cta="See registrations and fail rates"
         metrics={<><Metric value={R ? fmtN(R.registrations.total) : "…"} label="New registrations 2025" /><Metric value={pct(lastFail?.fail_rate, 1)} label="Fail rate, last month" color="#DC2626" /></>}
         source={<><Source kind="real" text="data.gov.my" /><Source kind="synthetic" text="Defects" /></>} />
     ),
     can("/oversight/sales") && (
       <AppTile key="sales" href="/oversight/sales" icon="sale" tone="purple" title="Used-vehicle sales" sub="Every listing with its whole record: inspections, odometer, claims, fault codes."
-        loading={!S} error={!S ? sales.error : null}
+        loading={!S} error={!S ? sales.error : null} loadingLabel="Loading the listings…" cta={S?.counts.flagged ? "Check the listings with red flags" : "Search the listings"}
         metrics={<><Metric value={S ? S.total : "…"} label={S ? `Listings · ${S.counts.car} cars, ${S.counts.motorcycle} motorcycles` : "Listings"} /><Metric value={S ? S.counts.flagged : "…"} label="With serious red flags" color="#DC2626" /></>}
         source={<Source kind="synthetic" text="Synthetic listings" />} />
     ),
     can("/oversight/flood") && (
       <AppTile key="flood" href="/oversight/flood" icon="flood" tone="sky" title="Flood watch" sub="River levels in every state, live, against the vehicles registered in each district."
-        loading={!F} error={!F ? fw.error : null}
+        loading={!F} error={!F ? fw.error : null} loadingLabel="Loading the latest river levels…"
+        cta={F?.live.to_inspect ? "Review the vehicles at risk" : "Open flood watch"}
         metrics={<><Metric value={F ? atRisk : "…"} label={F ? `Stations at warning or danger · ${F.counts.danger} danger` : "Stations at warning or danger"} color={atRisk ? "#EA580C" : "#059669"} /><Metric value={F ? fmtN(F.live.to_inspect) : "…"} label="Vehicles at risk, to inspect" color="#2563EB" /></>}
         source={<><Source kind={F?.source?.mode === "live" ? "live_feed" : "real"} text={F?.source?.mode === "live" ? "JPS live" : "JPS snapshot"} /><Source kind="synthetic" text="Vehicles" /></>} />
     ),
@@ -156,10 +165,12 @@ export default function Overview() {
           <Panel title="River levels now" sub={F ? `${F.total} JPS stations · ${F.counts.danger} danger, ${F.counts.warning} warning, ${F.counts.alert} alert` : "JPS water-level stations"}
             href="/oversight/flood" actionLabel="Open flood watch">
             <LiveMap compact label="River stations by status, live" points={points} className="h-[340px] sm:h-[400px]"
+              status={st.error && !st.data ? "River levels could not load: open flood watch to try again." : !st.data ? "Loading the latest river levels…" : null}
               legend={[{ label: "Danger", color: ST_COL.danger, shape: "pulse" }, { label: "Warning", color: ST_COL.warning, shape: "pulse" }, { label: "Alert", color: ST_COL.alert }, { label: "Normal", color: ST_COL.normal }, { label: "District at risk", color: "#EA580C", shape: "area" }]}
               overlay={<LiveBadge at={polledAt} live={F?.source?.mode === "live"} busy={st.loading} onRefresh={() => setPoll((n) => n + 1)} />} />
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {F && <Source kind={F.source.mode === "live" ? "live_feed" : "real"} text={F.source.mode === "live" ? `JPS Public InfoBanjir · ${F.source.fetched_at.slice(11, 16)}` : "Stored JPS snapshot"} />}
+              {F && F.source.mode !== "live" && <span className="text-[12px] text-warn">Live feed unavailable: showing the latest stored snapshot.</span>}
               {A.filter((a) => a.to_inspect > 0).slice(0, 4).map((a) => (
                 <span key={a.state + a.district} className="pill bg-white/80 text-[12px] text-fg-2 ring-1 ring-ink-600">{a.district} <b className="ml-1 text-cyan">{a.to_inspect}</b></span>
               ))}

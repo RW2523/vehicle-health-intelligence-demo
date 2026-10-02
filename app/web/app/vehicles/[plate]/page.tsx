@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ReactNode, Suspense, use, useEffect, useRef, useState } from "react";
 import { LineChart } from "@/components/charts";
-import { IconTile, Panel, StatusPill, Tone } from "@/components/glass";
+import { IconTile, Panel, StatusPill, TONE, Tone } from "@/components/glass";
 import { DamageMap } from "@/components/DamageMap";
 import { HealthTrends } from "@/components/HealthTrends";
 import { Icon } from "@/components/icons";
@@ -12,9 +12,12 @@ import { PhotoCreditBadge } from "@/components/Photo";
 import { Shell } from "@/components/Shell";
 import { ErrorState, LoadingState, Modal, Source } from "@/components/ui";
 import { VehicleImage } from "@/components/VehicleImage";
-import { dmy, fmtN } from "@/lib/format";
+import { useAssistantContext } from "@/lib/assistantContext";
+import { dmy, fmtN, riskColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
+import { SEVERITY, alertSeverity } from "@/lib/present";
 import { alertFinding, libraryFinding } from "@/lib/zones";
+import { dayShort, mytToday } from "@/components/appointments";
 
 const RES: Record<string, Tone> = { PASS: "green", FAIL: "red", CONDITIONAL: "amber", REFERRED: "blue", PASS_ADVISORY: "amber" };
 /** A result in the words the rest of the app uses ("Pass", "Fail", "Pass · advisory"). */
@@ -171,6 +174,102 @@ function InspectionTrends({ p }: { p: any }) {
   );
 }
 
+/** The record's contextual shortcuts: one primary action (the live inspection when one is open, else booking when
+ *  nothing is booked, else the latest report) and the others quieter. */
+function Shortcuts({ p }: { p: any }) {
+  const v = p.vehicle;
+  const li = p.live?.[0];
+  const rep = p.reports?.[0];
+  const today = mytToday();
+  const booked = (p.bookings || []).some((b: any) => ["pending_payment", "confirmed"].includes(b.status) && b.date >= today);
+  const items = [
+    li && { id: "insp", href: `/inspection/${li.inspection_id}`, icon: "clipboard", label: "Open latest inspection" },
+    rep && { id: "report", href: `/report?id=${rep.report_id}`, icon: "report", label: "View latest report" },
+    { id: "book", href: `/appointments?new=1&plate=${encodeURIComponent(v.plate)}`, icon: "calendar", label: "Book appointment" },
+    p.links?.passport && { id: "owner", href: p.links.passport, icon: "owner", label: "Open owner view" },
+    { id: "ask", href: `/assistant?plate=${encodeURIComponent(v.plate)}`, icon: "bot", label: "Ask VehicleSense AI" },
+  ].filter(Boolean) as { id: string; href: string; icon: string; label: string }[];
+  const primary = li && li.status !== "reported" ? "insp" : !booked ? "book" : rep ? "report" : "book";
+  const ordered = [...items.filter((x) => x.id === primary), ...items.filter((x) => x.id !== primary)];
+  return (
+    <div className="mt-4 flex flex-col gap-2.5">
+      <div className="flex flex-wrap gap-2">
+        {ordered.map((x) => (
+          <Link key={x.id} className={`btn ${x.id === primary ? "btn-primary" : ""}`} href={x.href}>
+            <Icon name={x.icon} size={16} color={x.id === primary ? "#fff" : undefined} />{x.label}
+          </Link>
+        ))}
+      </div>
+      {(p.links?.sale || p.links?.flood) && (
+        <nav aria-label="Elsewhere in VehicleSense" className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] font-semibold text-cyan">
+          {p.links.sale && <Link className="inline-flex items-center gap-1.5 hover:underline" href={p.links.sale}><Icon name="sale" size={15} />For sale</Link>}
+          {p.links.flood && <Link className="inline-flex items-center gap-1.5 hover:underline" href={p.links.flood}><Icon name="flood" size={15} />Flood risk</Link>}
+        </nav>
+      )}
+    </div>
+  );
+}
+
+/** One fact of the operational summary: a label, the value in large type and a line of detail; a link when there is
+ *  a screen behind it. */
+function Fact({ label, value, color, detail, href, wide = false }: { label: string; value: ReactNode; color?: string; detail?: ReactNode; href?: string; wide?: boolean }) {
+  const body = (
+    <>
+      <span className="block text-[11.5px] font-semibold uppercase tracking-[0.1em] text-fg-3">{label}</span>
+      <span className="mt-0.5 block text-[17px] font-bold leading-snug tracking-tight sm:text-[19px]" style={{ color }}>{value}</span>
+      {detail && <span className="block text-[12.5px] leading-snug text-fg-3">{detail}</span>}
+    </>
+  );
+  const cls = `block min-w-0 rounded-2xl bg-white/70 px-3.5 py-2.5 ring-1 ring-ink-600/50 ${wide ? "col-span-2 sm:col-span-1" : ""}`;
+  return href ? <Link href={href} className={`${cls} transition hover:bg-white hover:ring-blue-200`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+/** What to know before anything else: where the vehicle is today, its latest result, the risks to act on and its next
+ *  appointment, all as the API reports them. */
+function Summary({ p, row }: { p: any; row: any }) {
+  const t = p.today;
+  const latest = row?.latest;
+  const h = row?.health;
+  const today = mytToday();
+  const next = [...(p.bookings || [])].filter((b: any) => ["pending_payment", "confirmed"].includes(b.status) && b.date >= today)
+    .sort((a: any, b: any) => `${a.date} ${a.slot}`.localeCompare(`${b.date} ${b.slot}`))[0];
+  const open = (p.findings || []).filter((a: any) => a.status === "open");
+  const top = [...open].sort((a: any, b: any) => SEVERITY[alertSeverity(a)].rank - SEVERITY[alertSeverity(b)].rank)[0];
+  const risks: { text: string; color: string }[] = [];
+  if (top) risks.push({ text: `${open.length} open finding${open.length === 1 ? "" : "s"} · ${top.title}`, color: SEVERITY[alertSeverity(top)].color });
+  if (h?.attention) risks.push({ text: `${h.metric} · ${h.weeks_label} to the fail limit`, color: riskColor(h.risk) });
+  if (p.odometer?.rollback) risks.push({ text: "Odometer reading lower than on record", color: "#DC2626" });
+  const RISK_OF: Record<string, string> = { FAIL: "Failed its latest inspection", CONDITIONAL: "Conditions on its latest certificate", REFERRED: "Latest inspection referred to a senior examiner" };
+  if (!top && latest && RISK_OF[latest.result]) risks.push({ text: RISK_OF[latest.result], color: TONE[RES[latest.result] || "gray"].solid });
+  const rep = p.reports?.[0];
+  const status = t ? TODAY[t.status] : null;
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-2.5" aria-label="Summary" role="group">
+      <Fact label="Today" value={status ? status.label : "Not at the hub today"} color={status ? TONE[status.tone].fg : "#64748B"}
+        detail={t ? `${t.inspection_type} · ${t.status === "completed" ? `finished ${t.end_at}` : t.status === "in_progress" ? `lane ${t.lane}` : `arrives ${t.arrival_at}`}`
+          : h ? `Health trend: ${h.risk.toLowerCase()} risk` : rep?.health != null ? `Health score ${rep.health} in the latest lane report` : undefined} />
+      <Fact label="Latest outcome" value={latest ? resWord(latest.result) : row ? "No inspection yet" : "…"} color={latest ? TONE[RES[latest.result] || "gray"].fg : "#64748B"}
+        detail={latest ? `${latest.source === "today" ? "today" : dmy(latest.date)} · ${latest.type}` : undefined}
+        href={latest?.source === "lane" && rep ? `/report?id=${rep.report_id}` : undefined} />
+      <div className="col-span-2 min-w-0 rounded-2xl bg-white/70 px-3.5 py-2.5 ring-1 ring-ink-600/50 sm:col-span-1">
+        <span className="block text-[11.5px] font-semibold uppercase tracking-[0.1em] text-fg-3">Active risks</span>
+        {risks.length ? (
+          <ul className="mt-1 flex flex-col gap-1">
+            {risks.slice(0, 3).map((r) => (
+              <li key={r.text} className="flex min-w-0 items-start gap-2 text-[13.5px] font-semibold leading-snug">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: r.color }} aria-hidden /><span className="min-w-0">{r.text}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <span className="mt-0.5 block text-[15px] font-semibold text-fg-3">{row ? "No active risk on record" : "…"}</span>}
+      </div>
+      <Fact wide label="Next appointment" value={next ? `${next.date === today ? "Today" : dayShort(next.date)} · ${next.slot}` : "None booked"} color={next ? undefined : "#64748B"}
+        detail={next ? `${next.type_label}${next.status === "pending_payment" ? " · awaiting payment" : ""} · ${next.branch_name}` : "Book one from the actions below"}
+        href={next ? `/appointments?date=${next.date}&id=${next.booking_id}` : undefined} />
+    </div>
+  );
+}
+
 function Profile({ plate }: { plate: string }) {
   const sp = useSearchParams();
   const router = useRouter();
@@ -180,6 +279,8 @@ function Profile({ plate }: { plate: string }) {
   const [viewer, setViewer] = useState<number | null>(null);
   const [stock, setStock] = useState<any>(null);
   const p = d.data;
+  const row = (list.data?.items || []).find((x: any) => x.plate === plate) || null;
+  useAssistantContext({ plate, label: p ? `${plate} · ${p.vehicle.make} ${p.vehicle.model}` : plate });
   const setTab = (t: string) => router.replace(`/vehicles/${encodeURIComponent(plate)}${t === "overview" ? "" : `?tab=${t}`}`, { scroll: false });
   const library: LibImage[] = p?.library || [];
   return (
@@ -197,38 +298,25 @@ function Profile({ plate }: { plate: string }) {
         const v = p.vehicle;
         return (
           <>
-            <section className="card mb-5 grid grid-cols-1 gap-6 p-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-              <Gallery p={p} />
-              <div className="flex min-w-0 flex-col">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="eyebrow">Vehicle record</span>
-                  {p.today && <StatusPill tone={TODAY[p.today.status].tone} dot>{TODAY[p.today.status].label} · {p.today.status === "completed" ? p.today.end_at : p.today.status === "in_progress" ? `lane ${p.today.lane}` : p.today.arrival_at}</StatusPill>}
-                  {p.main?.session && <span className="pill bg-blue-50 text-[#1D4ED8]">Lane {p.main.lane.split("-L")[1]} replay</span>}
-                </div>
-                <h1 className="mt-1 text-[34px] font-extrabold leading-tight tracking-tight">{v.make} {v.model}</h1>
-                <div className="text-[16px] text-fg-2">{v.plate} · {v.year} · {v.vtype} · {fuelLabel(v.fuel)}</div>
-                {p.main?.story && <p className="mt-3 rounded-2xl bg-blue-50/70 px-4 py-3 text-[13.5px] leading-relaxed text-[#1E3A8A]">{p.main.story}</p>}
-                <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[13.5px] sm:grid-cols-3">
-                  <div><dt className="text-fg-3">Owner</dt><dd className="font-semibold">{v.owner_name || (p.fleet ? p.fleet.name : "Company")}</dd></div>
-                  <div><dt className="text-fg-3">Odometer</dt><dd className="font-semibold">{fmtN(v.odometer_km)} km</dd></div>
-                  <div><dt className="text-fg-3">Road tax until</dt><dd className="font-semibold">{dmy(v.mvl_expiry)}</dd></div>
-                  <div><dt className="text-fg-3">Registered in</dt><dd className="font-semibold">{v.state || "–"}</dd></div>
-                  <div><dt className="text-fg-3">Use</dt><dd className="font-semibold capitalize">{v.usage || "–"}</dd></div>
-                  <div><dt className="text-fg-3">Paint</dt><dd className="font-semibold capitalize">{p.photos?.paint || "–"}</dd></div>
-                  <div className="col-span-2 sm:col-span-3"><dt className="text-fg-3">Chassis no.</dt><dd className="break-all font-mono text-[12.5px]">{v.chassis_no}</dd></div>
-                </dl>
-                <div className="mt-auto flex flex-col gap-3 pt-5">
-                  <div className="flex flex-wrap gap-2">
-                    <Link className="btn btn-primary" href={`/appointments?new=1&plate=${encodeURIComponent(v.plate)}`}><Icon name="calendar" size={16} color="#fff" />Book appointment</Link>
-                    <Link className="btn" href={`/assistant?plate=${encodeURIComponent(v.plate)}`}><Icon name="bot" size={16} />Ask the Chat Bot</Link>
-                  </div>
-                  <nav aria-label="Elsewhere in VehicleSense" className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] font-semibold text-cyan">
-                    {p.links.passport && <Link className="inline-flex items-center gap-1.5 hover:underline" href={p.links.passport}><Icon name="owner" size={15} />Owner&apos;s app</Link>}
-                    {p.links.sale && <Link className="inline-flex items-center gap-1.5 hover:underline" href={p.links.sale}><Icon name="sale" size={15} />For sale</Link>}
-                    <Link className="inline-flex items-center gap-1.5 hover:underline" href={p.links.flood}><Icon name="flood" size={15} />Flood risk</Link>
-                  </nav>
-                </div>
+            <section className="card mb-5 grid grid-cols-1 gap-x-6 gap-y-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)]">
+              <div className="min-w-0 lg:col-start-1 lg:row-start-1"><Gallery p={p} /></div>
+              <div className="flex min-w-0 flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
+                <span className="eyebrow">Vehicle record</span>
+                <h1 className="mt-1 text-[30px] font-extrabold leading-tight tracking-tight sm:text-[34px]">{v.make} {v.model}</h1>
+                <div className="text-[15px] text-fg-2">{v.plate} · {v.year} · {v.vtype} · {fuelLabel(v.fuel)}{p.main?.session ? ` · lane ${p.main.lane.split("-L")[1]} replay` : ""}</div>
+                {p.main?.story && <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-3">{p.main.story}</p>}
+                <Summary p={p} row={row} />
+                <Shortcuts p={p} />
               </div>
+              <dl className="grid min-w-0 grid-cols-2 content-start gap-x-5 gap-y-2 border-t border-ink-600/60 pt-3 text-[12.5px] sm:grid-cols-3 lg:col-start-1 lg:row-start-2 lg:border-0 lg:pt-0" aria-label="Registration">
+                <div className="min-w-0"><dt className="text-fg-3">Owner</dt><dd className="truncate font-semibold">{v.owner_name || (p.fleet ? p.fleet.name : "Company")}</dd></div>
+                <div><dt className="text-fg-3">Odometer</dt><dd className="font-semibold">{fmtN(v.odometer_km)} km</dd></div>
+                <div><dt className="text-fg-3">Road tax until</dt><dd className="font-semibold">{dmy(v.mvl_expiry)}</dd></div>
+                <div><dt className="text-fg-3">Registered in</dt><dd className="font-semibold">{v.state || "–"}</dd></div>
+                <div><dt className="text-fg-3">Use</dt><dd className="font-semibold capitalize">{v.usage || "–"}</dd></div>
+                <div><dt className="text-fg-3">Paint</dt><dd className="font-semibold capitalize">{p.photos?.paint || "–"}</dd></div>
+                <div className="col-span-2 sm:col-span-3"><dt className="text-fg-3">Chassis no.</dt><dd className="break-all font-mono text-[12px]">{v.chassis_no}</dd></div>
+              </dl>
             </section>
             <div className="mb-5">
               <ScrollRow role="tablist" label="Record" active={tab} className="gap-1.5 rounded-full border border-white/80 bg-white/70 p-1 shadow-glass">

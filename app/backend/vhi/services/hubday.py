@@ -243,6 +243,8 @@ def _live(branch_id: str, day: str) -> list[dict]:
         reps = {r.inspection_id: r for r in s.execute(select(Report).where(
             Report.inspection_id.in_([li.inspection_id for li in rows]))).scalars()} if rows else {}
         vs = {v.plate: v for v in s.execute(select(Vehicle).where(Vehicle.plate.in_([li.plate for li in rows]))).scalars()} if rows else {}
+        from .inspection_view import findings_summary
+        fs = findings_summary(s, [li.inspection_id for li in rows])
         out = []
         for li in rows:
             v = vs.get(li.plate)
@@ -251,7 +253,8 @@ def _live(branch_id: str, day: str) -> list[dict]:
                         "plate": li.plate, "make": v.make if v else "", "model": v.model if v else "", "year": v.year if v else None,
                         "vtype": v.vtype if v else "", "fuel": v.fuel if v else "", "owner": (v.owner_name if v else "") or "Company vehicle",
                         "inspection_type": li.inspection_type, "status": li.status, "step": li.step,
-                        "health": li.health_score, "verdict": rep.verdict if rep else li.verdict,
+                        "health": li.health_score, "verdict": rep.verdict if rep else li.verdict, "route": li.route,
+                        "report_id": rep.report_id if rep else None, "findings": fs[li.inspection_id],
                         "started_at": li.started_at.replace(tzinfo=dt.timezone.utc).astimezone(tz).strftime("%H:%M")})
         return out
 

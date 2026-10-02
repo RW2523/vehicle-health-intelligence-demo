@@ -1,19 +1,44 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { ReactNode, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Agenda, ApptDetail, ApptPhoto, ApptTable, Appt, Listing, MiniMonth, NewAppointment, Options, STATUS_FILTERS, Seg, Sheet, StagePill, WeekStrip,
   addDays, dayLong, dayMonth, dayShort, isSunday, monthGrid, monthOf, mytToday, weekStart,
 } from "@/components/appointments";
-import { StatCard } from "@/components/glass";
+import { TONE, Tone } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { Shell } from "@/components/Shell";
 import { ErrorState, LoadingState, PageHeader, Source } from "@/components/ui";
 import { api } from "@/lib/api";
+import { useAssistantContext } from "@/lib/assistantContext";
 import { useUser } from "@/lib/auth";
 import { useFetch } from "@/lib/live";
 
 const WRITERS = ["presenter", "examiner", "hq", "fleet"];
+
+/** One of the five numbers on top, compact; a button that sets the view behind it. */
+function MiniStat({ icon, tone, label, value, sub, onClick, active = false, className = "" }: { icon: string; tone: Tone; label: string; value: number; sub: string; onClick: () => void; active?: boolean; className?: string }) {
+  return (
+    <button onClick={onClick} aria-pressed={active}
+      className={`card flex min-w-0 ${className} flex-col px-3.5 py-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-lg sm:px-4 sm:py-3 ${active ? "ring-2 ring-blue-200" : ""}`}>
+      <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-medium text-fg-3"><Icon name={icon} size={14} width={2.2} color={TONE[tone].solid} /><span className="truncate">{label}</span></span>
+      <b className="text-[24px] font-bold leading-tight tracking-tight">{value}</b>
+      <span className="truncate text-[12px] text-fg-4">{sub}</span>
+    </button>
+  );
+}
+
+/** The agenda or table with nothing in it: say so plainly, why, and what can be done. */
+function NoAppointments({ label, why, action }: { label: string; why: string; action?: ReactNode }) {
+  return (
+    <div className="flex min-h-[160px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-ink-500 bg-white/40 px-6 py-8 text-center" role="status">
+      <Icon name="calendar" size={30} width={1.4} color="#94A3B8" />
+      <b className="text-[16px]">No appointments for this period.</b>
+      <span className="text-[13px] text-fg-3">{label} · {why}</span>
+      {action && <div className="mt-1.5">{action}</div>}
+    </div>
+  );
+}
 
 function useWide() {
   const [wide, setWide] = useState(false);
@@ -79,6 +104,8 @@ function Appointments() {
     return () => { alive = false; };
   }, [openId, D]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useAssistantContext(detail ? { appointment_id: detail.booking_id, plate: detail.plate, label: `${detail.plate} · ${dayShort(detail.date)} ${detail.slot}` } : {});
+
   const pick = useCallback((d: string) => { setSelected(d); setMonth(monthOf(d)); }, []);
   const step = (n: number) => pick(addDays(selected, mode === "week" ? 7 * n : n));
   const shown = useMemo(() => {
@@ -125,14 +152,14 @@ function Appointments() {
 
       {L.error && !D ? <ErrorState title="The appointments could not load" onRetry={L.reload}>{L.error}</ErrorState> : (
         <>
-          <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5 [&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
-            {!st ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="card p-5"><LoadingState label="" rows={2} /></div>) : (
+          <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-6 sm:gap-3 xl:grid-cols-5">
+            {!st ? Array.from({ length: 5 }).map((_, i) => <div key={i} className={`card px-4 py-3 xl:col-span-1 ${i < 3 ? "sm:col-span-2" : i === 3 ? "sm:col-span-3" : "col-span-2 sm:col-span-3"}`}><LoadingState label={i ? "" : "Loading appointments…"} rows={2} /></div>) : (
               <>
-                <button className="rounded-2xl text-left" onClick={() => { pick(today); setMode("day"); }}><StatCard icon="calendar" tone="blue" label="Today" value={st.today} sub={dayShort(today)} /></button>
-                <button className="rounded-2xl text-left" onClick={() => { pick(today); setMode("week"); }}><StatCard icon="list" tone="purple" label="This week" value={st.week} sub={`${dayMonth(st.week_from)} – ${dayMonth(st.week_to)}`} /></button>
-                <button className="rounded-2xl text-left" onClick={() => setStatus("awaiting_payment")}><StatCard icon="wallet" tone="amber" label="Awaiting payment" value={st.awaiting_payment} sub={`RM ${Math.round(st.awaiting_payment_rm)} to collect`} /></button>
-                <button className="rounded-2xl text-left" onClick={() => { pick(today); setMode("day"); setStatus("checked_in"); }}><StatCard icon="checkc" tone="green" label="Checked in today" value={st.checked_in_today} sub={`of ${st.today} today`} /></button>
-                <button className="rounded-2xl text-left" onClick={() => setStatus("cancelled")}><StatCard icon="xc" tone="red" label="Cancelled" value={st.cancelled} sub="this week and later" /></button>
+                <MiniStat className="sm:col-span-2 xl:col-span-1" icon="calendar" tone="blue" label="Today" value={st.today} sub={dayShort(today)} onClick={() => { pick(today); setMode("day"); }} />
+                <MiniStat className="sm:col-span-2 xl:col-span-1" icon="list" tone="purple" label="This week" value={st.week} sub={`${dayMonth(st.week_from)} – ${dayMonth(st.week_to)}`} onClick={() => { pick(today); setMode("week"); }} />
+                <MiniStat className="sm:col-span-2 xl:col-span-1" icon="wallet" tone="amber" label="Awaiting payment" value={st.awaiting_payment} sub={`RM ${Math.round(st.awaiting_payment_rm)} to collect`} active={status === "awaiting_payment"} onClick={() => setStatus("awaiting_payment")} />
+                <MiniStat className="sm:col-span-3 xl:col-span-1" icon="checkc" tone="green" label="Checked in today" value={st.checked_in_today} sub={`of ${st.today} today`} active={status === "checked_in"} onClick={() => { pick(today); setMode("day"); setStatus("checked_in"); }} />
+                <MiniStat className="col-span-2 sm:col-span-3 xl:col-span-1" icon="xc" tone="red" label="Cancelled" value={st.cancelled} sub="this week and later" active={status === "cancelled"} onClick={() => setStatus("cancelled")} />
               </>
             )}
           </div>
@@ -176,20 +203,23 @@ function Appointments() {
               <div className="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                 <div className="min-w-0">
                   <h2 className="text-[18px] font-bold tracking-tight">{mode === "day" ? (selected === today ? "Today's agenda" : `Agenda · ${dayShort(selected)}`) : "The week, day by day"}</h2>
-                  <p className="text-[13px] text-fg-3">{D ? `${live} appointment${live === 1 ? "" : "s"}${shown.length > live ? ` · ${shown.length - live} cancelled` : ""}${filtered ? " · filtered" : ""}${mode === "day" && selected === today ? ` · now ${D.now}` : ""}` : "…"}</p>
+                  <p className="text-[13px] text-fg-3">{D ? `${live} appointment${live === 1 ? "" : "s"}${shown.length > live ? ` · ${shown.length - live} cancelled` : ""}${filtered ? " · filtered" : ""}${mode === "day" && selected === today ? ` · now ${D.now}` : ""}` : "Loading appointments…"}</p>
                 </div>
                 {L.loading && D && <span className="text-[12px] text-fg-4">Refreshing…</span>}
               </div>
-              {!D ? <LoadingState label="Loading the appointments…" rows={6} /> : view === "table" ? (
+              {!D ? <LoadingState label="Loading appointments…" rows={6} /> : view === "table" ? (
                 shown.length ? <ApptTable items={shown} selectedId={openId} onOpen={open} /> : (
-                  <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-ink-500 bg-white/40 px-6 py-8 text-center">
-                    <b className="text-[16px]">No appointments {mode === "day" ? `on ${dayShort(selected)}` : "this week"}</b>
-                    <span className="text-[13px] text-fg-3">{filtered ? "Nothing matches these filters." : isSunday(selected) && mode === "day" ? "The hubs are closed on Sundays." : "Nothing is booked yet."}</span>
-                    {filtered ? <button className="btn btn-sm" onClick={() => { setStatus(""); setPlate(""); setHub(""); }}>Clear filters</button> : canWrite && selected >= today && <button className="btn btn-primary btn-sm" onClick={() => book()}><Icon name="plus" size={14} />New appointment</button>}
-                  </div>
+                  <NoAppointments label={mode === "day" ? dayShort(selected) : `${dayMonth(ws)} – ${dayMonth(addDays(ws, 6))}`}
+                    why={filtered ? "Nothing matches these filters." : isSunday(selected) && mode === "day" ? "The hubs are closed on Sundays." : selected < today ? "Nothing was booked." : "Nothing is booked yet."}
+                    action={filtered ? <button className="btn btn-sm" onClick={() => { setStatus(""); setPlate(""); setHub(""); }}>Clear filters</button>
+                      : canWrite && selected >= today && !(isSunday(selected) && mode === "day") ? <button className="btn btn-sm" onClick={() => book()}><Icon name="plus" size={14} />Book a slot</button> : null} />
                 )
               ) : (
-                <Agenda mode={mode} selected={selected} today={today} now={D.now} items={shown} selectedId={openId} onOpen={open} onBook={(d) => canWrite && book(d)} />
+                mode === "week" && !shown.length ? (
+                  <NoAppointments label={`${dayMonth(ws)} – ${dayMonth(addDays(ws, 6))}`} why={filtered ? "Nothing matches these filters." : addDays(ws, 6) < today ? "Nothing was booked that week." : "Nothing is booked yet that week."}
+                    action={filtered ? <button className="btn btn-sm" onClick={() => { setStatus(""); setPlate(""); setHub(""); }}>Clear filters</button>
+                      : canWrite && addDays(ws, 6) >= today ? <button className="btn btn-sm" onClick={() => book(ws >= today ? ws : today)}><Icon name="plus" size={14} />Book a slot</button> : null} />
+                ) : <Agenda mode={mode} selected={selected} today={today} now={D.now} items={shown} selectedId={openId} onOpen={open} onBook={canWrite ? (d) => book(d) : undefined} filtered={filtered} />
               )}
             </section>
 
@@ -203,7 +233,7 @@ function Appointments() {
                   <section className="card p-5" aria-label="Month">{monthCard}</section>
                   <section className="card p-5" aria-label="Next up">
                     <h2 className="mb-2 text-[16px] font-bold">Next up</h2>
-                    {!D ? <LoadingState rows={3} /> : !upcoming.length ? <p className="text-[13px] text-fg-3">Nothing else booked in this range.</p> : (
+                    {!D ? <LoadingState rows={3} /> : !upcoming.length ? <p className="text-[13px] text-fg-3">No upcoming appointments for this period.</p> : (
                       <ul className="flex flex-col gap-2">
                         {upcoming.map((a) => (
                           <li key={a.booking_id}>

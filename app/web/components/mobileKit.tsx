@@ -4,6 +4,7 @@
    desktop too). */
 import Link from "next/link";
 import { ReactNode } from "react";
+import { PROVENANCE, provenance } from "@/lib/present";
 import { Ring, StatusPill, TONE, Tone } from "./glass";
 import { Icon } from "./icons";
 
@@ -159,12 +160,32 @@ export function MEmpty({ icon = "info", title, children, action }: { icon?: stri
   );
 }
 
-/** Loading placeholder blocks. */
-export function MSkeleton({ rows = 3, h = 64 }: { rows?: number; h?: number }) {
+/** Loading placeholder blocks, with what is loading in words ("Loading your vehicle…") when there is room. */
+export function MSkeleton({ rows = 3, h = 64, label }: { rows?: number; h?: number; label?: string }) {
   return (
-    <div className="flex flex-col gap-2.5" role="status" aria-label="Loading">
+    <div className="flex flex-col gap-2.5" role="status" aria-label={label || "Loading"}>
+      {label && <span className="flex items-center gap-2 px-1 text-[12.5px] font-medium text-slate-500"><span className="m-spin h-3.5 w-3.5 shrink-0 rounded-full border-2 border-blue-100 border-t-[#2563EB]" aria-hidden />{label}</span>}
       {Array.from({ length: rows }).map((_, i) => <div key={i} className="skeleton rounded-[20px]" style={{ height: h }} />)}
     </div>
+  );
+}
+
+/** Where something in the owner's app comes from, in plain words (the oversight and inspection apps use the formal
+ *  labels; the formal one is in the tooltip here). The colour matches the formal label's. */
+const OWNER_LABEL: Record<string, string> = {
+  live_feed: "Live", real: "Public data", live_model: "AI-assisted", live_logic: "Worked out by the app", simulated: "Simulated in the demo",
+  synthetic: "Demo data", sample: "Sample", mock: "Demo only", rnd: "Planned",
+};
+export function OwnerSource({ kind, text, className = "" }: { kind: string; text?: string; className?: string }) {
+  const { kind: k } = provenance(kind);
+  const s = PROVENANCE[k];
+  return (
+    <span className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-semibold ${className}`}
+      style={{ color: s.color, background: s.color + "12", boxShadow: `inset 0 0 0 1px ${s.color}40` }} title={`${s.label}: ${s.help}`}>
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: s.color }} aria-hidden />
+      <span className="whitespace-nowrap">{OWNER_LABEL[k]}</span>
+      {text && <span className="min-w-0 truncate font-medium text-slate-500">· {text}</span>}
+    </span>
   );
 }
 

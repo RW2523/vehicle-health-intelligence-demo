@@ -10,7 +10,7 @@ import { ROLE_HOME, User, canOpen, logout, useUser } from "@/lib/auth";
 import { APPS } from "@/lib/apps";
 import { myt } from "@/lib/format";
 import { useClock, useFetch } from "@/lib/live";
-import { DemoBar, useActiveUseCase } from "./Demo";
+import { DemoBar, DemoProgressBar, useActiveUseCase, useActiveUseCaseWhen } from "./Demo";
 import { Icon } from "./icons";
 import { AppSwitcher, Avatar, Logo, ROLE_LABEL, UserMenu, useLoginGate } from "./Shell";
 import { toast } from "./ui";
@@ -498,12 +498,18 @@ export function MobileShell(props: ShellProps) {
   const desktop = useDesktop();
   const isPublic = !!props.public;
   useLoginGate(isPublic ? undefined : user);
+  // a running guided demo keeps its progress bar above the phone, as in the other two apps
+  const guidedHere = !isPublic && (user?.role === "presenter" || user?.role === "viewer");
+  const { active } = useActiveUseCaseWhen(guidedHere);
+  const bar = guidedHere && !!active;
   return (
     <>
       <style>{CSS}</style>
       {desktop === undefined ? <div className="min-h-[100dvh]" /> : desktop ? (
-        <div className="flex min-h-[100dvh] items-center justify-center gap-8 px-4 py-6 lg:gap-14">
-          <div className="relative shrink-0" style={{ width: 414, height: "max(560px, min(868px, calc(100dvh - 48px)))" }}>
+        <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 px-4 py-6">
+        {bar && <DemoProgressBar className="w-full max-w-[1040px]" />}
+        <div className="flex items-center justify-center gap-8 lg:gap-14">
+          <div className="relative shrink-0" style={{ width: 414, height: `max(560px, min(868px, calc(100dvh - ${bar ? 124 : 48}px)))` }}>
             <span className="absolute -left-[3px] top-[118px] h-8 w-[4px] rounded-l-md bg-[#232a38]" aria-hidden />
             <span className="absolute -left-[3px] top-[172px] h-14 w-[4px] rounded-l-md bg-[#232a38]" aria-hidden />
             <span className="absolute -left-[3px] top-[238px] h-14 w-[4px] rounded-l-md bg-[#232a38]" aria-hidden />
@@ -515,6 +521,7 @@ export function MobileShell(props: ShellProps) {
             </div>
           </div>
           <SidePanel user={user} isPublic={isPublic} />
+        </div>
         </div>
       ) : (
         <div className="h-[100dvh] w-full overflow-hidden">
@@ -572,7 +579,7 @@ export function AccountSheet({ open, onClose, user, plate }: { open: boolean; on
         </div>
       )}
       <button onClick={logout} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-50 py-3 text-[14px] font-semibold text-rose-700 active:bg-rose-100">
-        <Icon name="logout" size={17} color="#BE123C" />Log out
+        <Icon name="logout" size={17} color="#BE123C" />Sign out
       </button>
     </MobileSheet>
   );

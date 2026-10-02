@@ -6,11 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Icon } from "@/components/icons";
 import { AccountSheet, MobileSheet, MobileShell, TAB_SCREEN, useMobileHref, useMobilePlate } from "@/components/MobileShell";
-import { BarButton, HealthBadge, MCard, MError, MList, MRow, MSkeleton, MTitle, Plate, Verdict, dayLabel, greeting, inDays } from "@/components/mobileKit";
-import { Booking, BOOKING_STATUS, NEWS, Update, openBookings, ownerUpdates, useBookings, usePassport, useProfile } from "@/components/mobileData";
+import { BTN, BarButton, HealthBadge, MCard, MError, MList, MRow, MSkeleton, MTitle, OwnerSource, Plate, Verdict, dayLabel, greeting, inDays } from "@/components/mobileKit";
+import { Booking, BOOKING_STATUS, NEWS, Update, latestCheck, openBookings, ownerUpdates, useBookings, usePassport, useProfile } from "@/components/mobileData";
 import { MobileVehiclePhoto, useMobilePhotos } from "@/components/mobilePhoto";
 import { StatusPill } from "@/components/glass";
-import { Source } from "@/components/ui";
 import { fmtN } from "@/lib/format";
 
 function VehicleCard({ p, href }: { p: any; href: (path: string, q?: Record<string, string>) => string }) {
@@ -78,6 +77,67 @@ function Ticket({ b, href }: { b: Booking; href: (path: string, q?: Record<strin
   );
 }
 
+/** The owner's journey with a vehicle: check it, book, check in at the lane, the inspection, the passport, selling. */
+const JOURNEY = [
+  { label: "Self-check", icon: "camera" }, { label: "Book", icon: "calendar" }, { label: "Check-in", icon: "qr" },
+  { label: "Inspection", icon: "clipboard" }, { label: "Passport", icon: "shield" }, { label: "Sell", icon: "sale" },
+];
+type Next = { at: number; title: string; sub: string; cta: string; to: string; ticket?: Booking };
+
+/** Where this vehicle is on the journey, from its bookings, self-checks, reports and listing: the one next step. */
+function nextStep(p: any, prof: any, books: Booking[] | null | undefined, href: (path: string, q?: Record<string, string>) => string): Next {
+  const open = openBookings(books);
+  const pending = open.find((b) => b.status === "pending_payment");
+  const booked = open.find((b) => b.status === "confirmed");
+  if (pending) return { at: 1, title: "Finish paying for your booking", sub: `${pending.type_label} · ${dayLabel(pending.date)} ${pending.slot} · ${pending.branch_name}`, cta: "Pay and get the check-in code", to: href("/mobile/book", { ticket: pending.booking_id }) };
+  if (booked) return { at: 2, title: "", sub: "", cta: "", to: "", ticket: booked };
+  const rep = p.latest?.source === "report" ? p.latest : null;
+  // the vehicle's latest lane inspection: in the lane or with the examiner until its report is issued
+  const lane = [...(prof?.live || [])].sort((x: any, y: any) => String(y.started_at).localeCompare(String(x.started_at)))[0];
+  if (lane && lane.status !== "reported")
+    return { at: 3, title: lane.status === "in_lane" ? "In the lane: the inspection is under way" : "The examiner is reviewing the results",
+      sub: `${lane.inspection_type || "Inspection"}. The report appears in your passport as soon as the examiner signs it off.`, cta: "Open the passport", to: href("/mobile/vehicle") };
+  const sc = latestCheck(p.events);
+  // dates are days: on the day of a self-check, a report counts as newer only when the lane inspected the car that day
+  const inspected = rep && (!sc || rep.date > sc.date || (lane?.status === "reported" && String(lane.started_at).slice(0, 10) >= sc.date));
+  if (inspected) {
+    const listing = (prof?.links?.sale || "").split("id=")[1];
+    if (listing) return { at: 5, title: `Your ${p.vehicle.model} is listed for sale`, sub: "Buyers see its whole record and can verify the latest report themselves.", cta: "See your listing", to: href("/mobile/sell", { listing }) };
+    return { at: 4, title: `${rep.kind}: ${rep.result === "PASS_ADVISORY" ? "PASS" : rep.result}`, sub: `Issued ${dayLabel(rep.date, true)}. It is in your passport, with a link anyone can use to verify it.`, cta: "Open the passport", to: href("/mobile/vehicle") };
+  }
+  if (sc && /Ready/.test(sc.title)) return { at: 1, title: "Ready for an inspection", sub: `Your self-check on ${dayLabel(sc.date, true)} found nothing to fix. Book a slot at a hub near you.`, cta: "Book an inspection", to: href("/mobile/book") };
+  const fix = (sc?.items || []).filter((x: any) => !x.ok).map((x: any) => x.item);
+  if (sc) return { at: 0, title: `Fix ${fix.length || "a few"} item${fix.length === 1 ? "" : "s"}, then check again`, sub: fix.length ? `${fix.join(", ")}: the self-check shows what to do.` : "The self-check shows what to do.", cta: "Open the self-check", to: href("/mobile/check") };
+  return { at: 0, title: "Start with a self-check", sub: "Four quick checks with your phone show what to fix before the inspection.", cta: "Start the self-check", to: href("/mobile/check") };
+}
+
+/** The journey as six steps and the next one as the screen's main button (or the booking's ticket, when booked). */
+function NextStep({ n, href }: { n: Next; href: (path: string, q?: Record<string, string>) => string }) {
+  return (
+    <MCard className="m-pop" label="Your next step">
+      <ol className="flex items-center" aria-label={`Your inspection journey: step ${n.at + 1} of ${JOURNEY.length}, ${JOURNEY[n.at].label}`}>
+        {JOURNEY.map((j, i) => (
+          <li key={j.label} className="flex flex-1 items-center last:flex-none" aria-current={i === n.at ? "step" : undefined}>
+            <span title={j.label} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${i < n.at ? "bg-emerald-500" : i === n.at ? "bg-[#2563EB] shadow-[0_0_0_4px_#DBEAFE]" : "bg-slate-100"}`}>
+              {i < n.at ? <Icon name="check" size={14} color="#fff" width={3} /> : <Icon name={j.icon} size={15} color={i === n.at ? "#fff" : "#94A3B8"} width={2} />}
+            </span>
+            <span className="sr-only">{j.label}{i < n.at ? " (done)" : i === n.at ? " (now)" : ""}</span>
+            {i < JOURNEY.length - 1 && <span className={`mx-1 h-[3px] min-w-[6px] flex-1 rounded-full ${i < n.at ? "bg-emerald-400" : "bg-slate-200"}`} aria-hidden />}
+          </li>
+        ))}
+      </ol>
+      <div className="mt-3 text-[11.5px] font-semibold uppercase tracking-wide text-[#2563EB]">Next step · {JOURNEY[n.at].label}</div>
+      {n.ticket ? <div className="mt-2"><Ticket b={n.ticket} href={href} /></div> : (
+        <>
+          <div className="mt-0.5 text-[16px] font-bold leading-snug">{n.title}</div>
+          <p className="mt-0.5 text-[13px] leading-snug text-slate-600">{n.sub}</p>
+          <Link className={`${BTN} mt-3 w-full`} href={n.to}>{n.cta}<Icon name="arrow" size={17} color="#fff" /></Link>
+        </>
+      )}
+    </MCard>
+  );
+}
+
 const ACTIONS = [
   { path: "/mobile/check", label: "Self-check", icon: "camera", from: "#EDE9FE", to: "#F5F3FF", col: "#7C3AED" },
   { path: "/mobile/book", label: "Book", icon: "calendar", from: "#DBEAFE", to: "#EFF6FF", col: "#2563EB" },
@@ -110,7 +170,6 @@ function Home() {
   const p = pass.data;
   const updates = ownerUpdates(p, prof.data, books.data, href);
   const urgent = updates.some((u) => u.tone === "red" || u.tone === "amber");
-  const next = openBookings(books.data)[0];
   const rep = prof.data?.reports?.[0];
   const cert = p?.certificates?.[0];
   const first = (p?.vehicle?.owner_name || user?.name || "").split(" ")[0];
@@ -132,9 +191,12 @@ function Home() {
             <div className="text-[14px] font-medium text-slate-500">{greeting()}{first ? "," : ""}</div>
             <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">{first || "Welcome"}</h1>
           </div>
-          {pass.error && !p ? <MError onRetry={pass.reload}>Your vehicle could not load. {pass.error}</MError> : !p ? <MSkeleton rows={1} h={300} /> : <VehicleCard p={p} href={href} />}
+          {pass.error && !p ? <MError onRetry={pass.reload}>Your vehicle could not load. {pass.error}</MError> : !p ? <MSkeleton rows={1} h={300} label="Loading your vehicle…" /> : <VehicleCard p={p} href={href} />}
 
-          {next && <div className="mt-4"><Ticket b={next} href={href} /></div>}
+          {/* the one thing to do next (the booking's ticket while one is booked) */}
+          {p && books.data && (prof.data || prof.error) ? <div className="mt-4"><NextStep n={nextStep(p, prof.data, books.data, href)} href={href} /></div>
+            : p && books.error ? <div className="mt-4"><MError onRetry={books.reload}>Your bookings could not load, so the next step is not shown. {books.error}</MError></div>
+            : p && <div className="mt-4"><MSkeleton rows={1} h={150} label="Working out your next step…" /></div>}
 
           <div className="mt-5 grid grid-cols-4 gap-2" role="navigation" aria-label="Quick actions">
             {ACTIONS.map((a) => (
@@ -149,7 +211,7 @@ function Home() {
           </div>
 
           <MTitle href={href("/mobile/vehicle")} action="Passport">Latest report</MTitle>
-          {!p ? <MSkeleton rows={1} h={120} /> : rep ? (
+          {!p ? <MSkeleton rows={1} h={120} label="Loading your latest report…" /> : rep ? (
             <MCard>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -166,7 +228,7 @@ function Home() {
                 </ul>
               ) : <p className="mt-2 text-[13px] text-slate-600">No findings: every check was within its limit.</p>}
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                <Source kind="live_model" text="Lane report" />
+                <OwnerSource kind="live_model" text="Lane report" />
                 <a href={`/verify/${rep.verify_token}`} className="-my-2.5 flex shrink-0 items-center gap-1 whitespace-nowrap py-2.5 pl-3 text-[13px] font-semibold text-[#2563EB]"><Icon name="shield" size={15} />Verify report</a>
               </div>
             </MCard>
@@ -177,17 +239,17 @@ function Home() {
                 <Verdict v={cert.result} />
               </div>
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                <Source kind="synthetic" text="Inspection history" />
+                <OwnerSource kind="synthetic" text="Inspection history" />
                 {cert.verify_token && <a href={`/verify/${cert.verify_token}`} className="-my-2.5 shrink-0 whitespace-nowrap py-2.5 pl-3 text-[13px] font-semibold text-[#2563EB]">Verify report</a>}
               </div>
             </MCard>
           ) : <MCard><p className="text-[13.5px] text-slate-600">No inspection on record yet. Book one to get a health certificate buyers can verify.</p></MCard>}
 
           <MTitle action={updates.length > 3 ? <button className="-my-2.5 py-2.5 pl-3 text-[13px] font-semibold text-[#2563EB]" onClick={() => setSheet("updates")}>See all</button> : undefined}>Updates</MTitle>
-          {!p ? <MSkeleton rows={2} /> : updates.length ? <MList label="Updates">{updates.slice(0, 3).map((u) => <UpdateRow key={u.id} u={u} />)}</MList>
+          {!p ? <MSkeleton rows={2} label="Loading your updates…" /> : updates.length ? <MList label="Updates">{updates.slice(0, 3).map((u) => <UpdateRow key={u.id} u={u} />)}</MList>
             : <MCard><p className="text-[13.5px] text-slate-600">Nothing needs your attention.</p></MCard>}
 
-          <MTitle action={<Source kind="sample" text="Owner news" />}>News</MTitle>
+          <MTitle action={<OwnerSource kind="sample" />}>News</MTitle>
           <div className="m-noscroll -mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1">
             {NEWS.map((n) => (
               <Link key={n.id} href={href(n.href || "/mobile/assistant")} className="w-[240px] shrink-0 snap-start rounded-[22px] bg-white/85 p-4 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] ring-1 ring-white active:scale-[.99]">
@@ -198,8 +260,8 @@ function Home() {
             ))}
           </div>
           <div className="mt-5 flex flex-wrap gap-1.5">
-            <Source kind="synthetic" text="Fictional vehicle and owner" />
-            <Source kind="live_logic" text="Due dates and reminders" />
+            <OwnerSource kind="synthetic" text="Fictional vehicle and owner" />
+            <OwnerSource kind="live_logic" text="Due dates and reminders" />
           </div>
         </>
       )}

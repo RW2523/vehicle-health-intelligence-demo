@@ -52,7 +52,7 @@ test.describe("Demo control", () => {
     await uc4.getByRole("button", { name: "Start" }).focus();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/inspection\/S7/, { timeout: 60_000 });
-    await expect(page.getByRole("link", { name: /UC-04/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Guided demo progress" }).getByText("UC-04", { exact: true })).toBeVisible();
   });
 
   test("the data-label legend explains every provenance label", async ({ page }) => {
@@ -82,14 +82,76 @@ test.describe("Inspector dashboard, search and the vehicle register", () => {
     await expect(page.getByText(/Today at the Central Inspection Hub/)).toBeVisible();
   });
 
-  test("the main app has exactly its seven sections, and the other two apps are one switch away", async ({ page }) => {
+  test("the main app has exactly its five sections, and the other two apps are one switch away", async ({ page }) => {
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Sections" }).first();
-    const labels = ["Dashboard", "Live Lane", "Inspection Management", "Vehicle Records", "Appointments", "Chat Bot", "Settings"];
+    const labels = ["Dashboard", "Live Lane", "Inspection Management", "Vehicle Records", "Appointments"];
     await expect(nav.getByRole("link")).toHaveText(labels);
+    await expect(nav.getByRole("link", { name: /Chat Bot|Settings|assistant/i })).toHaveCount(0);
     await page.getByRole("button", { name: "Switch app" }).click();
     const menu = page.getByRole("menu", { name: "Apps" });
     for (const a of ["VehicleSense Inspection", "VehicleSense Mobile", "VehicleSense Oversight"]) await expect(menu.getByText(a)).toBeVisible();
+  });
+
+  test("the profile menu holds the account, settings, the presenter's demo controls and sign out", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    const menu = page.getByRole("navigation", { name: "Account" });
+    for (const l of ["Profile and account", "Settings", "Demo controls", "What the data labels mean", "Sign out"])
+      await expect(menu.getByText(l, { exact: true })).toBeVisible();
+    await menu.getByRole("link", { name: "Settings" }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    await page.getByRole("navigation", { name: "Account" }).getByRole("link", { name: "Profile and account" }).click();
+    await expect(page).toHaveURL(/\/settings\?tab=account/);
+    await expect(page.getByRole("tab", { name: "Account" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    await page.getByRole("navigation", { name: "Account" }).getByRole("link", { name: "Demo controls" }).click();
+    await expect(page).toHaveURL(/\/demo$/);
+  });
+
+  test("the floating assistant opens with the screen's context, answers, closes and opens the full assistant", async ({ page }) => {
+    await page.goto("/vehicles/DMO%209006");
+    await expect(page.getByRole("heading", { name: "Perodua Myvi" })).toBeVisible();
+    await page.getByRole("button", { name: "Open the VehicleSense AI assistant" }).click();
+    const dock = page.getByRole("dialog", { name: "VehicleSense AI assistant" });
+    await expect(dock.getByText(/^Asking about DMO 9006/)).toBeVisible();
+    await expect(dock.getByRole("button", { name: "Show the history of DMO 9006" })).toBeVisible();
+    // Escape closes it and gives the focus back to the button
+    await page.keyboard.press("Escape");
+    await expect(dock).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Open the VehicleSense AI assistant" })).toBeFocused();
+    // the presenter asks about the screen: the answer is about the vehicle in view
+    await page.getByRole("button", { name: "Open the VehicleSense AI assistant" }).click();
+    await page.getByLabel("Your question").fill("Show the history");
+    const answer = page.waitForResponse((r) => r.url().includes("/api/copilot/chat"), { timeout: 120_000 });
+    await page.getByRole("button", { name: "Send" }).click();
+    expect((await (await answer).json()).vehicle).toBe("DMO 9006");
+    await expect(dock.getByText(/^Answered by/)).toBeVisible();
+    await dock.getByRole("link", { name: "Open full assistant" }).click();
+    await expect(page).toHaveURL(/\/assistant\?c=/);
+    await expect(page.getByRole("button", { name: "Open the VehicleSense AI assistant" })).toHaveCount(0);  // not on the full page
+  });
+
+  test("Guided demo opens the nine scenarios; a running one shows its progress bar until Exit demo", async ({ page, request }) => {
+    await request.post("/api/usecases/stop").catch(() => {});
+    await page.goto("/");
+    await page.getByRole("button", { name: "Guided demo" }).click();
+    const launcher = page.getByRole("dialog", { name: "Demo scenarios" });
+    for (let i = 1; i <= 9; i++) await expect(launcher.getByText(`UC-0${i}`, { exact: true })).toBeVisible();
+    await launcher.getByRole("listitem").filter({ hasText: "UC-04" }).getByRole("button", { name: "Start" }).click();
+    await expect(page).toHaveURL(/\/inspection\/S7/, { timeout: 60_000 });
+    const bar = page.getByRole("region", { name: "Guided demo progress" });
+    await expect(bar.getByText("UC-04", { exact: true })).toBeVisible();
+    await expect(bar.getByText(/^Step \d of \d$/)).toBeVisible();
+    // the bar follows the scenario into the other apps
+    await page.goto("/oversight");
+    await expect(page.getByRole("region", { name: "Guided demo progress" }).getByText("UC-04", { exact: true })).toBeVisible();
+    await page.getByRole("region", { name: "Guided demo progress" }).getByRole("button", { name: "Exit demo" }).click();
+    await expect(page.getByRole("region", { name: "Guided demo progress" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Guided demo" })).toBeVisible();
   });
 
   test("global search finds a vehicle and opens its record", async ({ page }) => {
@@ -145,7 +207,8 @@ test.describe("UC-04 clean inspection", () => {
     await expect(page.getByRole("link", { name: /Certificate issued · open report/ })).toBeVisible();
     await page.getByRole("link", { name: /Open the health passport/ }).click();
     await expect(page).toHaveURL(/\/mobile\/vehicle\?plate=DMO(%20|\+)9006/);
-    await expect(page.getByRole("link", { name: /UC-04\s*complete/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Guided demo progress" }).getByText("UC-04", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Guided demo progress" }).getByText("Complete", { exact: true })).toBeVisible();
   });
 });
 
@@ -243,7 +306,7 @@ test.describe("UC-07 HQ exceptions", () => {
     await card.getByLabel(/Note for/).fill("Pull the last 20 heavy-vehicle passes");
     await card.getByRole("button", { name: "Open an integrity review" }).click();
     await expect(card.getByText(/Integrity review opened by presenter/)).toBeVisible();
-    await expect(page.getByRole("link", { name: /UC-07\s*complete/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Guided demo progress" }).getByText("Complete", { exact: true })).toBeVisible();
     await expect(page.getByText("All records intact")).toBeVisible();
     await page.getByRole("button", { name: "Run tamper test" }).click();
     await expect(page.getByText(/Tamper detected at entry #\d+; record restored/)).toBeVisible();
@@ -466,7 +529,7 @@ test.describe("Used-vehicle sales", () => {
     await page.goto("/oversight/sales");
     await page.getByLabel("Search listings").fill("DMO 9003");
     await page.getByRole("link", { name: "DMO 9003", exact: true }).click();
-    await expect(page.getByText("Latest inspection report")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Latest inspection report" })).toBeVisible();
     await page.getByRole("button", { name: "Review the report" }).click();
     await expect(page.getByText("Odometer then")).toBeVisible();
     const verify = page.getByRole("link", { name: "Verify this report" });
@@ -474,7 +537,7 @@ test.describe("Used-vehicle sales", () => {
     await verify.click();
     await expect(page.getByText("Genuine, unaltered report")).toBeVisible();
     await expect(page.getByText("Odometer at inspection")).toBeVisible();
-    await expect(page.getByRole("link", { name: /UC-09/ })).toHaveCount(0);  // the verify page is public, no app shell
+    await expect(page.getByRole("region", { name: "Guided demo progress" })).toHaveCount(0);  // the verify page is public, no app shell
     const done = await (await request.get("/api/usecases/active")).json();
     expect(done.active.id).toBe(uc.id);
     expect(done.active.complete).toBeTruthy();
@@ -608,7 +671,8 @@ test.describe("Orientation and navigation", () => {
     await page.goto(process.env.E2E_BASE_URL ? `${process.env.E2E_BASE_URL}/` : "http://localhost:3000/");
     await page.getByRole("button", { name: "Open menu" }).click();
     const drawer = page.getByRole("dialog", { name: "Navigation" });
-    for (const s of ["Live Lane", "Appointments", "Chat Bot"]) await expect(drawer.getByRole("link", { name: s })).toBeVisible();
+    for (const s of ["Live Lane", "Appointments", "Vehicle Records"]) await expect(drawer.getByRole("link", { name: s })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: /Chat Bot|Settings/ })).toHaveCount(0);
     await drawer.getByRole("link", { name: /Oversight app/ }).click();
     await expect(page).toHaveURL(/\/oversight$/);
     await expect(page.getByRole("dialog", { name: "Navigation" })).toHaveCount(0);
@@ -662,7 +726,8 @@ test.describe("Login and roles", () => {
     await expect(page.getByRole("button", { name: "Switch app" })).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Other apps" })).toHaveCount(0);
     await page.getByRole("button", { name: /^Account:/ }).click();
-    await page.getByRole("button", { name: "Log out" }).click();
+    await expect(page.getByRole("link", { name: "Demo controls" })).toHaveCount(0);  // the presenter's only
+    await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/login/);
     await page.close();
   });

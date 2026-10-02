@@ -1,4 +1,4 @@
-"""The inspection app's Chat Bot: ask the operations copilot, and keep, list and delete the conversations of the
+"""The VehicleSense AI assistant (the full page and the floating one): ask the operations copilot, and keep, list and delete the conversations of the
 logged-in account (vhi/services/copilot.py)."""
 from __future__ import annotations
 
@@ -11,13 +11,15 @@ from .. import auth
 from ..runtime import rt
 from ..services import copilot
 
-router = APIRouter(prefix="/api/copilot", tags=["chat bot"])
+router = APIRouter(prefix="/api/copilot", tags=["assistant"])
 
 
 class ChatReq(BaseModel):
     conversation_id: str | None = None
     message: str = Field(..., max_length=2000)
     plate: str | None = None
+    # what the asker's screen shows (the floating assistant): plate, inspection_id, alert_id, lane_id, appointment_id, report_id
+    context: dict[str, str | None] | None = None
 
 
 def _who() -> str:
@@ -36,7 +38,7 @@ async def chat(req: ChatReq):
     """Answer a question from the platform's data: numbered facts with links, the answer citing them, which engine
     answered (the local LLM or the template engine), three follow-ups and the vehicle in focus."""
     return await asyncio.to_thread(copilot.chat, _who(), req.conversation_id, req.message, req.plate, rt().llm, _branch(),
-                                   auth.examiner_branch())
+                                   auth.examiner_branch(), req.context)
 
 
 @router.get("/conversations")

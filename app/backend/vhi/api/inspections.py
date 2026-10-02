@@ -64,7 +64,12 @@ def list_inspections(status: str | None = None, lane_id: str | None = None, limi
         if lane_id:
             q = q.where(LiveInspection.lane_id == lane_id)
         rows = s.execute(q.limit(limit)).scalars().all()
-        return [{k: v for k, v in _li_dict(li).items() if k not in ("results", "measurements")} for li in rows]
+        from ..services.inspection_view import findings_summary
+        fs = findings_summary(s, [li.inspection_id for li in rows])
+        reps = {r.inspection_id: r for r in s.execute(select(Report).where(Report.inspection_id.in_([li.inspection_id for li in rows]))).scalars()} if rows else {}
+        return [{**{k: v for k, v in _li_dict(li).items() if k not in ("results", "measurements")}, "findings": fs[li.inspection_id],
+                 "report_id": reps[li.inspection_id].report_id if li.inspection_id in reps else None,
+                 "report_verdict": reps[li.inspection_id].verdict if li.inspection_id in reps else None} for li in rows]
 
 
 @router.get("/latest")

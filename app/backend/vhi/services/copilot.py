@@ -1,4 +1,4 @@
-"""The inspection app's Chat Bot: an operations copilot for hub staff.
+"""The VehicleSense AI assistant (the full page and the floating one): an operations copilot for hub staff.
 
 It answers questions about the ten main vehicles, today's lanes and queue, live inspections and their findings, reports
 and certificates, appointments, vehicle history, fleet health trends and the inspection rules. Each question goes
@@ -532,6 +532,128 @@ def inspection_section(F: Facts, iid: str, s: Section, findings: int = 4) -> dic
                        + f"; {len(decided)} of {len(alerts)} findings decided.")
             s.take(F.add(txt, "verdict", f"/inspection/{iid}/review", f"Review · {li.plate}", "live_logic"))
         return {"status": li.status, "plate": li.plate, "open": len(open_)}
+
+
+# ---------------------------------------------------------------- the asker's screen (the floating assistant)
+# "this", "here", "on my screen" (but not "this week", "this month")
+HERE_RE = re.compile(r"\b(?:this|that|here|screen|current|ini|sini)\b(?!\s+(?:week|month|year|morning|afternoon|evening|minggu|bulan|tahun))"
+                     r"|\bflagged\b", re.I)
+ID_RE = re.compile(r"^[A-Za-z0-9-]{2,24}$")
+
+
+def screen_of(ctx: dict | None) -> dict:
+    """What the asker's screen shows (the ids the floating assistant sends), resolved against the records: the inspection
+    (from a finding or a report too), the finding in focus, the lane, the report, the appointment and the vehicle. Ids that
+    do not exist are dropped, so a stale or hand-made address answers nothing it should not."""
+    out: dict = {}
+    if not ctx:
+        return out
+    ids = {k: str(v).strip() for k, v in ctx.items() if v and isinstance(v, (str, int)) and ID_RE.match(str(v).strip().replace(" ", "-"))}
+    with session_scope() as s:
+        if ids.get("alert_id"):
+            a = s.get(Alert, ids["alert_id"])
+            if a is not None and (not ids.get("inspection_id") or a.inspection_id == ids["inspection_id"]):
+                out["alert"] = a.alert_id
+                ids.setdefault("inspection_id", a.inspection_id)
+        if ids.get("report_id"):
+            r = s.get(Report, ids["report_id"])
+            if r is not None:
+                out["report"], out["plate"] = r.report_id, r.plate
+                ids.setdefault("inspection_id", r.inspection_id)
+        if re.match(r"^S\d{1,2}$", ids.get("inspection_id", ""), re.I):  # a lane session's address (/inspection/S7): its newest run
+            row = s.execute(select(LiveInspection.inspection_id).where(LiveInspection.session_id == ids["inspection_id"].upper())
+                            .order_by(LiveInspection.started_at.desc()).limit(1)).first()
+            ids["inspection_id"] = row[0] if row else ""
+        if ids.get("inspection_id"):
+            li = s.get(LiveInspection, ids["inspection_id"])
+            if li is not None:
+                out["iid"], out["plate"] = li.inspection_id, li.plate
+        if ids.get("appointment_id"):
+            b = s.get(Booking, ids["appointment_id"])
+            if b is not None:
+                out["booking"] = b.booking_id
+                out.setdefault("plate", b.plate)
+        m = re.match(r"^BR\d{2}-L(\d)$", ids.get("lane_id", ""), re.I)
+        if m:
+            out["lane"] = int(m.group(1))
+    if ids.get("plate") and "plate" not in out:
+        plate = norm_plate(ids["plate"])
+        if _vehicle(plate) is not None:
+            out["plate"] = plate
+    return out
+
+
+def _evidence_line(a: Alert) -> str:
+    """What the finding's evidence actually recorded, in words (nothing that is not in the record)."""
+    ev = a.evidence or {}
+    if ev.get("dtc"):
+        d = ev["dtc"]
+        return f"The vehicle reported fault code {d.get('code')}: {d.get('description')}" + (f" ({ev['source']})" if ev.get("source") else "") + "."
+    if ev.get("pn"):
+        pn = ev["pn"]
+        return (f"Measured particle number median {_num(pn.get('median_per_cm3'))} /cm³ over {pn.get('samples')} samples, against an "
+                f"advisory limit of {_num(pn.get('limit_advisory'))} and a tamper limit of {_num(pn.get('limit_tamper'))} /cm³.")
+    if ev.get("hubs"):
+        hot = max(ev["hubs"].items(), key=lambda kv: kv[1])
+        rest = [v for k, v in ev["hubs"].items() if k != hot[0]]
+        return (f"Thermal camera: hub {hot[0]} at {hot[1]:.0f} °C" + (f", the other hubs {min(rest):.0f}–{max(rest):.0f} °C" if rest else "") + ".")
+    if ev.get("fingerprint"):
+        fp = ev["fingerprint"]
+        return f"Engine sound matched the vehicle's reference at similarity {fp.get('similarity')} against a threshold of {fp.get('threshold')}."
+    if ev.get("odometer"):
+        o = ev["odometer"]
+        return (f"Odometer read {_num(o.get('reading_km'))} km; the highest on record is {_num(o.get('max_recorded_km'))} km "
+                f"({_d(o.get('max_recorded_date'))}).")
+    if ev.get("image"):
+        im = ev["image"]
+        return f"{im.get('camera') or 'Camera'} image classified as {im.get('label') or im.get('class')}" + (f" by the {im['model']}" if im.get("model") else "") + "."
+    if ev.get("acoustic"):
+        ac = ev["acoustic"]
+        return f"{ac.get('mic') or 'Microphone'} recording classified as {((ac.get('top') or {}).get('label')) or 'abnormal'}."
+    if ev.get("flags"):
+        return "Routed for senior review because of: " + ", ".join(ev["flags"]) + "."
+    return ""
+
+
+def screen_section(F: Facts, scr: dict, branch: str) -> list[Section]:
+    """"On your screen": the finding in focus (what was observed, the evidence, why it counts), its inspection, the report
+    and the appointment the asker is looking at."""
+    out: list[Section] = []
+    if scr.get("alert"):
+        with session_scope() as ss:
+            a = ss.get(Alert, scr["alert"])
+            li = ss.get(LiveInspection, a.inspection_id) if a else None
+            if a is not None and li is not None:
+                s = Section(f"The finding on your screen, **{a.title}** on {li.plate}:", f"Penemuan pada skrin anda, **{a.title}** untuk {li.plate}:")
+                conf = f" Model confidence {a.confidence:.0%}." if a.source == "live_model" and a.confidence else ""
+                status = {"open": "awaiting the examiner's decision", "confirmed": "confirmed by the examiner",
+                          "dismissed": "dismissed by the examiner", "deferred": "recorded as an advisory"}.get(a.status, a.status)
+                s.take(F.add(f"Finding {a.alert_id} ({SEV.get(a.severity, a.severity)}, {a.system or 'general'}"
+                             f"{'; a fail item: it fails the vehicle if confirmed' if a.fail_item else ''}), {status}: {a.title}. {a.detail}{conf}",
+                             "finding", f"/inspection/{li.inspection_id}/findings?finding={a.alert_id}", f"Finding · {li.plate}",
+                             a.source if a.source in ("live_model", "live_logic", "simulated") else "live_logic"))
+                ev = _evidence_line(a)
+                if ev:
+                    s.take(F.add(f"Why it was flagged: {ev}", "measurement", f"/inspection/{li.inspection_id}/findings?finding={a.alert_id}",
+                                 f"Evidence · {li.plate}", a.source if a.source in ("live_model", "live_logic", "simulated") else "live_logic"))
+                if a.reason:
+                    s.take(F.add(f"Examiner's note on {a.alert_id}: {a.reason}", "finding", None, None, "live_logic"))
+                out.append(s)
+    if scr.get("iid"):
+        s = Section(f"The inspection on your screen, **{scr['iid']}**:", f"Pemeriksaan pada skrin anda, **{scr['iid']}**:")
+        if inspection_section(F, scr["iid"], s, findings=3 if scr.get("alert") else 4) is not None:
+            out.append(s)
+    elif scr.get("report"):
+        out += report_section(F, [scr["plate"]]) if scr.get("plate") else []
+    if scr.get("booking"):
+        with session_scope() as ss:
+            b = ss.get(Booking, scr["booking"])
+            if b is not None:
+                s = Section(f"The appointment on your screen, **{b.booking_id}**:", f"Temujanji pada skrin anda, **{b.booking_id}**:")
+                s.take(F.add(f"Appointment {b.booking_id} for {b.plate}: {b.inspection_type} at {b.branch_id} on {_d(b.date)} at {b.slot}, "
+                             f"{b.status.replace('_', ' ')}.", "booking", f"/appointments?id={b.booking_id}", f"Appointment · {b.plate}", "synthetic"))
+                out.append(s)
+    return out
 
 
 def live_section(F: Facts, plates: list[str]) -> list[Section]:
@@ -1268,9 +1390,10 @@ def _focus(rows: list[ChatMessage]) -> tuple[str | None, list[str]]:
 
 
 def chat(user: str, conversation_id: str | None, message: str, plate: str | None, llm: LLM | None, branch: str = "BR00",
-         hub_only: str | None = None) -> dict:
+         hub_only: str | None = None, context: dict | None = None) -> dict:
     """Answer one question in a conversation. `branch` is the hub "today" means; `hub_only` limits the appointments to one hub
-    (an examiner's own)."""
+    (an examiner's own). `context` is what the asker's screen shows (the floating assistant sends it): a question about
+    "this" finding, inspection, lane, report or appointment is answered about that one."""
     q = re.sub(r"\s+", " ", (message or "")).strip()[:500]
     if len(q) < 2:
         raise HTTPException(400, "Write a question first.")
@@ -1282,9 +1405,19 @@ def chat(user: str, conversation_id: str | None, message: str, plate: str | None
     chip = norm_plate(plate) if plate else None
     if chip and _vehicle(chip) is None:
         chip = None
+    scr = screen_of(context)
     named = vehicles_in(q)
     lanes = lanes_in(q)
     intents = intents_of(q, lang)
+    # the screen fills in what the question leaves out: "why was this flagged?" on a finding, "what's on this lane?",
+    # "show the history" on a vehicle; a question about the whole hub ("summarise today", "which vehicles...") stays one
+    on_screen = bool(scr) and not named and not (lanes and lanes != [scr.get("lane")]) and bool(
+        HERE_RE.search(q) or PRONOUN_RE.search(q)
+        or ((not intents or set(intents) & {"fail", "history", "report", "booking", "trend", "live"}) and not GLOBAL_RE.search(q)))
+    if on_screen:
+        chip = chip or (scr["plate"] if scr.get("plate") and _vehicle(scr["plate"]) else None)
+        if scr.get("lane") and not lanes and not scr.get("iid") and re.search(r"\b(?:lane|here|this|now)\b", q, re.I):
+            lanes = [scr["lane"]]
     if not intents and (named or lanes) and (FOLLOW_RE.search(q) or len(q.split()) <= 4) and prev_intents:
         intents = [i for i in prev_intents if i != "help"]  # "and the Civic?" asks the last question again
     plates = named or ([chip] if chip else [])
@@ -1301,7 +1434,12 @@ def chat(user: str, conversation_id: str | None, message: str, plate: str | None
     F = Facts()
     sections: list[Section] = []
     static: str | None = None
+    if on_screen and (scr.get("alert") or scr.get("iid") or scr.get("booking")) and "help" not in intents:
+        ask_which = False
     try:
+        if on_screen and "help" not in intents and not (set(intents) - {"live", "fail", "report", "booking", "guide"}) \
+                and (scr.get("alert") or scr.get("iid") or scr.get("booking") or scr.get("report")):
+            sections += screen_section(F, scr, branch)
         if "help" in intents or (not intents and not plates and not lanes and re.search(r"^\s*(?:hi|hello|hey|helo|thanks|thank you|terima kasih)\b", q, re.I)):
             static = HELP["ms" if lang == "ms" else "en"]
         elif ask_which:
@@ -1316,7 +1454,7 @@ def chat(user: str, conversation_id: str | None, message: str, plate: str | None
                     sections.append(fail_section(F, p, branch))
                 if "history" in intents:
                     sections.append(history_section(F, p))
-            if plates and "live" in intents and "fail" not in intents:
+            if plates and "live" in intents and "fail" not in intents and not (on_screen and scr.get("iid")):
                 sections += live_section(F, plates)
             if not plates and "live" in intents and not lanes:
                 sections += live_section(F, [])
@@ -1332,7 +1470,7 @@ def chat(user: str, conversation_id: str | None, message: str, plate: str | None
                 sections += trend_section(F, q, plates)
             if not plates and "fail" in intents and "today" not in intents and not lanes and "rules" not in intents:
                 sections += today_section(F, "which failed today", branch, [])
-            if plates and not sections:
+            if plates and not sections:  # (the screen's sections count: "summarise this" on an inspection is that inspection)
                 for p in plates[:2]:
                     sections.append(overview_section(F, p, branch))
             if not sections and "rules" not in intents:
@@ -1361,6 +1499,8 @@ def chat(user: str, conversation_id: str | None, message: str, plate: str | None
                 v = _vehicle(plates[0])
                 if v:
                     ctx.append(f"VEHICLE IN FOCUS: {_name(v)}" + (" (from the earlier question)" if used_focus else "") + ".")
+            if on_screen:
+                ctx.append("ON THE ASKER'S SCREEN: " + ", ".join(f"{k} {v}" for k, v in scr.items()) + ". \"This\" means these.")
             out, src = _ask_llm(llm, F, q, lang, ctx)
             if out:
                 answer, source = out, src
@@ -1369,7 +1509,7 @@ def chat(user: str, conversation_id: str | None, message: str, plate: str | None
     links = _links(F, answer)
     sugg = _suggestions(intents, plates, lang, lanes, q)
     with session_scope() as s:
-        s.add(ChatMessage(conversation=key, role="user", text=q, lang=lang[:4], source="", meta={"plate": chip}))
+        s.add(ChatMessage(conversation=key, role="user", text=q, lang=lang[:4], source="", meta={"plate": chip, "screen": scr or None}))
         s.add(ChatMessage(conversation=key, role="assistant", text=answer, lang=lang[:4], source=source[:32],
                           meta={"facts": facts, "links": links, "suggestions": sugg, "vehicle": vehicle, "intents": intents,
                                 "lanes": lanes, "focus_used": used_focus, "source": source}))

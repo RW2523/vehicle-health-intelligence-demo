@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { LineChart } from "@/components/charts";
 import { Icon } from "@/components/icons";
 import { ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
-import { NextAction, refreshUseCase, useActiveUseCase } from "@/components/Demo";
+import { refreshUseCase } from "@/components/Demo";
 import { Bar, LoadingState, Modal, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useUser } from "@/lib/auth";
@@ -15,6 +15,7 @@ import { dmy, fmtN, riskColor, scoreColor } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 import { VERDICT } from "@/lib/present";
 
+const VWORD: Record<string, string> = { PASS: "Pass", FAIL: "Fail", CONDITIONAL: "Conditional", REFERRED: "Referred", PASS_ADVISORY: "Pass · advisory" };
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const lab = (iso: string) => { const d = new Date(iso); return `${MON[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`; };
 const addMonths = (iso: string, k: number) => { const d = new Date(iso); d.setMonth(d.getMonth() + k); return d.toISOString().slice(0, 10); };
@@ -61,7 +62,6 @@ export function HealthTrends({ plate }: { plate: string }) {
   const [zoom, setZoom] = useState<any>(null);
   const [viewer, setViewer] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const { active: uc } = useActiveUseCase();
   const user = useUser();
   const canBook = user?.role === "presenter" || user?.role === "fleet";
   useEffect(() => setMetric(null), [plate]);
@@ -101,7 +101,7 @@ export function HealthTrends({ plate }: { plate: string }) {
               return (
                 <>
                   <span className="label">Latest inspection</span>
-                  <b style={{ color: VERDICT[r.verdict]?.color }}>{r.verdict}</b>
+                  <b className="text-[17px] leading-none" style={{ color: VERDICT[r.verdict]?.color }}>{VWORD[r.verdict] || r.verdict}</b>
                   <span>{r.kind} · {dmy(r.issued_at || r.created_at)}{r.health != null ? ` · health ${r.health}` : ""}</span>
                   {r.findings?.length > 0 && <span className="text-fg-3">· {r.findings.slice(0, 3).join("; ")}</span>}
                   <span className="ml-auto flex flex-wrap gap-2"><Link className="btn btn-sm" href={`/report?id=${r.report_id}`}>Report</Link><Link className="btn btn-sm" href={`/verify/${r.verify_token}`}>Verify</Link></span>
@@ -110,26 +110,26 @@ export function HealthTrends({ plate }: { plate: string }) {
             })() : d.bookings?.length ? (
               <>
                 <span className="label">Next action</span>
-                <b className="text-cyan">Inspection booked</b>
+                <b className="text-[15px] text-cyan">Inspection booked</b>
                 <span>{d.bookings[0].type_label} · {dmy(d.bookings[0].date)} {d.bookings[0].slot} · {d.bookings[0].branch_name}</span>
                 <span className="text-fg-3">· {d.bookings[0].status === "checked_in" ? "checked in at the lane" : "confirmed"}</span>
               </>
             ) : (
               <><span className="label">Next action</span><span className="min-w-0 flex-1 basis-[260px] text-fg-3">No inspection booked. The forecast below says how long this vehicle has before it reaches its fail limit.</span></>
             )}
-            {(canBook && !d.bookings?.length) || (uc?.plate === plate && (d.bookings?.length || !canBook)) ? (
+            {/* the guided demo's next step is on the demo bar above the page: one primary action here, booking */}
+            {canBook && !d.bookings?.length && (
               <span className="ml-auto flex flex-wrap items-center gap-2">
-                {canBook && !d.bookings?.length && <button className="btn btn-primary btn-sm" disabled={busy} onClick={book}>Book an inspection before the fail date<Icon name="arrow" size={14} /></button>}
-                {uc?.plate === plate && (d.bookings?.length || !canBook) ? <NextAction uc={uc} here={`/vehicles/${encodeURIComponent(plate)}`} /> : null}
+                <button className="btn btn-primary btn-sm" disabled={busy} onClick={book}>Book an inspection before the fail date<Icon name="arrow" size={14} /></button>
               </span>
-            ) : null}
+            )}
           </section>
           <section className="card mb-3 flex flex-wrap items-start gap-x-6 gap-y-3 p-4 text-[13px]">
             <div><div className="text-fg-3">Odometer</div><b className="text-[17px]">{fmtN(v.odometer_km)} km</b><div className="text-[11.5px] text-fg-3">~{fmtN(v.km_per_month)} km a month</div></div>
             <div><div className="text-fg-3">Vehicle health</div><b className="text-[17px]" style={{ color: scoreColor(d.health) }}>{d.health}%</b><div className="text-[11.5px] text-fg-3">6 subsystems</div></div>
             <div><div className="text-fg-3">Pattern</div><b className="text-[15px]" style={{ color: col }}>{m?.pattern}</b><div className="max-w-[260px] truncate text-[11.5px] text-fg-3">{m?.ratio_text}</div></div>
             <div><div className="text-fg-3">Operator</div><b className="text-[15px]">{v.operator}</b></div>
-            <span className="chip ml-auto self-center px-4 py-2 text-[14px]" style={{ borderColor: col, color: col, background: col + "1F" }}>{m?.risk} risk</span>
+            <div className="ml-auto self-center text-right"><div className="text-fg-3">Risk</div><b className="text-[20px] leading-tight" style={{ color: col }}>{m?.risk} risk</b></div>
           </section>
           <div className="mb-3 flex flex-wrap gap-1.5">
             {d.metrics.map((x: any) => (
@@ -205,7 +205,7 @@ export function HealthTrends({ plate }: { plate: string }) {
                           <td className="hidden whitespace-nowrap sm:table-cell">{dmy(c.date)}</td>
                           <td><span className="block text-[11.5px] text-fg-3 sm:hidden">{dmy(c.date)}</span><b>{c.kind}</b><div className="text-[11.5px] text-fg-3">{c.photo ? "Photo on file · " : ""}{c.note || "Scheduled"}</div></td>
                           <td className="whitespace-nowrap"><b>{c.value} {c.unit.length < 5 ? c.unit : ""}</b></td>
-                          <td><span className="chip whitespace-nowrap border-transparent" style={{ color: c.result === "Pass" ? "#047857" : c.result === "Advisory" ? "#B45309" : "#DC2626", background: c.result === "Pass" ? "rgba(5,150,105,.10)" : c.result === "Advisory" ? "rgba(217,119,6,.10)" : "rgba(220,38,38,.10)" }}>{c.result}</span></td>
+                          <td><b className="whitespace-nowrap" style={{ color: c.result === "Pass" ? "#047857" : c.result === "Advisory" ? "#B45309" : "#DC2626" }}>{c.result}</b></td>
                         </tr>
                       ))}
                     </tbody>

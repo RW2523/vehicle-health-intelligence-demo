@@ -5,7 +5,7 @@ import { Suspense, useState } from "react";
 import { Panel, StatusPill } from "@/components/glass";
 import { Icon } from "@/components/icons";
 import { ImageLibrary } from "@/components/ImageLibrary";
-import { Shell, initials } from "@/components/Shell";
+import { ROLE_LABEL, Shell, initials } from "@/components/Shell";
 import { LoadingState, PageHeader, ProvenanceLegend, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { APPS } from "@/lib/apps";
@@ -13,28 +13,45 @@ import { canOpen, logout, useUser } from "@/lib/auth";
 import { fmtN, llmLabel } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
+/* Settings, opened from the profile menu: the account, the apps and the data labels, the vehicle photos, the presenter's
+   demo settings and the live pipeline. */
 const SECTIONS = [
-  { id: "general", label: "General", icon: "user" },
-  { id: "images", label: "Images", icon: "image" },
-  { id: "demo", label: "Demo", icon: "play" },
-  { id: "system", label: "System", icon: "sliders" },
+  { id: "account", label: "Account", icon: "user", roles: ["*"] },
+  { id: "general", label: "Apps and labels", icon: "apps", roles: ["*"] },
+  { id: "images", label: "Images", icon: "image", roles: ["*"] },
+  { id: "demo", label: "Demo", icon: "play", roles: ["presenter", "hq"] },
+  { id: "system", label: "System", icon: "sliders", roles: ["*"] },
 ];
+const shown = (role: string | undefined, roles: string[]) => roles.includes("*") || (!!role && roles.includes(role));
+
+function Account() {
+  const user = useUser();
+  if (!user) return null;
+  return (
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <Panel title="Profile">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-[20px] font-bold text-white" style={{ background: "linear-gradient(135deg,#60A5FA,#1E3A8A)" }} aria-hidden>{initials(user.name)}</span>
+          <div className="min-w-0 flex-1 leading-tight">
+            <b className="block text-[18px]">{user.name}</b>
+            <span className="block text-[13.5px] text-fg-3">{user.title}</span>
+            <span className="mt-1 block text-[12.5px] text-fg-4">Role: {ROLE_LABEL[user.role] || user.role} · user name {user.username}</span>
+          </div>
+        </div>
+      </Panel>
+      <Panel title="Session">
+        <p className="text-[13.5px] text-fg-2">One demo account per role; the API checks the role on every request. Sessions last 12 hours.</p>
+        <button className="btn btn-danger mt-4" onClick={logout}><Icon name="logout" size={16} />Sign out</button>
+      </Panel>
+    </div>
+  );
+}
 
 function General() {
   const user = useUser();
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="flex flex-col gap-5">
-        <Panel title="Account">
-          {user && (
-            <div className="flex flex-wrap items-center gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-[18px] font-bold text-white" style={{ background: "linear-gradient(135deg,#60A5FA,#1E3A8A)" }} aria-hidden>{initials(user.name)}</span>
-              <div className="min-w-0 flex-1 leading-tight"><b className="block text-[17px]">{user.name}</b><span className="text-[13.5px] text-fg-3">{user.title}</span></div>
-              <button className="btn btn-danger" onClick={logout}><Icon name="logout" size={16} />Log out</button>
-            </div>
-          )}
-          <p className="mt-3 text-[12.5px] text-fg-3">One demo account per role; the API checks the role on every request. Sessions last 12 hours.</p>
-        </Panel>
         <Panel title="The VehicleSense apps" sub="Each app has its own address; the switcher in the header moves between them.">
           <div className="flex flex-col gap-2.5">
             {APPS.filter((a) => canOpen(user?.role, a.roles)).map((a) => (
@@ -69,8 +86,8 @@ function Demo() {
   };
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-      <Panel title="Guided demo" sub="Nine end-to-end use cases, each from the first screen to the verified result.">
-        <p className="mb-4 text-[13.5px] text-fg-2">Demo control starts a use case and shows its next step in the header, on whichever app the step happens: the inspection app, the mobile app or oversight. The lane replays run from there too.</p>
+      <Panel title="Guided demo" sub="Nine end-to-end scenarios, each from the first screen to the verified result.">
+        <p className="mb-4 text-[13.5px] text-fg-2">The Guided demo button in the header opens the scenarios. A running scenario shows a progress bar (step, next action, Exit demo) on whichever app the step happens: the inspection app, the mobile app or oversight. Demo control also runs the lane replays.</p>
         <Link className="btn btn-primary" href="/demo"><Icon name="play" size={15} color="#fff" />Open demo control</Link>
       </Panel>
       <Panel title="The hub's day" sub="The ten main vehicles at the Central Inspection Hub.">
@@ -112,18 +129,21 @@ function System() {
 function SettingsPage() {
   const sp = useSearchParams();
   const router = useRouter();
-  const tab = SECTIONS.some((s) => s.id === sp.get("tab")) ? sp.get("tab")! : "general";
+  const user = useUser();
+  const sections = SECTIONS.filter((s) => shown(user?.role, s.roles));
+  const tab = sections.some((s) => s.id === sp.get("tab")) ? sp.get("tab")! : "general";
   return (
     <Shell>
-      <PageHeader eyebrow="Settings" title="Settings" sub="Your account and the apps, the vehicle photos and their generation prompts, the guided demo, and the live pipeline." />
+      <PageHeader eyebrow="Settings" title="Settings" sub="Your account, the apps and data labels, the vehicle photos and their generation prompts, the guided demo, and the live pipeline." />
       <div className="mb-5 flex max-w-full gap-1.5 overflow-x-auto rounded-full border border-white/80 bg-white/70 p-1 shadow-glass sm:inline-flex" role="tablist" aria-label="Settings">
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <button key={s.id} role="tab" aria-selected={tab === s.id} onClick={() => router.replace(s.id === "general" ? "/settings" : `/settings?tab=${s.id}`, { scroll: false })}
             className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-[13.5px] font-semibold transition ${tab === s.id ? "bg-gradient-to-r from-[#3B82F6] to-[#1D4ED8] text-white shadow" : "text-fg-2 hover:bg-white"}`}>
             <Icon name={s.icon} size={16} color={tab === s.id ? "#fff" : "#475569"} />{s.label}
           </button>
         ))}
       </div>
+      {tab === "account" && <Account />}
       {tab === "general" && <General />}
       {tab === "images" && <ImageLibrary />}
       {tab === "demo" && <Demo />}
