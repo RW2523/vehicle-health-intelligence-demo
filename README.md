@@ -81,6 +81,8 @@ Open `http://<spark-host>:3000`. The web server also proxies the live WebSocket 
 
 ## The apps
 
+How the three apps fit together, screen by screen and step by step: [docs/APP_FLOW.md](docs/APP_FLOW.md).
+
 Three apps, each on its own address, in a light "glass" design. The header's app switcher moves between them for the
 accounts that open more than one. The old addresses (`/owner`, `/hq`, `/regulator`, `/sales`, `/flood`, `/fleet`,
 `/vision`) redirect to their new places, query string included.
