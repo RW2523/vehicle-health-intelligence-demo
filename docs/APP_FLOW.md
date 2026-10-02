@@ -1,6 +1,6 @@
 # VehicleSense Application Flow
 
-_As of 1 October 2026. A copy of the living doc "VehicleSense Application Flow" (Claude Docs); its two diagrams are redrawn here as Mermaid._
+_As of 2 October 2026, after the final demo UI and workflow pass. Based on the living doc "VehicleSense Application Flow" (Claude Docs, 1 October); its two diagrams are redrawn here as Mermaid._
 
 ## Overview
 
@@ -8,7 +8,7 @@ VehicleSense is one vehicle-inspection platform delivered as three apps on three
 
 | App | Address | Who uses it | What it covers |
 | --- | --- | --- | --- |
-| Inspection | `/` | Examiners, hub staff, fleet managers | Dashboard, Live Lane, Inspection Management, Vehicle Records, Appointments, Chat Bot, Settings |
+| Inspection | `/` | Examiners, hub staff, fleet managers | Dashboard, Live Lane, Inspection Management, Vehicle Records, Appointments; the floating AI assistant; Settings in the profile menu |
 | Mobile | `/mobile` | Vehicle owners | Self-check, booking with mock payment, check-in ticket, health passport, selling, assistant |
 | Oversight | `/oversight` | HQ operations, the regulator | HQ exceptions and lanes, registrations, used-vehicle sales, flood watch |
 
@@ -37,25 +37,38 @@ flowchart TD
 
 The report is the hinge: once issued and sealed in the hash chain, the passport, the vehicle record, the public QR check and the national views all show the same result.
 
+## Across all three apps
+
+The same header pieces run through the inspection and oversight apps (and, where they fit, the mobile app):
+
+- **Profile menu** (the avatar, top right): Profile and account, Settings, Demo controls (presenter only), What the data labels mean, and Sign out. Settings has the tabs Account, Apps and labels, Images, Demo (presenter and HQ) and System.
+- **Floating AI assistant**: an "Ask VehicleSense AI" button in the bottom-right corner of the inspection and oversight apps. It opens a compact panel that knows what the screen shows (the vehicle, inspection, finding, lane, appointment or report) and suggests questions that fit it, so "Why was this flagged?" on a finding is answered about that finding, with the evidence it recorded. A question about the whole hub ("Summarise today at the hub") stays a hub question. "Open full assistant" carries the conversation to `/assistant`. Every answer cites the platform records it used. Pages leave room at the bottom so the button never covers their main action.
+- **Guided demo** (presenter and guest viewer): the header's Guided demo button opens the nine demo scenarios. While one runs, a progress bar under the header shows the scenario, "Step X of Y", the next action, Scenarios and Exit demo, in all three apps (above the phone frame in the mobile app; on the dashboard as its own scenario card). See [The nine guided use cases](#the-nine-guided-use-cases).
+- **App switcher and notifications** sit beside the profile menu; global search is in the inspection app's header.
+
 ## The inspection app
 
-The inspection app has exactly seven sections in its sidebar; an examiner's day moves through them top to bottom.
+The inspection app has five sections in its sidebar; an examiner's day moves through them top to bottom. Every screen has one main action, and loading, empty and error states say what is happening ("Loading lane data…", "Waiting for vehicle…", "No active inspections.", "No appointments for this period.").
 
 | Section | Address | What happens there |
 | --- | --- | --- |
-| Dashboard | `/` | Today at the Central Inspection Hub: vehicles, completed, in progress, in queue, issues found; the four lane cards with the vehicle on each and a live progress strip; lane utilization, the queue, upcoming vehicles and recent activity |
-| Live Lane | `/lane`, `/lane?view=vision` | The lane console as it happens (the live lane view, sensors and charts) and AI vision: Undercarriage AI, Above-carriage AI and Tyre AI on captures and the image library |
-| Inspection Management | `/inspection` | Live lanes, today's schedule and issued reports; each inspection's capture, findings and final review screens |
-| Vehicle Records | `/vehicles`, `/vehicles/{plate}` | The ten vehicles with photos; per vehicle: overview with the damage map, inspection history, health trends with a fail-date forecast, photos, claims and bookings |
+| Dashboard | `/` | Today at the Central Inspection Hub in one look. On top, five compact counts (vehicles today, completed, in progress, in queue, issues found) and, during a guided demo, the running scenario with its vehicle and next step. In the middle, the four lane cards: photo, plate, inspection type, current station, progress, the most serious open finding and its severity, status, and one button (Open Inspection, Start the replay or Open vehicle). At the bottom, upcoming vehicles, the queue and recent activity |
+| Live Lane | `/lane`, `/lane?view=vision` | The lane console as it happens: the live lane view first, then what the lane has found, then the measurements and charts. AI vision runs Undercarriage AI, Above-carriage AI and Tyre AI on captures and the image library |
+| Inspection Management | `/inspection` | Status tabs with counts: In Progress, Awaiting Examiner, Awaiting Senior Review, Completed, Failed / Reinspection. It opens on the most relevant one. Each row shows the vehicle, lane, "N of M findings decided" and the top finding, with one action: Continue, Review findings, Senior review or View Report. Today's schedule, issued reports and the lane replays are quieter tabs and sections |
+| Vehicle Records | `/vehicles`, `/vehicles/{plate}` | The ten vehicles as cards: health, latest outcome, active risk, next inspection and Open vehicle. A vehicle opens on its summary (today, latest outcome, active risks, next appointment) with shortcuts to the latest inspection and report, booking, the owner's view and the assistant; then the overview with the damage map, inspection history, health trends with a fail-date forecast, photos, claims and bookings |
 | Appointments | `/appointments` | Calendar and agenda; book, reschedule, cancel, mark paid (mock) and check in with a QR code |
-| Chat Bot | `/assistant` | The operations assistant: answers on vehicles, lanes, findings, reports, appointments and rules, citing the platform data it used, in English or Malay |
-| Settings | `/settings` | Account and apps, the image library with generation prompts and uploads, demo control and restarting the hub's day, pipeline status |
+
+The full assistant (`/assistant`) and Settings (`/settings`) are pages too, reached from the floating assistant and the profile menu.
 
 The hub's day is a plan of the ten vehicles on four lanes, laid against the clock. The four lane-replay vehicles wait on their lanes, ready, until their replay is started from the lane card or Demo control.
 
 ## Inspection workflow in detail
 
 An inspection moves through three screens — Capture and checklist (`/inspection/{id}`), Defect Review and Findings (`/inspection/{id}/findings`), Final Review and Approval (`/inspection/{id}/review`) — and no certificate is issued while a critical finding is undecided.
+
+- **Capture**: a "Next step" card holds the screen's one main button: Watch the lane while it runs, Review findings once findings are open, Go to final review when all are decided, View report once issued. A link under the plate opens the vehicle record.
+- **Findings**: one finding at a time, most critical first. The selected finding shows why it was flagged, the observed result, the threshold or reference, the evidence, its source and module, and a previous trend only where the vehicle's history has that measurement. A progress card reads "N of M findings decided"; the final-review button stays disabled ("Decide K critical findings first") until every critical finding is decided.
+- **Final review**: a summary card with the vehicle, time, health score, outcome, key findings, examiner and report status, and one dominant Issue button. Once issued, a success panel offers View Report, Verify by QR, View Vehicle Record, Open Owner Passport, Send Report to Owner, Finish Inspection and, during a guided demo, Continue Demo. For a FAIL, Schedule Reinspection is the main button. The hash chain and data sources sit in a folded "Proof" section.
 
 ```mermaid
 flowchart TD
@@ -81,7 +94,7 @@ Two views show the examiner where a vehicle is and where its problems are.
 - The lane is drawn as an inspection-hall floor with its stations: check-in and identity, emissions and OBD (EV battery and OBD for an EV), brakes, suspension and side slip, lamps and tint, underbody and tyre AI, body and cabin AI, then the examiner and the report.
 - The vehicle's photo glides from station to station on the replay clock; Pause and speed (up to 4×) control it.
 - The current station shows its readings counting up: brake force per wheel, particle number, OBD values, instruments, a scanning animation while the AI modules run.
-- New findings slide in as pop-ups with severity, station, module and confidence, an evidence thumbnail and Open; each station keeps a count of its findings.
+- New findings slide in as pop-ups with the finding, its severity, station and module, an evidence thumbnail and Open finding; a confidence appears only when a model actually produced one. "Why was this flagged?" is answered on the finding's own page. Each station keeps a count of its findings.
 
 **Damage map** (findings page, capture screen, each vehicle record):
 
@@ -94,7 +107,7 @@ Two views show the examiner where a vehicle is and where its problems are.
 
 The mobile app takes an owner from "is my car ready?" to a certificate in their passport. On a desktop it shows in a phone frame with a persona switcher for the presenter; on a phone it is full screen with five tabs: Home, Vehicle, Check, Book, Assistant.
 
-1. **Home** (`/mobile`): the vehicle card with its photo, health, next inspection due and road-tax expiry; the active booking ticket; the latest report; updates.
+1. **Home** (`/mobile`): the vehicle card with its photo, health, next inspection due and road-tax expiry; a "Next step" card that shows the owner's journey (Self-check, Book, Check-in, Inspection, Passport, Sell) and the one thing to do now, with the booking ticket inside it once booked; the latest report; updates.
 2. **Self-check** (`/mobile/check`): a guided check of window tint, headlamps, tyre photos and the engine sound. A first run may say "Fix these first"; after fixing, "Ready for inspection".
 3. **Book** (`/mobile/book`): pick a hub, a nearby free slot and the inspection type, then pay (FPX or card, mock). The ticket carries a QR code and a check-in code; bookings can be rescheduled or cancelled.
 4. **Check-in**: at the lane the plate camera reads the plate and checks the booking in; staff can also check it in from Appointments. The public check-in page is `/checkin/{token}`.
@@ -102,18 +115,18 @@ The mobile app takes an owner from "is my car ready?" to a certificate in their 
 6. **Passport** (`/mobile/vehicle`): the new certificate joins the history, odometer and reports; anyone can confirm a report by scanning its QR code (`/verify/{token}`, no login).
 7. **Sell** (`/mobile/sell`): list the vehicle with its whole record; buyers see the red flags and can verify the latest report.
 
-The assistant (`/mobile/assistant`) answers owners' questions in English or Malay at any step.
+The assistant (`/mobile/assistant`) answers owners' questions in English or Malay at any step. The owner's app speaks plainly: no model names or raw confidence numbers, and data labels in everyday words ("AI-assisted", "Demo data", "Simulated in the demo"), with the formal label in the tooltip.
 
 ## Oversight app flow
 
-Oversight is the national view: it starts on an overview with one live tile per section and a river-level map, and each tile opens its section.
+Oversight is the national view: it starts on an overview with one live tile per section (each ending in its next action, such as "Review N open exceptions") and a river-level map, and each tile opens its section. Each workflow shows its steps on screen, with the current one highlighted; maps and charts support the action rather than lead. When the live feed is unavailable, the page says so and shows the latest stored snapshot.
 
 | Section | Address | The flow |
 | --- | --- | --- |
-| HQ operations · Lanes | `/oversight/hq` | Open exceptions (examiner integrity, lane equipment health, demand against lane capacity) → drill into the evidence → record an action, which is hash-chained → the exception shows as handled. Also lanes and hubs on a map, the demand forecast from today, the audit chain and its tamper test |
+| HQ operations · Lanes | `/oversight/hq` | Steps on every exception: Open exception → Review evidence → Record action → Mark handled. Exceptions cover examiner integrity, lane equipment health and demand against lane capacity; Record action is the main button and the action is hash-chained. Also lanes and hubs on a map, the demand forecast from today, the audit chain and its tamper test |
 | Regulator · Registrations | `/oversight/regulator` | Registrations from public data, inspection fail rates and top defects, high-emitter hits and roadside sites on a map |
-| Used-vehicle sales | `/oversight/sales` | Search listings → open a vehicle's whole record (inspections, odometer, claims, fault codes, red flags, next-test risk) → review the latest report → verify it by QR without a login |
-| Flood watch | `/oversight/flood` | Live river levels on a map that refreshes every 45 s → districts and vehicles at risk with their reasons → invite an owner for a flood-damage inspection (mock) → the inspection's result shows back on the vehicle. Past flood events can be replayed as views |
+| Used-vehicle sales | `/oversight/sales` | Search → Vehicle record → Red flags/history → Latest report → Public verification. A vehicle's whole record shows inspections, odometer, claims, fault codes, red flags and next-test risk; "Verify this report" opens the public QR page, no login |
+| Flood watch | `/oversight/flood` | Select risk area/vehicle → Review reasons → Invite for inspection (mock) → View inspection result. Live river levels on a map that refreshes every 45 s; the selected vehicle's main button is Invite for inspection, then View inspection result, with links to its latest inspection and vehicle record. Past flood events can be replayed as views |
 
 HQ opens all four sections; the regulator opens all but HQ operations.
 
@@ -128,7 +141,7 @@ Every result travels the same path, from a lane sensor to a report anyone can ve
 5. **The report** is issued with its verdict and certificate, sealed in a SHA-256 hash chain, with a QR code for public verification.
 6. **Downstream**: the vehicle record, the owner's passport, the fleet's health trends and oversight all show the result.
 
-Every panel says how its content is produced:
+Every panel says how its content is produced, with a small grey tag and a coloured dot that never competes with a severity, an outcome or a button (crowded screens keep the detail in the tooltip):
 
 | Label | Meaning |
 | --- | --- |
@@ -144,7 +157,7 @@ Every panel says how its content is produced:
 
 ## The nine guided use cases
 
-Demo control (`/demo`, or Settings → Demo) starts any of nine end-to-end stories; the header then shows the next step, on whichever app it happens.
+The Guided demo button in the header opens the nine scenarios (Demo control at `/demo` lists them too, with the lane replays). Starting one resets only that scenario's own demo state and opens its first screen; the progress bar then shows the step, the next action and Exit demo, on whichever app the step happens.
 
 | Use case | Vehicle | Apps it runs through | Outcome |
 | --- | --- | --- | --- |
@@ -169,8 +182,21 @@ Each demo account lands in its own app; the server checks the role on every requ
 | Priya Hassan | Senior examiner | `/` | As the examiner, plus senior sign-off on referred cases |
 | Operations manager | HQ | `/oversight/hq` | All of oversight and the inspection app |
 | Regulator officer | Regulator | `/oversight/regulator` | Regulator, sales and flood watch; inspection reports and vehicle records |
-| Fleet manager | Fleet | `/vehicles` | Vehicle Records with health trends, Appointments, Chat Bot |
+| Fleet manager | Fleet | `/vehicles` | Vehicle Records with health trends, Appointments, the AI assistant |
 | Nurul Aina | Vehicle owner (DMO 9006) | `/mobile` | The mobile app for her own vehicle |
 | Guest viewer | Read only | `/` | Every app to look at; no changes |
 
 Public pages need no login: the booking check-in page `/checkin/{token}` and report verification `/verify/{token}`.
+
+## Links between the apps
+
+Each result leads on to the next place it matters:
+
+| From | To |
+| --- | --- |
+| An inspection (capture, review) | The vehicle record |
+| A report or the final review | The owner's passport, the public QR verification, the vehicle record |
+| A vehicle record | Its latest inspection and report, booking an appointment, the owner's view |
+| A fleet vehicle's risk (health trends) | Booking an inspection before its fail date |
+| A flood-risk vehicle | Its latest inspection and vehicle record |
+| A used-vehicle listing | The vehicle record and the public verification |
