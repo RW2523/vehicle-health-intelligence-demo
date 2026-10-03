@@ -7,5 +7,6 @@
  "side_slip_m_per_km": 1.4,
  "headlamp_dev_pct": 0.8,
  "tint_vlt_pct": 70,
- "adas_self_test": "advisory only"
+ "adas_self_test": "advisory only",
+ "speedo_kmh_at_40": 41
 }

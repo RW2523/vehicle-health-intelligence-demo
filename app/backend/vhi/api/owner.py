@@ -7,6 +7,7 @@ import datetime as dt
 import hashlib
 import json
 import re
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -50,10 +51,14 @@ class ChatReq(BaseModel):
 
 class SelfCheckReq(BaseModel):
     plate: str
+    # the rear number-plate photo (GET /self-check/plate-photo): "clean", or "dirty" for the demo's muddy, faded plate
+    plate_photo: Literal["clean", "dirty"] | None = None
     tint_vlt_pct: float | None = None
     headlamp_left: str | None = None
     headlamp_right: str | None = None
     tyre_images: list[str] = []
+    # the guided brake test, the owner's yes/no answers: safe_place, warning_light, pedal, straight, quiet, handbrake
+    brakes: dict[str, bool] | None = None
     engine_audio: str | None = None
 
 
@@ -205,14 +210,29 @@ def chat_history(conversation: str):
 
 @router.get("/self-check/script")
 def self_check_script():
-    """The S6 scripted attempts (tyre photos and engine clip are real curated media)."""
+    """The S6 scripted attempts (tyre photos and engine clip are real curated media). The first has the number plate
+    muddy and faded, the tint too dark and the left headlamp out; the second has them put right. The brake test is
+    answered "all fine" in both."""
     meta = json.loads((rt().settings.sessions_dir / "S6.json").read_text())
     sc, media = meta["self_check"], meta["media"]
-    def attempt(a):
-        return {"tint_vlt_pct": a["tint_vlt_pct"], "headlamp_left": "ok" if a["headlamp_left"] == "ok" else "not working",
-                "headlamp_right": "ok", "tyre_images": media["tyre_images"], "engine_audio": media["audio"][0]}
-    return {"plate": meta["vehicle"]["plate"], "first_attempt": attempt(sc["first_attempt"]),
-            "second_attempt": attempt(sc["second_attempt"]), "assistant_script": meta["assistant_script"]}
+    brakes = {k: True for k in ("safe_place", *(c[0] for c in insights.BRAKE_CHECKS))}
+
+    def attempt(a, plate_photo):
+        return {"plate_photo": plate_photo, "tint_vlt_pct": a["tint_vlt_pct"],
+                "headlamp_left": "ok" if a["headlamp_left"] == "ok" else "not working", "headlamp_right": "ok",
+                "tyre_images": media["tyre_images"], "brakes": brakes, "engine_audio": media["audio"][0]}
+    return {"plate": meta["vehicle"]["plate"], "first_attempt": attempt(sc["first_attempt"], "dirty"),
+            "second_attempt": attempt(sc["second_attempt"], "clean"), "assistant_script": meta["assistant_script"]}
+
+
+@router.get("/self-check/plate-photo")
+async def self_check_plate_photo(plate: str):
+    """The vehicle's rear number-plate photo for the self-check, clean and with the plate muddy and faded (the demo
+    control): the photo uploaded for its image slot "<slug>.plate" (source "uploaded") or a rendered sample."""
+    vehicle_or_404(auth.own_plate(plate))
+    p = norm_plate(plate)
+    clean, dirty = await asyncio.to_thread(lambda: (insights.plate_photo(p), insights.plate_photo(p, dirty=True)))
+    return {"plate": p, "source": clean["source"], "clean": clean["url"], "dirty": dirty["url"]}
 
 
 @router.post("/self-check")

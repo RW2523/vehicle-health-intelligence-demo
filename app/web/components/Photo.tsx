@@ -10,13 +10,13 @@ export type Photo = {
   url: string;
   url_960: string;
   url_480: string;
-  /** "Photo: Jane Doe · CC BY-SA 4.0 · Wikimedia Commons", or "Your upload" */
+  /** "Photo: Jane Doe · CC BY-SA 4.0 · Wikimedia Commons", "Your upload" or "Generated image for the demo" */
   credit: string;
   author?: string | null;
   license?: string | null;
   license_url?: string | null;
   page_url?: string | null;
-  kind: "stock" | "uploaded";
+  kind: "stock" | "uploaded" | "generated";
   view: string;
   label: string;
   /** a photo of the model, not of the actual vehicle */

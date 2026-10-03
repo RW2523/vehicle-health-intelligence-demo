@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
-from .. import terms
+from .. import lane, terms
 from ..config import get_settings
 from ..db import session_scope
 from ..tables import Booking, Branch, EvidenceEntry, LiveInspection, Report, Setting, Vehicle
@@ -298,8 +298,7 @@ def day_states(branch_id: str = "BR00", c: dict | None = None) -> list[dict]:
     return items
 
 
-STEPS = ["check_in_anpr", "identity_ocr", "emission_idle_rev", "brake_roller", "suspension", "side_slip", "headlamp_tint",
-         "undercarriage_ai", "above_carriage_ai", "examiner_review", "report"]
+STEPS = lane.STEPS
 
 
 def today(branch_id: str = "BR00", at: str | None = None) -> dict:

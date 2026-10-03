@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from PIL import Image
 from sqlalchemy import select
 
+from .. import lane
 from ..db import session_scope
 from ..ml.vision import annotate
 from ..pipeline.processor import alert_dict
@@ -23,22 +24,23 @@ from . import booking as booking_svc
 from . import evidence
 from . import inspection_systems as systems
 
-STEPS = ["check_in_anpr", "identity_ocr", "emission_idle_rev", "brake_roller", "suspension", "side_slip", "headlamp_tint",
-         "undercarriage_ai", "above_carriage_ai", "examiner_review", "report"]
+STEPS = lane.STEPS
 
-# id, label, icon, the lane steps that measure it, the finding codes that belong to it
+# The checklist follows the lane's ten stations in order (vhi/lane.py): id, label, icon, the lane steps that measure
+# it, the finding codes that belong to it. An EV has "EV battery & high voltage" in place of Emission.
 ITEMS = [
-    ("identification", "Vehicle identification", "car", ["check_in_anpr", "identity_ocr"], ("anpr:", "identity:", "route:")),
-    ("exterior", "Exterior condition", "car", ["above_carriage_ai"], ("body:", "capture:front", "capture:rear", "capture:left", "capture:right")),
-    ("lighting", "Lighting system", "lamp", ["headlamp_tint"], ("headlamp",)),
-    ("braking", "Braking system", "brake", ["brake_roller"], ("brake:", "thermal:A")),
-    ("suspension", "Suspension & steering", "spring", ["suspension", "side_slip"], ("suspension", "acoustic:wheel_bearing")),
-    ("tyres", "Tyres & wheels", "tyre", ["undercarriage_ai"], ("tyre:", "capture:tyre")),
-    ("emissions", "Emissions", "smoke", ["emission_idle_rev"], ("pn:", "emissions:")),
-    ("engine", "Engine & diagnostics", "oil", ["emission_idle_rev"], ("dtc:", "acoustic:")),
-    ("underbody", "Underbody", "rust", ["undercarriage_ai"], ("corrosion:undercarriage", "capture:underbody")),
-    ("interior", "Interior & safety", "cam", ["headlamp_tint", "above_carriage_ai"], ("tint", "corrosion:cabin", "capture:interior", "flood")),
+    ("identification", "Identification", "car", ["check_in_anpr", "identity_ocr"], ("anpr:", "identity:", "route:")),
+    ("above_carriage", "Above-carriage", "car", ["above_carriage_ai"],
+     ("body:", "capture:front", "capture:rear", "capture:left", "capture:right", "capture:interior", "corrosion:cabin", "flood")),
+    ("tinted_glass", "Tinted glass", "cam", ["tinted_glass"], ("tint",)),
+    ("emission", "Emission", "smoke", ["emission_idle_rev"], ("pn:", "emissions:", "dtc:", "acoustic:")),
     ("ev", "EV battery & high voltage", "batt", ["emission_idle_rev"], ("ev:", "thermal:pack")),
+    ("side_slip", "Side slip", "steering", ["side_slip"], ("side_slip",)),
+    ("suspension", "Suspension", "spring", ["suspension"], ("suspension", "acoustic:wheel_bearing")),
+    ("brake", "Brake", "brake", ["brake_roller"], ("brake:", "thermal:A")),
+    ("undercarriage", "Undercarriage", "rust", ["undercarriage_ai"], ("corrosion:undercarriage", "capture:underbody", "tyre:", "capture:tyre")),
+    ("speedometer", "Speedometer", "gauge", ["speedometer"], ("speedo",)),
+    ("headlight", "Headlight alignment", "lamp", ["headlight_alignment"], ("headlamp",)),
     ("final", "Final review", "check", ["examiner_review"], ()),
 ]
 VIEWS = {  # camera view -> AI module and model task
@@ -55,8 +57,8 @@ def _item_of(code: str, ev: bool) -> str:
         return "suspension"
     for iid, _, _, _, codes in ITEMS:
         if any(code.startswith(c) for c in codes):
-            return iid
-    return "engine"
+            return "ev" if iid == "emission" and ev else iid  # an EV's fault codes belong with its battery checks
+    return "ev" if ev else "emission"
 
 
 def checklist(li: dict, alerts: list[dict]) -> dict:
@@ -70,7 +72,7 @@ def checklist(li: dict, alerts: list[dict]) -> dict:
     for iid, label, icon, steps, _ in ITEMS:
         if iid == "ev" and not ev:
             continue
-        if iid == "emissions" and ev:
+        if iid == "emission" and ev:
             continue
         found = by_item.get(iid, [])
         first, last = min(STEPS.index(s) for s in steps), max(STEPS.index(s) for s in steps)

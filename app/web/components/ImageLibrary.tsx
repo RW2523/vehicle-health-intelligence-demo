@@ -18,7 +18,7 @@ type Group = {
   group: string; plate: string | null; make: string | null; model: string | null; year: number | null; vtype: string | null;
   paint: string | null; paint_hex: string | null; title: string;
 };
-type Status = "all" | "missing" | "uploaded" | "stock";
+type Status = "all" | "missing" | "uploaded" | "generated" | "stock";
 
 const EDIT_ROLES = ["presenter", "hq"];
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -30,7 +30,10 @@ const frameFor = (a: string): CSSProperties => {
   const wide = w / h >= 4 / 3;
   return { aspectRatio: `${w} / ${h}`, width: wide ? "88%" : "auto", height: wide ? "auto" : "84%" };
 };
-const state = (s: Slot): Exclude<Status, "all"> => (s.uploaded ? "uploaded" : s.current ? "stock" : "missing");
+const state = (s: Slot): Exclude<Status, "all"> =>
+  s.uploaded ? "uploaded" : s.current?.kind === "generated" ? "generated" : s.current ? "stock" : "missing";
+/** What reverting an upload goes back to: the slot's generated image or its stock photo. */
+const builtin = (s: Slot) => (s.stock?.kind === "generated" ? "generated image" : "stock photo");
 
 async function copyText(text: string) {
   try {
@@ -85,6 +88,7 @@ async function removeUpload(slotId: string): Promise<Slot> {
 function Badge({ s }: { s: Slot }) {
   const st = state(s);
   if (st === "uploaded") return <StatusPill tone="green" dot className="shadow-sm">Your upload</StatusPill>;
+  if (st === "generated") return <StatusPill tone="purple" className="shadow-sm">Generated for the demo</StatusPill>;
   if (st === "stock") return <StatusPill tone="blue" className="shadow-sm">Stock · Wikimedia Commons</StatusPill>;
   return <StatusPill tone="amber" dot className="shadow-sm">Missing</StatusPill>;
 }
@@ -93,7 +97,8 @@ function CreditLine({ s }: { s: Slot }) {
   const p = s.current;
   if (!p) return <span className="text-fg-4">No photo yet: generate one from the prompt.</span>;
   if (p.kind === "uploaded")
-    return <span>Your upload{s.stock ? " · replaces the stock photo" : ""}</span>;
+    return <span>Your upload{s.stock ? ` · replaces the ${builtin(s)}` : ""}</span>;
+  if (p.kind === "generated") return <span>Generated image for the demo: a picture of this demo vehicle itself</span>;
   return (
     <span>
       {p.author ? `Photo: ${p.author}` : "Photo"} ·{" "}
@@ -130,12 +135,12 @@ function SlotCard({ s, canEdit, onView, onCopy, onChanged }: {
     }
   };
   const revert = async () => {
-    const msg = s.stock ? "Remove your upload and show the stock photo again?" : "Remove your upload? This slot will be empty again.";
+    const msg = s.stock ? `Remove your upload and show the ${builtin(s)} again?` : "Remove your upload? This slot will be empty again.";
     if (!window.confirm(msg)) return;
     setBusy("revert");
     try {
       onChanged(await removeUpload(s.id));
-      toast(s.stock ? "Back to the stock photo." : "Upload removed.", "ok");
+      toast(s.stock ? `Back to the ${builtin(s)}.` : "Upload removed.", "ok");
     } catch (err: any) {
       toast(err.message || "Could not remove the upload.", "err");
     } finally {
@@ -201,7 +206,7 @@ function SlotCard({ s, canEdit, onView, onCopy, onChanged }: {
         </div>
         {canEdit && s.uploaded && (
           <button type="button" className="inline-flex w-fit items-center gap-1.5 rounded-lg px-1 py-0.5 text-[12px] font-semibold text-bad hover:bg-red-50 disabled:opacity-60" disabled={!!busy} onClick={revert}>
-            <Icon name="refresh" size={13} />{busy === "revert" ? "Removing…" : s.stock ? "Revert to stock" : "Remove upload"}
+            <Icon name="refresh" size={13} />{busy === "revert" ? "Removing…" : s.stock ? (s.stock.kind === "generated" ? "Revert to generated" : "Revert to stock") : "Remove upload"}
           </button>
         )}
       </div>
@@ -263,7 +268,7 @@ export function ImageLibrary() {
 
   const all = slots.data || [];
   const counts = useMemo(() => {
-    const c = { all: all.length, missing: 0, uploaded: 0, stock: 0 };
+    const c = { all: all.length, missing: 0, uploaded: 0, generated: 0, stock: 0 };
     all.forEach((s) => c[state(s)]++);
     return c;
   }, [all]);
@@ -291,8 +296,8 @@ export function ImageLibrary() {
             <h2 id="image-library-title" className="text-[20px] font-bold tracking-tight">Images</h2>
             <p className="mt-1 text-[13.5px] leading-relaxed text-fg-3">
               Photos of the ten main vehicles and the scenes around the apps. Stock photos from Wikimedia Commons show the
-              model, not the actual vehicle. Generate your own from a slot&apos;s prompt and upload it: it replaces the stock
-              photo everywhere, and reverting brings the stock photo back.
+              model, not the actual vehicle; generated images show the demo vehicle itself. Generate your own from a
+              slot&apos;s prompt and upload it: it replaces the slot&apos;s photo everywhere, and reverting brings it back.
             </p>
           </div>
           <a className="btn btn-sm" href="/api/images/prompts.md" download="vehiclesense-image-prompts.md">
@@ -301,6 +306,7 @@ export function ImageLibrary() {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <StatusPill tone="blue">{counts.stock} stock</StatusPill>
+          <StatusPill tone="purple">{counts.generated} generated</StatusPill>
           <StatusPill tone="green" dot>{counts.uploaded} your uploads</StatusPill>
           <StatusPill tone="amber" dot>{counts.missing} missing</StatusPill>
           <span className="text-[12.5px] text-fg-4">{counts.all} slots</span>
@@ -317,7 +323,7 @@ export function ImageLibrary() {
           </label>
           <Tabs size="sm" value={status} onChange={setStatus} items={[
             { id: "all", label: "All" }, { id: "missing", label: `Missing (${counts.missing})` },
-            { id: "uploaded", label: `Uploads (${counts.uploaded})` }, { id: "stock", label: "Stock" },
+            { id: "uploaded", label: `Uploads (${counts.uploaded})` }, { id: "generated", label: `Generated (${counts.generated})` }, { id: "stock", label: "Stock" },
           ]} />
         </div>
         {user && !canEdit && (

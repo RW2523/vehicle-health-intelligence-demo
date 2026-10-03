@@ -438,7 +438,7 @@ function SidePanel({ user, isPublic }: { user: User | null | undefined; isPublic
   // the account button shows the name and the role: once is enough when they are the same ("Demo presenter")
   const sameRole = !!user && (ROLE_LABEL[user.role] || user.role) === user.name;
   const tryIt = [
-    { label: "Run the self-check", sub: "Tint and a lamp fail first; fix, run again", path: "/mobile/check", icon: "camera" },
+    { label: "Run the self-check", sub: "Plate, tint and a lamp fail first; fix, run again", path: "/mobile/check", icon: "camera" },
     { label: "Book and pay", sub: "Hub and slot, mock payment, check-in QR", path: "/mobile/book", icon: "calendar" },
     { label: "See the passport", sub: "Certificates, odometer, findings, papers", path: "/mobile/vehicle", icon: "shield" },
     { label: "Ask the assistant", sub: "Bahasa Melayu, English or Chinese", path: "/mobile/assistant", icon: "chat" },

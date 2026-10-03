@@ -22,19 +22,27 @@ export const monthLabel = (ym: string) => {
   return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "short" }) + " '" + String(y).slice(2);
 };
 
+/** The lane's steps in its station order (app/backend/vhi/lane.py): 1 Identification, 2 Above-carriage, 3 Tinted glass,
+ *  4 Emission, 5 Side slip, 6 Suspension, 7 Brake, 8 Undercarriage, 9 Speedometer, 10 Headlight alignment. */
+export const LANE_STEPS = ["check_in_anpr", "identity_ocr", "above_carriage_ai", "tinted_glass", "emission_idle_rev", "side_slip",
+  "suspension", "brake_roller", "undercarriage_ai", "speedometer", "headlight_alignment", "examiner_review", "report"];
+
 export const STEP_LABEL: Record<string, string> = {
   check_in_anpr: "Check-in (plate camera)",
-  identity_ocr: "Identity (chassis, odometer)",
-  emission_idle_rev: "Emissions & OBD",
-  brake_roller: "Brake roller",
-  suspension: "Suspension",
+  identity_ocr: "Identification (chassis, engine, odometer)",
+  above_carriage_ai: "Above-carriage",
+  tinted_glass: "Tinted glass",
+  emission_idle_rev: "Emission & OBD",
   side_slip: "Side slip",
-  headlamp_tint: "Headlamp & tint",
-  undercarriage_ai: "Undercarriage AI",
-  above_carriage_ai: "Above-carriage AI",
+  suspension: "Suspension",
+  brake_roller: "Brake",
+  undercarriage_ai: "Undercarriage",
+  speedometer: "Speedometer",
+  headlight_alignment: "Headlight alignment",
   examiner_review: "Examiner review",
   report: "Report",
   done: "Done",
+  headlamp_tint: "Headlamp & tint",  // the earlier lane's combined step (older runs)
 };
 
 export const sevColor = (s: string) => (s === "high" ? "#DC2626" : s === "medium" ? "#D97706" : "#3B82F6");
@@ -63,6 +71,13 @@ export function nextFailNote(nf: any): string | null {
 export const SYSTEM_NAME: Record<string, string> = {
   undercarriage: "Undercarriage AI", above: "Above-carriage AI", tyre: "Tyre AI", examiner: "Examiner close-up",
 };
+/** Each module's AI model, by the names the inspection body uses (the backend's catalogue has the same). */
+export const SYSTEM_MODEL: Record<string, string> = {
+  undercarriage: "Keymag AI Undercarriage Inspection", above: "ASTRA", tyre: "AI Tyre Scan",
+};
+/** "Above-carriage AI · ASTRA": the module and its model, for a finding or a photo. */
+export const moduleModel = (system?: string | null) =>
+  system ? [SYSTEM_NAME[system] || system, SYSTEM_MODEL[system]].filter(Boolean).join(" · ") : "";
 
 /** The lane replays: the vehicle each one drives through which lane of the Central Inspection Hub (BR00). */
 export const LANE_SESSIONS = [

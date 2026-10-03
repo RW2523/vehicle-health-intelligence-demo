@@ -1,0 +1,101 @@
+{
+ "about": "Images generated for the demo from the prompts in images/stock/prompts.json: the fictional demo vehicles themselves (with their plates) and scenes, not photos of real vehicles. They are each slot's built-in photo; an upload in Settings → Images replaces one, and deleting the upload brings it back. Served by the API under /media/data/.",
+ "credit": "Generated image for the demo",
+ "images": [
+  {
+   "slot_id": "dmo-9003.damage_left",
+   "group": "dmo-9003",
+   "plate": "DMO 9003",
+   "view": "damage_left",
+   "files": {
+    "1600": "images/generated/dmo-9003/damage_left.jpg",
+    "960": "images/generated/dmo-9003/damage_left.960.jpg",
+    "480": "images/generated/dmo-9003/damage_left.480.jpg"
+   },
+   "width": 1448,
+   "height": 1086,
+   "crop": null,
+   "note": "Rear-left lane camera frame of the demo Civic's damage"
+  },
+  {
+   "slot_id": "dmo-9003.damage_rear",
+   "group": "dmo-9003",
+   "plate": "DMO 9003",
+   "view": "damage_rear",
+   "files": {
+    "1600": "images/generated/dmo-9003/damage_rear.jpg",
+    "960": "images/generated/dmo-9003/damage_rear.960.jpg",
+    "480": "images/generated/dmo-9003/damage_rear.480.jpg"
+   },
+   "width": 680,
+   "height": 510,
+   "crop": [
+    60,
+    400,
+    740,
+    910
+   ],
+   "note": "Rear lane camera frame: the damaged rear-left corner, cropped from the generated rear view as the rear camera frames it"
+  },
+  {
+   "slot_id": "dmo-9006.plate",
+   "group": "dmo-9006",
+   "plate": "DMO 9006",
+   "view": "plate",
+   "files": {
+    "1600": "images/generated/dmo-9006/plate.jpg",
+    "960": "images/generated/dmo-9006/plate.960.jpg",
+    "480": "images/generated/dmo-9006/plate.480.jpg"
+   },
+   "width": 1448,
+   "height": 1086,
+   "crop": null,
+   "note": "The owner's photo of the rear number plate"
+  },
+  {
+   "slot_id": "dmo-9003.plate",
+   "group": "dmo-9003",
+   "plate": "DMO 9003",
+   "view": "plate",
+   "files": {
+    "1600": "images/generated/dmo-9003/plate.jpg",
+    "960": "images/generated/dmo-9003/plate.960.jpg",
+    "480": "images/generated/dmo-9003/plate.480.jpg"
+   },
+   "width": 1448,
+   "height": 1086,
+   "crop": null,
+   "note": "The owner's photo of the rear number plate"
+  },
+  {
+   "slot_id": "dmo-9002.plate",
+   "group": "dmo-9002",
+   "plate": "DMO 9002",
+   "view": "plate",
+   "files": {
+    "1600": "images/generated/dmo-9002/plate.jpg",
+    "960": "images/generated/dmo-9002/plate.960.jpg",
+    "480": "images/generated/dmo-9002/plate.480.jpg"
+   },
+   "width": 1448,
+   "height": 1086,
+   "crop": null,
+   "note": "The owner's photo of the rear number plate"
+  },
+  {
+   "slot_id": "scene.brake_light",
+   "group": "scenes",
+   "plate": null,
+   "view": "brake_light",
+   "files": {
+    "1600": "images/generated/scenes/brake_light.jpg",
+    "960": "images/generated/scenes/brake_light.960.jpg",
+    "480": "images/generated/scenes/brake_light.480.jpg"
+   },
+   "width": 1448,
+   "height": 1086,
+   "crop": null,
+   "note": "The red brake warning light on the dashboard"
+  }
+ ]
+}

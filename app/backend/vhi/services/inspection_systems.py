@@ -1,6 +1,9 @@
 """The platform's AI inspection modules: an undercarriage scanner, above-carriage cameras and a tyre scanner, each with
-its own image model (vhi.ml.vision). Every image result says which module found it, in the lane console and on the AI
-vision page, next to the examiner's close-up photos kept with the record.
+its own AI model (run by vhi.ml.vision). Every image result says which module and model found it, in the lane console,
+on the AI vision page and in the findings, next to the examiner's close-up photos kept with the record.
+
+The model names are the ones the inspection body uses: Keymag's AI undercarriage inspection and ASTRA for the
+above-carriage. The laser tyre inspection system is at proof of concept, so it is shown as coming next.
 """
 from __future__ import annotations
 
@@ -8,20 +11,23 @@ SYSTEMS = {
     "undercarriage": {
         "name": "Undercarriage AI",
         "detects": ["underbody and chassis corrosion"],
-        "model": "corrosion segmentation, calibrated on rust vs clean photos",
+        "model": "Keymag AI Undercarriage Inspection",
         "note": "Pit cameras scan the underside while the vehicle crosses the pit.",
     },
     "above": {
         "name": "Above-carriage AI",
         "detects": ["body damage and previous repairs", "cabin corrosion, a sign of flooding"],
-        "model": "YOLO11 image classifier (normal / breakage / crushed) and corrosion segmentation",
+        "model": "ASTRA",
         "note": "Cameras around and inside the vehicle.",
     },
     "tyre": {
         "name": "Tyre AI",
         "detects": ["tyre cracks, uneven wear and damage"],
-        "model": "YOLO11 image classifier (good / defective)",
+        "model": "AI Tyre Scan",
         "note": "A tyre scanner images each wheel as it rolls through.",
+        # the next tyre model: in development, so it is labelled as such wherever it is named
+        "next": {"model": "Laser Tyre Inspection System", "detects": "tread depth and tyre integrity, measured automatically by laser",
+                 "stage": "Proof of concept"},
     },
     "examiner": {
         "name": "Examiner close-up",
@@ -54,6 +60,14 @@ def for_frame(kind: str, task: str | None = None) -> str:
 
 def label(system: str) -> str:
     return SYSTEMS[system]["name"]
+
+
+def model_label(system: str | None) -> str | None:
+    """The module and its AI model, as a finding or a photo names them: "Above-carriage AI · ASTRA"."""
+    s = SYSTEMS.get(system or "")
+    if not s or not s.get("model"):
+        return s["name"] if s else None
+    return f"{s['name']} · {s['model']}"
 
 
 def catalogue() -> dict:

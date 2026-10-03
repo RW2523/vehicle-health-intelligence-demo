@@ -53,7 +53,7 @@ The inspection app has five sections in its sidebar; an examiner's day moves thr
 | Section | Address | What happens there |
 | --- | --- | --- |
 | Dashboard | `/` | Today at the Central Inspection Hub in one look. On top, five compact counts (vehicles today, completed, in progress, in queue, issues found) and, during a guided demo, the running scenario with its vehicle and next step. In the middle, the four lane cards: photo, plate, inspection type, current station, progress, the most serious open finding and its severity, status, and one button (Open Inspection, Start the replay or Open vehicle). At the bottom, upcoming vehicles, the queue and recent activity |
-| Live Lane | `/lane`, `/lane?view=vision` | The lane console as it happens: the live lane view first, then what the lane has found, then the measurements and charts. AI vision runs Undercarriage AI, Above-carriage AI and Tyre AI on captures and the image library |
+| Live Lane | `/lane`, `/lane?view=vision` | The lane console as it happens: the live lane view first, then what the lane has found, then the measurements and charts. AI vision runs the three AI modules on captures and the image library: Undercarriage AI (model: Keymag AI Undercarriage Inspection), Above-carriage AI (model: ASTRA) and Tyre AI (model: AI Tyre Scan), with the Laser Tyre Inspection System shown as coming next (proof of concept: tread depth and tyre integrity) |
 | Inspection Management | `/inspection` | Status tabs with counts: In Progress, Awaiting Examiner, Awaiting Senior Review, Completed, Failed / Reinspection. It opens on the most relevant one. Each row shows the vehicle, lane, "N of M findings decided" and the top finding, with one action: Continue, Review findings, Senior review or View Report. Today's schedule, issued reports and the lane replays are quieter tabs and sections |
 | Vehicle Records | `/vehicles`, `/vehicles/{plate}` | The ten vehicles as cards: health, latest outcome, active risk, next inspection and Open vehicle. A vehicle opens on its summary (today, latest outcome, active risks, next appointment) with shortcuts to the latest inspection and report, booking, the owner's view and the assistant; then the overview with the damage map, inspection history, health trends with a fail-date forecast, photos, claims and bookings |
 | Appointments | `/appointments` | Calendar and agenda; book, reschedule, cancel, mark paid (mock) and check in with a QR code |
@@ -67,7 +67,7 @@ The hub's day is a plan of the ten vehicles on four lanes, laid against the cloc
 An inspection moves through three screens — Capture and checklist (`/inspection/{id}`), Defect Review and Findings (`/inspection/{id}/findings`), Final Review and Approval (`/inspection/{id}/review`) — and no certificate is issued while a critical finding is undecided.
 
 - **Capture**: a "Next step" card holds the screen's one main button: Watch the lane while it runs, Review findings once findings are open, Go to final review when all are decided, View report once issued. A link under the plate opens the vehicle record.
-- **Findings**: one finding at a time, most critical first. The selected finding shows why it was flagged, the observed result, the threshold or reference, the evidence, its source and module, and a previous trend only where the vehicle's history has that measurement. A progress card reads "N of M findings decided"; the final-review button stays disabled ("Decide K critical findings first") until every critical finding is decided.
+- **Findings**: one finding at a time, most critical first. The selected finding shows why it was flagged, the observed result, the threshold or reference, the evidence, its source and module, and a previous trend only where the vehicle's history has that measurement. A progress card reads "N of M findings decided". "Go to final review" is open at any time and says how many critical findings are still to decide; it becomes the main button once they are all decided, and the review page will not issue the report before then.
 - **Final review**: a summary card with the vehicle, time, health score, outcome, key findings, examiner and report status, and one dominant Issue button. Once issued, a success panel offers View Report, Verify by QR, View Vehicle Record, Open Owner Passport, Send Report to Owner, Finish Inspection and, during a guided demo, Continue Demo. For a FAIL, Schedule Reinspection is the main button. The hash chain and data sources sit in a folded "Proof" section.
 
 ```mermaid
@@ -91,7 +91,22 @@ Two views show the examiner where a vehicle is and where its problems are.
 
 **Live lane view** (Live Lane, with a compact strip on the dashboard, the Live lanes tab and the capture screen):
 
-- The lane is drawn as an inspection-hall floor with its stations: check-in and identity, emissions and OBD (EV battery and OBD for an EV), brakes, suspension and side slip, lamps and tint, underbody and tyre AI, body and cabin AI, then the examiner and the report.
+- The lane is drawn as an inspection-hall floor with its ten numbered stations, in the order a vehicle is inspected:
+
+  | # | Station | What it checks |
+  | --- | --- | --- |
+  | 1 | Identification | Registration (plate camera at check-in), chassis and engine numbers, the odometer |
+  | 2 | Above-carriage | Body, cabin and visible condition (Above-carriage AI) |
+  | 3 | Tinted glass | Visible light transmittance of the windscreen and windows |
+  | 4 | Emission | Smoke or exhaust gases against the legal limits, OBD fault codes (an EV's battery and high-voltage checks) |
+  | 5 | Side slip | Alignment of the front wheels |
+  | 6 | Suspension | Suspension efficiency per axle |
+  | 7 | Brake | Brake efficiency and imbalance on the roller tester |
+  | 8 | Undercarriage | Undercarriage condition and the tyres (Undercarriage AI, Tyre AI, the thermal camera) |
+  | 9 | Speedometer | The speedometer against the true road speed on the rollers (40-48 km/h at a true 40 km/h) |
+  | 10 | Headlight alignment | Headlight beam alignment |
+
+  Then the examiner's review and the report. The inspection checklist follows the same ten stations in the same order, and the lane definition lives in one place (`app/backend/vhi/lane.py`).
 - The vehicle's photo glides from station to station on the replay clock; Pause and speed (up to 4×) control it.
 - The current station shows its readings counting up: brake force per wheel, particle number, OBD values, instruments, a scanning animation while the AI modules run.
 - New findings slide in as pop-ups with the finding, its severity, station and module, an evidence thumbnail and Open finding; a confidence appears only when a model actually produced one. "Why was this flagged?" is answered on the finding's own page. Each station keeps a count of its findings.
@@ -108,7 +123,13 @@ Two views show the examiner where a vehicle is and where its problems are.
 The mobile app takes an owner from "is my car ready?" to a certificate in their passport. On a desktop it shows in a phone frame with a persona switcher for the presenter; on a phone it is full screen with five tabs: Home, Vehicle, Check, Book, Assistant.
 
 1. **Home** (`/mobile`): the vehicle card with its photo, health, next inspection due and road-tax expiry; a "Next step" card that shows the owner's journey (Self-check, Book, Check-in, Inspection, Passport, Sell) and the one thing to do now, with the booking ticket inside it once booked; the latest report; updates.
-2. **Self-check** (`/mobile/check`): a guided check of window tint, headlamps, tyre photos and the engine sound. A first run may say "Fix these first"; after fixing, "Ready for inspection".
+2. **Self-check** (`/mobile/check`): six guided steps:
+   - **Plate:** a photo of the rear number plate; the plate reader checks it can be read and matches the registration.
+   - **Tint, Lamps and Tyres:** the window tint, the headlamps, and tyre photos checked by AI.
+   - **Brakes:** "Test your brakes", a short guided test the owner does in a safe place: warning light, pedal feel, straight stop, noise and handbrake, each answered yes or no and turned into advice.
+   - **Engine:** a 20-second engine sound clip.
+
+   A first run may say "Fix these first" (a muddy plate, dark tint, a lamp out); after fixing, "Ready for inspection".
 3. **Book** (`/mobile/book`): pick a hub, a nearby free slot and the inspection type, then pay (FPX or card, mock). The ticket carries a QR code and a check-in code; bookings can be rescheduled or cancelled.
 4. **Check-in**: at the lane the plate camera reads the plate and checks the booking in; staff can also check it in from Appointments. The public check-in page is `/checkin/{token}`.
 5. **Inspection**: the vehicle runs through the lane and the examiner decides its findings in the inspection app.
@@ -135,7 +156,7 @@ HQ opens all four sections; the regulator opens all but HQ operations.
 Every result travels the same path, from a lane sensor to a report anyone can verify.
 
 1. **Lane sensors** stream readings: brake roller, particle counter, smoke, OBD, e-nose, microphones and cameras. In the demo they are replays of four recorded sessions, sent over a message bus and a WebSocket.
-2. **Models** analyse them live: plate and chassis reading, Undercarriage AI, Above-carriage AI and Tyre AI on the images, engine and wheel-bearing sounds, corrosion, flood risk, EV battery health, and a fused health score with next-fail risk.
+2. **Models** analyse them live: plate and chassis reading, Undercarriage AI (Keymag AI Undercarriage Inspection), Above-carriage AI (ASTRA) and Tyre AI (AI Tyre Scan) on the images, engine and wheel-bearing sounds, corrosion, flood risk, EV battery health, and a fused health score with next-fail risk.
 3. **Rules** turn measurements and model outputs into findings, each with a severity and whether it is a fail item.
 4. **The examiner** decides each finding: Pass, Advisory or Fail. Going against the rules' recommendation needs a written reason; identity conflicts go to a senior examiner.
 5. **The report** is issued with its verdict and certificate, sealed in a SHA-256 hash chain, with a QR code for public verification.

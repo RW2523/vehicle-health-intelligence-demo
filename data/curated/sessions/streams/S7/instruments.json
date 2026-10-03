@@ -8,5 +8,6 @@
  ],
  "side_slip_m_per_km": 1.2,
  "headlamp_dev_pct": 0.6,
- "tint_vlt_pct": 72
+ "tint_vlt_pct": 72,
+ "speedo_kmh_at_40": 42
 }

@@ -162,6 +162,17 @@ Photorealistic documentary photo in the style of an automated inspection-system 
 Photorealistic documentary photo in the style of an automated inspection-system capture: neutral cool white balance, crisp detail, natural reflections on the paint, true-to-life colours, no motion blur, no lens flare. Engine compartment of a 2022 BYD Atto 3 compact electric SUV in Surf Blue paint (slim LED headlamps joined by a chrome strip across the closed-off front, silver C-pillar trim, 18-inch two-tone alloy wheels, no exhaust pipe): the front compartment with the bonnet open: the electric drive unit cover, orange high-voltage cables, 12 V battery and coolant reservoirs, no combustion engine, inside a modern Malaysian vehicle inspection centre; an LED inspection lamp hanging from the bonnet. Camera above the front bumper looking down at 40 degrees, 28 mm lens, f/8, even light, realistic grime for its age. If a number plate is in frame it is the Malaysian number plate reading “DMO 9002” in white characters on a black plate. 4:3 aspect ratio. No people in frame unless stated; no text overlays, no logos, no watermarks, no brand names on signage.
 ```
 
+### `dmo-9002.plate` · Owner's photo · number plate
+
+- **Shows in:** Mobile app → Check: the number-plate photo step of the self-check
+- **Aspect ratio:** 4:3
+- **Stock photo:** no (prompt only)
+- **Add it:** upload it in Settings → Images, or save it as `app/backend/var/images/dmo-9002/plate.jpg`
+
+```text
+Smartphone photo taken by the vehicle's owner of the rear number plate of a 2022 BYD Atto 3 compact electric SUV in Surf Blue paint, parked at an EV charging bay in an open-air shopping-mall car park. The Malaysian number plate reading “DMO 9002” in white characters on a black plate is centred, sharp and easy to read, seen straight on at the plate's height from about one metre away and filling about 60% of the frame width; its fixing screws and frame are visible, and around it the blue tailgate, with the full-width light bar above the plate. Natural daylight, no glare or reflections across the characters, the slightly wide everyday look of a phone camera (26 mm, HDR). 4:3 aspect ratio. No people in frame; no text overlays, no logos, no watermarks, no brand names on signage.
+```
+
 ## DMO 9003 · 2016 Honda Civic · red
 
 ### `dmo-9003.hero` · Front three-quarter
@@ -241,6 +252,39 @@ Photorealistic documentary photo in the style of an automated inspection-system 
 Photorealistic documentary photo in the style of an automated inspection-system capture: neutral cool white balance, crisp detail, natural reflections on the paint, true-to-life colours, no motion blur, no lens flare. Engine compartment of a 2016 Honda Civic sedan (10th generation, FC) in red paint (fastback roofline, LED headlamps with a chrome brow, C-shaped LED tail lamps, 17-inch two-tone alloy wheels, a privately owned car in good condition): the engine bay with the bonnet open: the 1.5-litre VTEC Turbo four-cylinder engine under its black plastic cover, coolant and brake fluid reservoirs, the chassis-number area on the bulkhead (stamping not legible), inside a modern Malaysian vehicle inspection centre; an LED inspection lamp hanging from the bonnet. Camera above the front bumper looking down at 40 degrees, 28 mm lens, f/8, even light, realistic grime for its age. If a number plate is in frame it is the Malaysian number plate reading “DMO 9003” in white characters on a black plate. 4:3 aspect ratio. No people in frame unless stated; no text overlays, no logos, no watermarks, no brand names on signage.
 ```
 
+### `dmo-9003.damage_left` · Lane camera · rear-left damage
+
+- **Shows in:** Lane replay on lane 1 (the Rear-left camera frame Above-carriage AI checks), the capture page's Left Side view and the finding's evidence
+- **Aspect ratio:** 4:3
+- **Stock photo:** no (prompt only)
+- **Add it:** upload it in Settings → Images, or save it as `app/backend/var/images/dmo-9003/damage_left.jpg`
+
+```text
+Photorealistic documentary photo in the style of an automated inspection-system capture: neutral cool white balance, crisp detail, natural reflections on the paint, true-to-life colours, no motion blur, no lens flare. Rear-left three-quarter view of a 2016 Honda Civic sedan (10th generation, FC) in red paint (fastback roofline, C-shaped LED tail lamps, boot-lid spoiler lip, 17-inch two-tone alloy wheels, a privately owned car), taken by a lane camera mounted on the steel gantry about 2.2 m up and looking slightly down, as the car rolls slowly through the inspection lane inside a modern Malaysian vehicle inspection centre: bright high-bay LED strip lighting, a light-grey polished epoxy floor with yellow lane lines and black steel floor gratings. Clear, unmistakable body damage on the rear-left: the left corner of the rear bumper is cracked through and split open with a jagged edge, pulled away from the quarter panel so a dark gap shows; deep scrapes through the red paint to grey primer along the bumper corner; a fist-sized dent in the rear-left quarter panel just above the wheel arch; and a previously repaired patch on the rear door whose red is a slightly more orange shade with sanding marks along its edge. The damage is in sharp focus and fills about a quarter of the frame; the rest of the car is clean. Malaysian number plate reading “DMO 9003” in white characters on a black plate on the rear. 28 mm lens, f/5.6. 4:3 aspect ratio. No people in frame unless stated; no text overlays, no logos, no watermarks, no brand names on signage.
+```
+
+### `dmo-9003.damage_rear` · Lane camera · rear damage
+
+- **Shows in:** Lane replay on lane 1 (the Rear camera frame Above-carriage AI checks), the capture page's Rear View and the finding's evidence
+- **Aspect ratio:** 4:3
+- **Stock photo:** no (prompt only)
+- **Add it:** upload it in Settings → Images, or save it as `app/backend/var/images/dmo-9003/damage_rear.jpg`
+
+```text
+Photorealistic documentary photo in the style of an automated inspection-system capture: neutral cool white balance, crisp detail, natural reflections on the paint, true-to-life colours, no motion blur, no lens flare. Straight-on rear view of a 2016 Honda Civic sedan (10th generation, FC) in red paint (fastback roofline, C-shaped LED tail lamps, boot-lid spoiler lip, 17-inch two-tone alloy wheels, a privately owned car), taken by the lane's rear camera on a post about 1.5 m high and 3 m behind the car, at the exit of the inspection lane inside a modern Malaysian vehicle inspection centre: bright high-bay LED strip lighting, a light-grey polished epoxy floor with yellow lane lines, slim steel camera gantries. Clear, unmistakable damage to the rear bumper on the left side: the bumper cover is cracked right through below the left tail lamp, its left end hangs loose and sags by a few centimetres with a visible gap to the body, the paint around it is scuffed and scraped to grey primer, and the left C-shaped tail lamp lens has a small crack. The right side of the bumper and the rest of the car are clean and undamaged. Malaysian number plate reading “DMO 9003” in white characters on a black plate, centred on the boot lid. 35 mm lens, f/5.6, the whole rear of the car in frame. 4:3 aspect ratio. No people in frame unless stated; no text overlays, no logos, no watermarks, no brand names on signage.
+```
+
+### `dmo-9003.plate` · Owner's photo · number plate
+
+- **Shows in:** Mobile app → Check: the number-plate photo step of the self-check
+- **Aspect ratio:** 4:3
+- **Stock photo:** no (prompt only)
+- **Add it:** upload it in Settings → Images, or save it as `app/backend/var/images/dmo-9003/plate.jpg`
+
+```text
+Smartphone photo taken by the vehicle's owner of the rear number plate of a 2016 Honda Civic sedan (10th generation) in red paint, parked in a covered condominium car park with soft daylight from the side. The Malaysian number plate reading “DMO 9003” in white characters on a black plate is centred, sharp and easy to read, seen straight on at the plate's height from about one metre away and filling about 60% of the frame width; its fixing screws and frame are visible, and around it the red boot lid and the inner ends of the C-shaped tail lamps. Natural daylight, no glare or reflections across the characters, the slightly wide everyday look of a phone camera (26 mm, HDR). 4:3 aspect ratio. No people in frame; no text overlays, no logos, no watermarks, no brand names on signage.
+```
+
 ## DMO 9006 · 2019 Perodua Myvi · silver
 
 ### `dmo-9006.hero` · Front three-quarter
@@ -318,6 +362,17 @@ Photorealistic documentary photo in the style of an automated inspection-system 
 
 ```text
 Photorealistic documentary photo in the style of an automated inspection-system capture: neutral cool white balance, crisp detail, natural reflections on the paint, true-to-life colours, no motion blur, no lens flare. Engine compartment of a 2019 Perodua Myvi (third generation) five-door hatchback in silver paint (LED headlamps, black grille with a chrome strip, 15-inch alloy wheels, small roof spoiler, a privately owned car, clean and well kept): the engine bay with the bonnet open: the 1.5-litre four-cylinder petrol engine, 12 V battery, coolant and washer reservoirs, inside a modern Malaysian vehicle inspection centre; an LED inspection lamp hanging from the bonnet. Camera above the front bumper looking down at 40 degrees, 28 mm lens, f/8, even light, realistic grime for its age. If a number plate is in frame it is the Malaysian number plate reading “DMO 9006” in white characters on a black plate. 4:3 aspect ratio. No people in frame unless stated; no text overlays, no logos, no watermarks, no brand names on signage.
+```
+
+### `dmo-9006.plate` · Owner's photo · number plate
+
+- **Shows in:** Mobile app → Check: the number-plate photo step of the self-check
+- **Aspect ratio:** 4:3
+- **Stock photo:** no (prompt only)
+- **Add it:** upload it in Settings → Images, or save it as `app/backend/var/images/dmo-9006/plate.jpg`
+
+```text
+Smartphone photo taken by the vehicle's owner of the rear number plate of a 2019 Perodua Myvi (third generation) five-door hatchback in silver paint, parked in the car porch of a Malaysian terrace house in the morning. The Malaysian number plate reading “DMO 9006” in white characters on a black plate is centred, sharp and easy to read, seen straight on at the plate's height from about one metre away and filling about 60% of the frame width; its fixing screws and frame are visible, and around it the silver tailgate, the rear wiper and the edge of a vertical tail lamp. Natural daylight, no glare or reflections across the characters, the slightly wide everyday look of a phone camera (26 mm, HDR). 4:3 aspect ratio. No people in frame; no text overlays, no logos, no watermarks, no brand names on signage.
 ```
 
 ## VJM 7412 · 2021 Perodua Bezza 1.0 · silver
@@ -860,4 +915,15 @@ Close-up of a car tyre tread on an inspection lane: worn but legal tread with cl
 
 ```text
 Wide atmospheric dusk view of a Malaysian expressway curving towards the Kuala Lumpur skyline: long-exposure light trails of traffic, a deep-blue sky with the last warm glow on the horizon, light haze, city lights and tropical trees along the road, calm and premium. Composition with open, darker space on the left third for a login card. Elevated camera position, 24 mm lens, f/8, 20-second exposure, photorealistic, subtle cool colour grade. 21:9 aspect ratio. No people in frame unless stated; no text overlays, no logos, no watermarks, no brand names on signage.
+```
+
+### `scene.brake_light` · Brake warning light on the dashboard
+
+- **Shows in:** Mobile app → Check: the brake test's warning-light step
+- **Aspect ratio:** 4:3
+- **Stock photo:** no (prompt only)
+- **Add it:** upload it in Settings → Images, or save it as `app/backend/var/images/scenes/brake_light.jpg`
+
+```text
+Close-up of the instrument cluster of a modern compact car just after the engine was started, seen from the driver's seat: the red brake warning symbol (an exclamation mark inside a circle with a curved bracket on either side) lit clearly in the centre of the cluster, every other warning light off, the speedometer and rev counter resting at zero, the soft-focus rim of a three-spoke steering wheel framing the bottom edge. Natural daylight through the windscreen, no glare across the symbol, the slightly wide everyday look of a phone camera (26 mm, HDR). 4:3 aspect ratio. No people in frame; no text overlays, no logos, no watermarks, no brand names on signage.
 ```

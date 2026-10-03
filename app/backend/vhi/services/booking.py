@@ -54,7 +54,7 @@ def slots(branch_id: str, day: str) -> list[dict]:
         booked = s.execute(select(Booking.slot).where(Booking.branch_id == branch_id, Booking.date == day,
                                                       Booking.status != "cancelled")).scalars().all()
     d = dt.date.fromisoformat(day)
-    is_next_day = (d - today()).days == 1
+    is_next_day = d == next_working_day()
     out = []
     for t in SLOT_TIMES:
         gear = t in GEAR_TIMES
@@ -98,10 +98,14 @@ def nearby(day: str, lat: float, lon: float, time: str | None = None, exclude: s
     return out
 
 
-def gear_slots(branch_id: str) -> dict:
+def next_working_day() -> dt.date:
+    """The day Express slots are sold for: tomorrow, or Monday when tomorrow is a Sunday (the hubs are closed)."""
     d = today() + dt.timedelta(days=1)
-    if d.weekday() == 6:
-        d += dt.timedelta(days=1)
+    return d + dt.timedelta(days=1) if d.weekday() == 6 else d
+
+
+def gear_slots(branch_id: str) -> dict:
+    d = next_working_day()
     free = [s for s in slots(branch_id, d.isoformat()) if s["gear"] and s["available"]]
     return {"branch_id": branch_id, "date": d.isoformat(), "slots": [s["time"] for s in free], "surcharge_rm": GEAR_SURCHARGE}
 

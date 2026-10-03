@@ -32,6 +32,10 @@ log = logging.getLogger("vhi.processor")
 
 SEV_W = {"high": 3, "medium": 2, "low": 1}
 LAMBDA_RANGE = (0.97, 1.03)
+# The speedometer at a true 40 km/h on the rollers: never below the true speed, at most 10% over plus 4 km/h (the
+# UNECE Regulation 39 tolerance), shown as the demo reference
+SPEEDO_TRUE_KMH = 40
+SPEEDO_RANGE = (SPEEDO_TRUE_KMH, round(SPEEDO_TRUE_KMH * 1.1 + 4))
 ENOSE_INFO = {
     "nh3_slip_scr": ("Ammonia slip from the SCR system", "Engine & emissions", "high",
                      "AdBlue dosing fault or bypass. Matches SCR fault codes when present."),
@@ -183,7 +187,9 @@ class StreamProcessor:
     def _media_url(self, path: str) -> str:
         s = self.rt.settings
         p = Path(path)
-        for base, prefix in ((s.evidence_dir, "/media/evidence/"), (s.data_dir, "/media/data/"), (s.assets_dir, "/media/assets/")):
+        from ..services.images import uploads_dir
+        for base, prefix in ((s.evidence_dir, "/media/evidence/"), (s.data_dir, "/media/data/"), (s.assets_dir, "/media/assets/"),
+                             (uploads_dir(), "/media/images/")):
             try:
                 return prefix + str(p.resolve().relative_to(base.resolve()))
             except ValueError:
@@ -493,6 +499,15 @@ class StreamProcessor:
             c.measurements["side_slip_m_per_km"] = v
             limit = 5
             verdict = "fail" if abs(v) > limit else "pass"
+        elif f == "speedo_kmh_at_40":
+            c.measurements["speedo_kmh_at_40"] = v
+            limit = f"{SPEEDO_RANGE[0]}-{SPEEDO_RANGE[1]}"
+            verdict = "pass" if SPEEDO_RANGE[0] <= v <= SPEEDO_RANGE[1] else "fail"
+            if verdict == "fail":
+                await self._alert(c, "speedo:accuracy", f"Speedometer reads {v} km/h at a true {SPEEDO_TRUE_KMH} km/h",
+                                  f"The reading must be {SPEEDO_RANGE[0]}-{SPEEDO_RANGE[1]} km/h: never below the true speed, "
+                                  "at most 10% over plus 4 km/h. A wrong tyre size or a faulty sender is a common cause.",
+                                  "Instruments", "medium", 0.99, "simulated", {"value": v, "true_kmh": SPEEDO_TRUE_KMH}, fail_item=True)
         elif f == "headlamp_dev_pct":
             c.measurements["headlamp_aim_dev_pct"] = v
             limit = 2
@@ -650,9 +665,11 @@ class StreamProcessor:
         r = await self._model(c, task, self.rt.models.vision.classify, task, p["path"])
         n = len(c.results.get("images", []))
         out = self._evfile(c, f"{task}_{n}.jpg")
-        banner = f"{r.get('label', 'model unavailable')} ({r.get('p', 0):.0%}) - {r.get('arch')}" if r.get("available") else "model unavailable"
-        await asyncio.to_thread(annotate, p["path"], out, [], banner)
         system = systems.for_frame(p["kind"], task)
+        # the banner on the evidence image names the module's AI model ("Above-carriage AI · ASTRA")
+        banner = (f"{r.get('label', 'model unavailable')} ({r.get('p', 0):.0%}) - {systems.model_label(system)}"
+                  if r.get("available") else "model unavailable")
+        await asyncio.to_thread(annotate, p["path"], out, [], banner)
         item = {"kind": p["kind"], "camera": p.get("camera"), "source_image": self._media_url(p["path"]),
                 "annotated": self._media_url(str(out)), "model": f"{task} classifier", "system": system, **r}
         c.results.setdefault("images", []).append(item)

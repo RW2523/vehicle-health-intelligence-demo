@@ -224,6 +224,13 @@ test.describe("UC-01 commercial vehicle: lane → examiner → report → verifi
     await page.goto("/inspection/S1/findings");
     await expect(page.getByRole("heading", { name: "Defect Review and Findings" })).toBeVisible();
     await expect(page.getByText("Why was this flagged?")).toBeVisible();
+    // the final review is open at any time; it says what is left, and the review page holds the report back
+    await expect(page.getByText(/\d+ critical findings? to decide before issuing/)).toBeVisible();
+    await page.getByRole("link", { name: "Go to final review" }).click();
+    await expect(page).toHaveURL(/\/inspection\/S1\/review/);
+    await expect(page.getByRole("link", { name: /Decide \d+ critical findings? first/ })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole("heading", { name: "Defect Review and Findings" })).toBeVisible();
     // passing a fail item without a reason is refused
     await page.getByRole("button", { name: /Mark as Pass/ }).click();
     await page.getByRole("button", { name: "Save Finding" }).click();
@@ -436,8 +443,44 @@ test.describe("UC-05 the mobile app", () => {
     await page.getByRole("button", { name: "Run self-check" }).click();
     await expect(page.getByText("Fix these first")).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText("Window tint").first()).toBeVisible();
+    // the demo car's muddy plate: the plate reader cannot read it (or misreads it)
+    await expect(page.getByText(/Number plate not readable: clean it|The plate reader read .* instead of DMO 9006/)).toBeVisible();
     await page.getByRole("button", { name: "Run again after fixing" }).click();
     await expect(page.getByText("Ready for inspection")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/Reads DMO 9006/)).toBeVisible();
+  });
+
+  test("guided self-check: the plate photo, the brake test and what to fix", async ({ page }) => {
+    await page.goto("/mobile/check?plate=DMO%209006");
+    await page.getByRole("button", { name: "Start guided check" }).click();
+    // the number plate: a labelled sample photo (the demo control starts with the plate dirty)
+    await expect(page.getByRole("switch", { name: /Dirty or faded plate/ })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByText(/^(Sample photo|Demo car's photo)$/)).toBeVisible();
+    await page.getByRole("button", { name: "Take the plate photo" }).click();
+    await page.getByRole("button", { name: "Next: window tint" }).click();
+    await page.getByRole("button", { name: "Measure the tint" }).click();
+    await page.getByRole("button", { name: "Next: headlamps" }).click();
+    await page.getByRole("button", { name: "Take the headlamp photo" }).click();
+    await page.getByRole("button", { name: "Next: tyres" }).click();
+    for (const t of ["front left", "front right", "rear left", "rear right"]) await page.getByRole("button", { name: `Photograph the ${t} tyre` }).click();
+    await page.getByRole("button", { name: "Next: brake test" }).click();
+    // the brake test: a safety note, then one step after another, each answered yes or no
+    await expect(page.getByRole("heading", { name: "Test your brakes" })).toBeVisible();
+    await expect(page.getByText("Only do this where it is safe.")).toBeVisible();
+    const next = page.getByRole("button", { name: "Next: engine sound" });
+    await expect(next).toBeDisabled();
+    for (const [step, answer] of [["A safe place", "Yes"], ["Warning light", "Yes"], ["Pedal feel", "Yes"], ["Straight stop", "No"], ["No noise", "Yes"], ["Handbrake", "Yes"]])
+      await page.getByRole("group", { name: step }).getByRole("button", { name: answer }).click();
+    await next.click();
+    await page.getByRole("button", { name: "Record 20 seconds" }).click();
+    await page.getByRole("button", { name: "Review captures" }).click();
+    await expect(page.getByText("1 problem noticed · your answers")).toBeVisible();
+    await page.getByRole("button", { name: "Analyse captures" }).click();
+    // pulling to one side is for a workshop; the muddy plate is a fix
+    await expect(page.getByText("Needs a professional check")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText("Pulls to one side when braking: have a workshop check the brakes before the inspection.")).toBeVisible();
+    await expect(page.getByText(/Number plate not readable: clean it|The plate reader read .* instead of DMO 9006/)).toBeVisible();
+    await expect(page.getByText("Your answers").first()).toBeVisible();
   });
 
   test("books and pays for an inspection, gets a check-in QR", async ({ page }) => {
@@ -576,8 +619,13 @@ test.describe("AI vision", () => {
     await page.goto("/lane?view=vision");
     await expect(page.getByRole("heading", { name: "AI vision" })).toBeVisible();
     for (const name of ["Undercarriage AI", "Above-carriage AI", "Tyre AI"]) await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+    // each module names its AI model; the laser tyre system is shown as coming next
+    for (const model of ["Keymag AI Undercarriage Inspection", "ASTRA", "AI Tyre Scan", "Laser Tyre Inspection System"])
+      await expect(page.getByText(model, { exact: true })).toBeVisible();
+    await expect(page.getByText("Proof of concept")).toBeVisible();
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Live model result" })).toBeVisible({ timeout: 60_000 });
+    expect(await page.locator("body").innerText()).not.toMatch(/YOLO/i);
   });
 
   test("image library maps every source image to its case and fleet vehicles", async ({ page }) => {

@@ -76,6 +76,8 @@ def pick(glob_pat, n=1):
     fs = sorted(glob.glob(f"{CUR}/{glob_pat}"))
     return [os.path.relpath(f, CUR) for f in random.sample(fs, min(n, len(fs)))] if fs else []
 
+# the order the sessions were recorded in; relane_sessions.py then re-times S1-S3 into the lane's station order
+# (app/backend/vhi/lane.py)
 LANE = [("check_in_anpr", 0, 20), ("identity_ocr", 20, 40), ("emission_idle_rev", 40, 130), ("brake_roller", 130, 190),
         ("suspension", 190, 230), ("side_slip", 230, 245), ("headlamp_tint", 245, 280), ("undercarriage_ai", 280, 340),
         ("above_carriage_ai", 340, 380), ("examiner_review", 380, 460), ("report", 460, 480)]

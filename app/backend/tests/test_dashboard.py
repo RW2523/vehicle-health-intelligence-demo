@@ -87,7 +87,9 @@ def test_inspection_checklist_captures_and_preview(client):
     d = client.get("/api/inspections/latest", params={"session_id": "S7"}).json()
     c = d["checklist"]
     ids = [i["id"] for i in c["items"]]
-    assert "ev" not in ids and "emissions" in ids and ids[-1] == "final"
+    # the lane's ten stations in order, then the final review (a petrol car: Emission, not the EV battery)
+    assert ids == ["identification", "above_carriage", "tinted_glass", "emission", "side_slip", "suspension", "brake",
+                   "undercarriage", "speedometer", "headlight", "final"]
     assert all(i["status"] == "pass" for i in c["items"][:-1])  # a clean car: every measured item passes
     assert c["items"][-1]["status"] == "review" and c["done"] == c["total"] - 1
     assert d["verdict_preview"] == {"verdict": "PASS", "reasons": [], "open_required": 0, "can_issue": True}
@@ -115,7 +117,7 @@ def test_examiner_captures_a_photo_and_records_a_remark(client):
                        files={"file": ("a.jpg", tyre.read_bytes(), "image/jpeg")}).status_code == 400
     d = client.get(f"/api/inspections/{iid}").json()
     assert next(x for x in d["captures"] if x["view"] == "tyre")["source"] == "examiner"
-    assert next(i for i in d["checklist"]["items"] if i["id"] == "tyres")["status"] == "review"
+    assert next(i for i in d["checklist"]["items"] if i["id"] == "undercarriage")["status"] == "review"  # the tyre scanner's station
     rm = client.post(f"/api/inspections/{iid}/remark", json={"text": "Customer asked for the tyre to be re-checked"}).json()
     assert rm["remarks"][-1]["text"].startswith("Customer") and rm["remarks"][-1]["chain_seq"] > 0
     _ = io, Image

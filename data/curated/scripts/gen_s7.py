@@ -1,25 +1,28 @@
 """Build lane replay S7: a clean inspection (a well-kept 2019 Perodua Myvi, the owner app's car DMO 9006).
 
-Healthy simulated readings (brakes, suspension, side slip, headlamp, tint, exhaust gas, OBD with no fault codes,
-normal hub temperatures, a baseline e-nose trace) and sample media the vision and acoustic models score as normal.
+Healthy simulated readings (tint, exhaust gas, side slip, suspension, brakes, speedometer, headlamp, OBD with no fault
+codes, normal hub temperatures, a baseline e-nose trace) and sample media the vision and acoustic models score as normal.
+The replay follows the lane's station order (app/backend/vhi/lane.py).
 Nothing is injected: the replay shows what the lane and the examiner see when a vehicle has no findings.
 
     .venv/bin/python data/curated/scripts/gen_s7.py      (from the repository root; deterministic)
 """
 import json
 import os
+import sys
 
 import numpy as np
 import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "app", "backend"))
+from vhi.lane import TIMELINE as LANE  # noqa: E402
+
 SES = os.path.join(HERE, "..", "sessions")
 OUT = os.path.join(SES, "streams", "S7")
 rng = np.random.default_rng(2607)
 
-LANE = [("check_in_anpr", 0, 20), ("identity_ocr", 20, 40), ("emission_idle_rev", 40, 130), ("brake_roller", 130, 190),
-        ("suspension", 190, 230), ("side_slip", 230, 245), ("headlamp_tint", 245, 280), ("undercarriage_ai", 280, 340),
-        ("above_carriage_ai", 340, 380), ("examiner_review", 380, 460), ("report", 460, 480)]
+EMISSION_START = next(a for s, a, _ in LANE if s == "emission_idle_rev")
 
 
 def brake_roller(axles=2, eff=71.0, imb=3.0, drag=1.5):
@@ -33,7 +36,7 @@ def brake_roller(axles=2, eff=71.0, imb=3.0, drag=1.5):
     return pd.DataFrame(out)
 
 
-def obd_stream(seconds=480, idle_rpm=720, rev_at=70):
+def obd_stream(seconds=480, idle_rpm=720, rev_at=EMISSION_START + 30):
     t = np.arange(seconds)
     rpm = idle_rpm + rng.normal(0, 12, seconds)
     rpm[rev_at:rev_at + 8] = np.linspace(idle_rpm, 2600, 8)
@@ -60,7 +63,7 @@ def main():
         "obd": obd_stream(),
         "enose": enose_baseline(),
         "instruments": {"co_pct": 0.2, "hc_ppm": 85, "lambda": 1.0, "suspension_eff_pct": [68, 66],
-                        "side_slip_m_per_km": 1.2, "headlamp_dev_pct": 0.6, "tint_vlt_pct": 72},
+                        "side_slip_m_per_km": 1.2, "headlamp_dev_pct": 0.6, "tint_vlt_pct": 72, "speedo_kmh_at_40": 42},
         "thermal": {"wheel_hub_max_c": {"A1L": 57.4, "A1R": 56.1, "A2L": 49.8, "A2R": 50.6}},
     }
     for k, v in streams.items():

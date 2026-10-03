@@ -13,9 +13,9 @@ log = logging.getLogger("vhi.models")
 CATALOGUE = [
     # key, title, how it runs, metrics file
     ("anpr_ocr", "ANPR + chassis OCR (PaddleOCR via onnxruntime)", "live_model", None),
-    ("tyre", "Tyre condition ({arch}, fine-tuned)", "live_model", "vision/vision_metrics.json"),
-    ("damage", "Body damage ({arch}, fine-tuned)", "live_model", "vision/vision_metrics.json"),
-    ("corrosion", "Corrosion segmentation (calibrated colour-texture)", "live_logic", "corrosion_calibration.json"),
+    ("tyre", "Tyre AI · AI Tyre Scan · tyre condition", "live_model", "vision/vision_metrics.json"),
+    ("damage", "Above-carriage AI · ASTRA · body damage", "live_model", "vision/vision_metrics.json"),
+    ("corrosion", "Undercarriage AI · Keymag AI Undercarriage Inspection · corrosion", "live_logic", "corrosion_calibration.json"),
     ("enose", "E-nose classifier (XGBoost on UCI gas array)", "live_model", "enose_metrics.json"),
     ("acoustic", "Acoustic fault classifier + engine fingerprint", "live_model", "acoustic_metrics.json"),
     ("soh", "EV battery SOH + NASA fade model", "live_model", "soh_metrics.json"),

@@ -7,7 +7,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { BrakeChart, ENoseChart, PNChart } from "@/components/lanebits";
 import { Card, LoadingState, Pill, Source, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { STATUS_LABEL, dmy, fmtN, laneLabel, llmLabel, pct } from "@/lib/format";
+import { LANE_STEPS, STATUS_LABEL, dmy, fmtN, laneLabel, llmLabel, moduleModel, pct } from "@/lib/format";
 import { useInspection } from "@/lib/inspection";
 import { useUser } from "@/lib/auth";
 import { useFetch } from "@/lib/live";
@@ -24,34 +24,35 @@ export function useInspectionParam(id: string) {
   return { L: useInspection(session ? { session } : { id }), session };
 }
 
-const STEPS = ["check_in_anpr", "identity_ocr", "emission_idle_rev", "brake_roller", "suspension", "side_slip", "headlamp_tint",
-  "undercarriage_ai", "above_carriage_ai", "examiner_review", "report"];
+const STEPS = LANE_STEPS;
+/** The checklist: the lane's ten stations in order (as the backend's vhi/services/inspection_view.py), an EV's battery
+ *  checks in place of Emission, then the final review. id, label, icon, the lane steps that measure it, its finding codes. */
 const ITEMS: [string, string, string, string[], string[]][] = [
-  ["identification", "Vehicle Identification", "car", ["check_in_anpr", "identity_ocr"], ["anpr:", "identity:", "route:"]],
-  ["exterior", "Exterior Condition", "car", ["above_carriage_ai"], ["body:", "capture:front", "capture:rear", "capture:left", "capture:right"]],
-  ["lighting", "Lighting System", "lamp", ["headlamp_tint"], ["headlamp"]],
-  ["braking", "Braking System", "brake", ["brake_roller"], ["brake:", "thermal:A"]],
-  ["suspension", "Suspension & Steering", "steering", ["suspension", "side_slip"], ["suspension", "acoustic:wheel_bearing"]],
-  ["tyres", "Tyres & Wheels", "tyre", ["undercarriage_ai"], ["tyre:", "capture:tyre"]],
-  ["emissions", "Emissions", "smoke", ["emission_idle_rev"], ["pn:", "emissions:"]],
-  ["engine", "Engine & Diagnostics", "oil", ["emission_idle_rev"], ["dtc:", "acoustic:"]],
-  ["underbody", "Underbody", "layers", ["undercarriage_ai"], ["corrosion:undercarriage", "capture:underbody"]],
-  ["interior", "Interior & Safety", "seat", ["headlamp_tint", "above_carriage_ai"], ["tint", "corrosion:cabin", "capture:interior", "flood"]],
+  ["identification", "Identification", "car", ["check_in_anpr", "identity_ocr"], ["anpr:", "identity:", "route:"]],
+  ["above_carriage", "Above-carriage", "car", ["above_carriage_ai"], ["body:", "capture:front", "capture:rear", "capture:left", "capture:right", "capture:interior", "corrosion:cabin", "flood"]],
+  ["tinted_glass", "Tinted Glass", "window", ["tinted_glass"], ["tint"]],
+  ["emission", "Emission", "smoke", ["emission_idle_rev"], ["pn:", "emissions:", "dtc:", "acoustic:"]],
   ["ev", "EV Battery & High Voltage", "batt", ["emission_idle_rev"], ["ev:", "thermal:pack"]],
+  ["side_slip", "Side Slip", "steering", ["side_slip"], ["side_slip"]],
+  ["suspension", "Suspension", "spring", ["suspension"], ["suspension", "acoustic:wheel_bearing"]],
+  ["brake", "Brake", "brake", ["brake_roller"], ["brake:", "thermal:A"]],
+  ["undercarriage", "Undercarriage", "layers", ["undercarriage_ai"], ["corrosion:undercarriage", "capture:underbody", "tyre:", "capture:tyre"]],
+  ["speedometer", "Speedometer", "gauge", ["speedometer"], ["speedo"]],
+  ["headlight", "Headlight Alignment", "lamp", ["headlight_alignment"], ["headlamp"]],
   ["final", "Final Review", "list", ["examiner_review"], []],
 ];
 
 export function itemOf(code: string, ev: boolean): string {
   if (code === "flood" && ev) return "ev";
   if (code.startsWith("acoustic:") && code.includes("wheel_bearing")) return "suspension";
-  for (const [id, , , , codes] of ITEMS) if (codes.some((c) => code.startsWith(c))) return id;
-  return "engine";
+  for (const [id, , , , codes] of ITEMS) if (codes.some((c) => code.startsWith(c))) return id === "emission" && ev ? "ev" : id;
+  return ev ? "ev" : "emission";
 }
 
 /** The checklist item a finding belongs to, by its label: the same words as the checklist and the finding tabs. */
 export function itemLabel(code: string, ev: boolean): string {
   const id = itemOf(code, ev);
-  return ITEMS.find((x) => x[0] === id)?.[1] || "Engine & Diagnostics";
+  return ITEMS.find((x) => x[0] === id)?.[1] || "Emission";
 }
 
 /** A fuel code as people write it ("ev" → "EV", "petrol" → "Petrol"). */
@@ -69,7 +70,7 @@ export function checklistOf(insp: any, alerts: any[], step: string): { items: Ch
   alerts.forEach((a) => (by[itemOf(a.code, ev)] ||= []).push(a));
   const items: CheckItem[] = [];
   for (const [id, label, icon, steps] of ITEMS) {
-    if ((id === "ev" && !ev) || (id === "emissions" && ev)) continue;
+    if ((id === "ev" && !ev) || (id === "emission" && ev)) continue;
     const f = by[id] || [];
     const first = Math.min(...steps.map((x) => STEPS.indexOf(x))), last = Math.max(...steps.map((x) => STEPS.indexOf(x)));
     let st: string;
@@ -293,7 +294,7 @@ export function observedOf(a: any): string | null {
 /** Which module or instrument produced the finding, in words. */
 export function moduleOf(a: any): string {
   const img = a.evidence?.image;
-  if (img) return [img.camera, img.model].filter(Boolean).join(" · ");
+  if (img) return [img.camera, moduleModel(img.system) || img.model].filter(Boolean).join(" · ");
   if (a.evidence?.acoustic) return "Roller-bed microphone · sound classifier";
   if (a.evidence?.fingerprint) return "Engine sound fingerprint";
   if (a.evidence?.dtc) return `OBD scanner${a.evidence.source || a.evidence.dtc.source ? ` · ${a.evidence.source || a.evidence.dtc.source}` : ""}`;

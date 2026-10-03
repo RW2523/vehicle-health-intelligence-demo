@@ -113,13 +113,11 @@ function LaneConsole() {
               <Card title="Measurements against their limits" right={<Source kind="simulated" text="Lane instruments" />}>
                 <Instruments instruments={L.instruments} results={r} />
               </Card>
-              <Card title="AI vision · undercarriage, above-carriage and tyre" right={<Source kind="live_model" />}>
+              <Card title="AI vision · above-carriage, undercarriage and tyre" right={<Source kind="live_model" />}>
                 <Frames images={r.images || []} onOpen={setZoom} done={lastStep} />
               </Card>
+              {/* in the lane's order: emission (station 4) before the brake (station 7) */}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <Card title="Brake roller · force per wheel (kN)" right={<Source kind="simulated" />}>
-                  <BrakeChart brake={L.brake} />
-                </Card>
                 {(L.pn.length > 0 || insp.vehicle?.fuel === "diesel") ? (
                   <Card title="Particle number (PN) at idle" right={<Source kind="simulated" />}>
                     <PNChart pn={L.pn} />
@@ -129,6 +127,9 @@ function LaneConsole() {
                     <p className="text-[13px] text-fg-3">{insp.vehicle?.fuel === "ev" ? "An EV has no exhaust: the battery and high-voltage checks replace the emission test." : "Petrol engine: CO, HC and lambda are measured (see the measurements above); the particle counter is for diesel engines."}</p>
                   </Card>
                 )}
+                <Card title="Brake roller · force per wheel (kN)" right={<Source kind="simulated" />}>
+                  <BrakeChart brake={L.brake} />
+                </Card>
               </div>
               <details className="card card-pad group">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2">

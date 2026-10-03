@@ -127,11 +127,17 @@ function Findings({ id }: { id: string }) {
   const refText = cur ? Object.entries(RULES).find(([k]) => (cur.code || "").startsWith(k))?.[1] || null : null;
   const refNote = !cur ? null : cur.code === "identity:odometer" && m ? "From the vehicle's inspection history" : cur.code === "identity:engine" && m ? "Calibrated match threshold"
     : m || refText ? "Demo reference value" : null;
-  // the final review: dominant once every critical finding has a decision, disabled (saying why) before that
+  // the final review: always open; dominant once every critical finding has a decision. Before that it is a quieter
+  // button that says what is left, and the review page keeps the report from being issued until they are decided.
   let finalCta: ReactNode;
   if (insp.report) finalCta = <Link className="btn btn-primary btn-lg" href={`/report?id=${insp.report.report_id}`}><Icon name="award" size={16} />View report</Link>;
   else if (running) finalCta = <button className="btn btn-lg" disabled><Icon name="clock" size={16} />Lane still running</button>;
-  else if (openReq > 0) finalCta = <button className="btn btn-lg" disabled title="The final review opens once every critical finding has a decision"><Icon name="lock" size={16} />Decide {openReq} critical finding{openReq === 1 ? "" : "s"} first</button>;
+  else if (openReq > 0) finalCta = (
+    <span className="flex flex-col items-stretch gap-1 sm:items-end">
+      <Link className="btn btn-lg" href={`/inspection/${sid}/review`} title="The report can be issued once every critical finding has a decision">Go to final review<Icon name="arrow" size={16} /></Link>
+      <span className="text-center text-[11.5px] font-medium text-bad sm:text-right">{openReq} critical finding{openReq === 1 ? "" : "s"} to decide before issuing</span>
+    </span>
+  );
   else finalCta = <Link className="btn btn-primary btn-lg" href={`/inspection/${sid}/review`}>{open.length ? "Go to final review" : "All decided · final review"}<Icon name="arrow" size={16} /></Link>;
 
   const save = async () => {

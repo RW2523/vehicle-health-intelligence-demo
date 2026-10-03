@@ -52,6 +52,11 @@ def stock_dir() -> Path:
     return get_settings().data_dir / "images" / "stock"
 
 
+def generated_dir() -> Path:
+    """Images generated for the demo: the fictional vehicles themselves (with their plates) and scenes."""
+    return get_settings().data_dir / "images" / "generated"
+
+
 def uploads_dir() -> Path:
     p = get_settings().var_dir / "images"
     p.mkdir(parents=True, exist_ok=True)
@@ -90,6 +95,10 @@ def _stock_by_slot() -> dict[str, dict]:
     return {im["slot_id"]: im for im in _manifest().get("images", [])}
 
 
+def _generated_by_slot() -> dict[str, dict]:
+    return {im["slot_id"]: im for im in _json(generated_dir() / "generated.json").get("images", [])}
+
+
 def _folder(slot: dict) -> str:
     return "scenes" if slot["group"] == "scenes" else slot["group"]
 
@@ -118,6 +127,24 @@ def _stock_photo(slot: dict) -> dict | None:
         # where the vehicle's parts are on this photo (the damage pins); only the stock picks are measured
         "anchors": _anchors().get(slot["group"], {}).get(slot["view"]),
     }
+
+
+def _generated_photo(slot: dict) -> dict | None:
+    """The slot's built-in generated image: a picture of the demo vehicle itself, so not "representative"."""
+    im = _generated_by_slot().get(slot["id"])
+    if not im or not (get_settings().data_dir / im["files"]["1600"]).exists():
+        return None
+    url = lambda size: "/media/data/" + im["files"][size]  # noqa: E731
+    return {
+        "url": url("1600"), "url_960": url("960"), "url_480": url("480"), "credit": "Generated image for the demo",
+        "author": None, "license": None, "license_url": None, "page_url": None, "kind": "generated", "view": slot["view"],
+        "label": slot["label"], "representative": False, "width": im.get("width"), "height": im.get("height"),
+    }
+
+
+def _builtin(slot: dict) -> dict | None:
+    """What a slot shows without an upload: its generated image, else its stock photo."""
+    return _generated_photo(slot) or _stock_photo(slot)
 
 
 def _anchors() -> dict:
@@ -170,11 +197,11 @@ def _uploaded_photo(slot: dict) -> dict | None:
 
 
 def _current(slot: dict) -> dict | None:
-    return _uploaded_photo(slot) or _stock_photo(slot)
+    return _uploaded_photo(slot) or _builtin(slot)
 
 
 def _public(slot: dict) -> dict:
-    up, stock = _uploaded_photo(slot), _stock_photo(slot)
+    up, stock = _uploaded_photo(slot), _builtin(slot)
     return {"id": slot["id"], "group": slot["group"], "plate": slot.get("plate"), "view": slot["view"],
             "label": slot["label"], "where": slot["where"], "aspect": slot["aspect"], "prompt": slot["prompt"],
             "path": slot.get("path"), "current": up or stock, "stock": stock, "uploaded": up is not None}
@@ -199,6 +226,25 @@ def _vehicle_slots(plate: str) -> list[dict]:
     return sorted(found, key=lambda s: order.index(s["view"]) if s["view"] in order else 99)
 
 
+# slots that are not photos of the vehicle for its gallery: lane camera frames and the owner's number-plate photo
+NOT_GALLERY = {"plate", "damage_left", "damage_rear"}
+
+
+def photo_file(slot_id: str) -> tuple[Path, str] | None:
+    """The full-size file of a slot's own photo and where it comes from: its upload ("uploaded", made usable first if it
+    was dropped in by hand), else its generated image ("generated"). None when it has neither (stock photos are of the
+    model, not of the vehicle, so they are not used as the vehicle's own frames)."""
+    s = _slot(slot_id)
+    if not s:
+        return None
+    paths = _normalise(s)
+    if paths:
+        return paths[1600], "uploaded"
+    im = _generated_by_slot().get(slot_id)
+    f = get_settings().data_dir / im["files"]["1600"] if im else None
+    return (f, "generated") if f is not None and f.exists() else None
+
+
 def hero(plate: str) -> dict | None:
     """The vehicle's front three-quarter photo (an upload, else the stock photo), None for other vehicles."""
     s = next((s for s in _vehicle_slots(plate) if s["view"] == "hero"), None)
@@ -207,7 +253,7 @@ def hero(plate: str) -> dict | None:
 
 def gallery(plate: str) -> list[dict]:
     """The vehicle's photos that exist, hero first."""
-    return [ph for ph in (_current(s) for s in _vehicle_slots(plate)) if ph]
+    return [ph for ph in (_current(s) for s in _vehicle_slots(plate) if s["view"] not in NOT_GALLERY) if ph]
 
 
 def scene(scene_id: str) -> dict | None:
@@ -248,7 +294,7 @@ def groups() -> list[dict]:
     for g in order:
         items = [s for s in _slots() if s["group"] == g]
         ups = [_uploaded_photo(s) for s in items]
-        cur = [u or _stock_photo(s) for u, s in zip(ups, items)]
+        cur = [u or _builtin(s) for u, s in zip(ups, items)]
         v = vehicles.get(g, {})
         hero_i = next((i for i, s in enumerate(items) if s["view"] == "hero"), None)
         out.append({"group": g, "plate": v.get("plate"), "make": v.get("make"), "model": v.get("model"),

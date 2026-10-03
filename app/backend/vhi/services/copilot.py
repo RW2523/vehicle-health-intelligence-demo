@@ -24,13 +24,13 @@ import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy import delete, func, select, text
 
-from .. import terms
+from .. import lane, terms
 from ..api.deps import norm_plate
 from ..db import engine, session_scope
 from ..tables import Alert, Booking, ChatMessage, LiveInspection, Report, Vehicle
 from . import booking as booking_svc
 from . import fleet as fleet_svc
-from . import hubday, registry, showcase
+from . import hubday, inspection_systems, registry, showcase
 from . import reports as report_svc
 from .llm import LLM, detect_lang
 
@@ -172,10 +172,7 @@ RULES: list[dict] = [
 for _r in RULES:
     _r["rx"] = re.compile(_r["re"], re.I)
 
-STEP = {"check_in_anpr": "check-in (ANPR)", "identity_ocr": "identity check", "emission_idle_rev": "emissions test",
-        "brake_roller": "brake test", "suspension": "suspension test", "side_slip": "side-slip test",
-        "headlamp_tint": "headlamps and tint", "undercarriage_ai": "Undercarriage AI", "above_carriage_ai": "Above-carriage AI",
-        "examiner_review": "examiner review", "report": "report", "done": "finished"}
+STEP = lane.STEP_LABEL
 LI_STATUS = {"in_lane": "in the lane", "review": "awaiting the examiner's review", "decided": "decided, report not issued yet",
              "reported": "report issued"}
 SEV = {"high": "Critical", "medium": "Attention", "low": "Normal"}
@@ -606,7 +603,8 @@ def _evidence_line(a: Alert) -> str:
                 f"({_d(o.get('max_recorded_date'))}).")
     if ev.get("image"):
         im = ev["image"]
-        return f"{im.get('camera') or 'Camera'} image classified as {im.get('label') or im.get('class')}" + (f" by the {im['model']}" if im.get("model") else "") + "."
+        by = inspection_systems.model_label(im.get("system"))
+        return f"{im.get('camera') or 'Camera'} image classified as {im.get('label') or im.get('class')}" + (f" by {by}" if by else "") + "."
     if ev.get("acoustic"):
         ac = ev["acoustic"]
         return f"{ac.get('mic') or 'Microphone'} recording classified as {((ac.get('top') or {}).get('label')) or 'abnormal'}."

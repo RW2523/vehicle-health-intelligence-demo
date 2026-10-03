@@ -42,51 +42,61 @@
   {
    "step": "check_in_anpr",
    "start_s": 0,
-   "end_s": 20
+   "end_s": 15
   },
   {
    "step": "identity_ocr",
-   "start_s": 20,
+   "start_s": 15,
    "end_s": 40
   },
   {
-   "step": "emission_idle_rev",
+   "step": "above_carriage_ai",
    "start_s": 40,
-   "end_s": 130
+   "end_s": 80
   },
   {
-   "step": "brake_roller",
-   "start_s": 130,
-   "end_s": 190
+   "step": "tinted_glass",
+   "start_s": 80,
+   "end_s": 95
   },
   {
-   "step": "suspension",
-   "start_s": 190,
-   "end_s": 230
+   "step": "emission_idle_rev",
+   "start_s": 95,
+   "end_s": 185
   },
   {
    "step": "side_slip",
-   "start_s": 230,
-   "end_s": 245
+   "start_s": 185,
+   "end_s": 200
   },
   {
-   "step": "headlamp_tint",
-   "start_s": 245,
-   "end_s": 280
+   "step": "suspension",
+   "start_s": 200,
+   "end_s": 240
+  },
+  {
+   "step": "brake_roller",
+   "start_s": 240,
+   "end_s": 300
   },
   {
    "step": "undercarriage_ai",
-   "start_s": 280,
-   "end_s": 340
+   "start_s": 300,
+   "end_s": 360
   },
   {
-   "step": "above_carriage_ai",
-   "start_s": 340,
+   "step": "speedometer",
+   "start_s": 360,
    "end_s": 380
   },
   {
-   "step": "examiner_review",
+   "step": "headlight_alignment",
    "start_s": 380,
+   "end_s": 400
+  },
+  {
+   "step": "examiner_review",
+   "start_s": 400,
    "end_s": 460
   },
   {

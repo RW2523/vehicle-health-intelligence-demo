@@ -22,6 +22,7 @@ from ..db import engine, session_scope
 from ..runtime import rt
 from ..tables import Branch, LiveInspection, Listing, Report, Vehicle
 from . import dtc, library
+from . import inspection_systems as systems
 from .reports import report_dict
 
 ODO_TOLERANCE_KM = 1000  # the same tolerance as the lane's odometer check
@@ -90,7 +91,7 @@ def _lane_images(li: LiveInspection | None) -> list[dict]:
         label = im.get("label") or (f"corrosion score {im['corrosion_score']}" if "corrosion_score" in im else "")
         out.append({"url": im.get("annotated") or im.get("source_image"), "original": im.get("source_image"),
                     "title": f"{(im.get('kind') or 'image').capitalize()} · {label}".strip(" ·"),
-                    "camera": im.get("camera"), "model": im.get("model")})
+                    "camera": im.get("camera"), "model": systems.model_label(im.get("system")) or im.get("model")})
     return out
 
 

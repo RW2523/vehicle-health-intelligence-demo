@@ -7,37 +7,44 @@ import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "
 import { Icon } from "./icons";
 import { SeverityBadge, Source } from "./ui";
 import { VehicleImage } from "./VehicleImage";
-import { STEP_LABEL, SYSTEM_NAME, fmtN, scoreColor } from "@/lib/format";
+import { LANE_STEPS, STEP_LABEL, SYSTEM_NAME, fmtN, scoreColor } from "@/lib/format";
 import { useLive } from "@/lib/live";
 import { SEVERITY, Severity, alertSeverity, hasModelConfidence } from "@/lib/present";
 
 /* ------------------------------------------------------------------ the lane's stations */
 
-const STEPS = ["check_in_anpr", "identity_ocr", "emission_idle_rev", "brake_roller", "suspension", "side_slip", "headlamp_tint",
-  "undercarriage_ai", "above_carriage_ai", "examiner_review", "report"];
+const STEPS = LANE_STEPS;
 
-type StationId = "checkin" | "emis" | "brakes" | "susp" | "lamps" | "under" | "body" | "examiner" | "report";
-type Station = { id: StationId; label: string; icon: string; steps: string[]; x: number; end?: boolean; ai?: boolean };
+type StationId = "ident" | "above" | "tint" | "emis" | "slip" | "susp" | "brake" | "under" | "speedo" | "headlight" | "examiner" | "report";
+type Station = { id: StationId; no?: number; label: string; icon: string; steps: string[]; x: number; end?: boolean; ai?: boolean };
 
-/** The eleven lane steps as nine places along the lane (x: % of the lane from the entrance to the exit). */
+/** The lane's ten stations in order (app/backend/vhi/lane.py), then the examiner and the report: twelve places along
+ *  the lane (x: % of the lane from the entrance to the exit). */
 const STATIONS: Station[] = [
-  { id: "checkin", label: "Check-in & ID", icon: "cam", steps: ["check_in_anpr", "identity_ocr"], x: 9 },
-  { id: "emis", label: "Emissions & OBD", icon: "smoke", steps: ["emission_idle_rev"], x: 19.5 },
-  { id: "brakes", label: "Brake roller", icon: "brake", steps: ["brake_roller"], x: 30 },
-  { id: "susp", label: "Suspension & slip", icon: "spring", steps: ["suspension", "side_slip"], x: 40.5 },
-  { id: "lamps", label: "Lamps & tint", icon: "lamp", steps: ["headlamp_tint"], x: 51 },
-  { id: "under", label: "Underbody & tyre AI", icon: "layers", steps: ["undercarriage_ai"], x: 61.5, ai: true },
-  { id: "body", label: "Body & cabin AI", icon: "vision", steps: ["above_carriage_ai"], x: 72, ai: true },
-  { id: "examiner", label: "Examiner", icon: "examiner", steps: ["examiner_review"], x: 83, end: true },
-  { id: "report", label: "Report", icon: "report", steps: ["report"], x: 91.5, end: true },
+  { id: "ident", no: 1, label: "Identification", icon: "cam", steps: ["check_in_anpr", "identity_ocr"], x: 6 },
+  { id: "above", no: 2, label: "Above-carriage", icon: "vision", steps: ["above_carriage_ai"], x: 14, ai: true },
+  { id: "tint", no: 3, label: "Tinted glass", icon: "window", steps: ["tinted_glass"], x: 22 },
+  { id: "emis", no: 4, label: "Emission", icon: "smoke", steps: ["emission_idle_rev"], x: 30 },
+  { id: "slip", no: 5, label: "Side slip", icon: "steering", steps: ["side_slip"], x: 38 },
+  { id: "susp", no: 6, label: "Suspension", icon: "spring", steps: ["suspension"], x: 46 },
+  { id: "brake", no: 7, label: "Brake", icon: "brake", steps: ["brake_roller"], x: 54 },
+  { id: "under", no: 8, label: "Under\u00ADcarriage", icon: "layers", steps: ["undercarriage_ai"], x: 62, ai: true },
+  { id: "speedo", no: 9, label: "Speedometer", icon: "gauge", steps: ["speedometer"], x: 70 },
+  { id: "headlight", no: 10, label: "Headlight alignment", icon: "lamp", steps: ["headlight_alignment"], x: 78 },
+  { id: "examiner", label: "Examiner", icon: "examiner", steps: ["examiner_review"], x: 87, end: true },
+  { id: "report", label: "Report", icon: "report", steps: ["report"], x: 95, end: true },
 ];
+/** A station's name for this vehicle: an EV's emission station runs its battery and high-voltage checks. */
+const stationLabel = (s: Station, insp: any) => (s.id === "emis" && fuelOf(insp) === "ev" ? "EV battery & OBD" : s.label);
+/** The same without the soft hyphens that let a long name break on the lane (titles, screen readers, the readout). */
+const stationName = (s: Station, insp?: any) => stationLabel(s, insp).replace(/\u00AD/g, "");
 const ENTRY = 0;
 const EXIT = 100;
 const STATION_OF: Record<string, Station> = {};
 const STEP_X: Record<string, number> = {};
 STATIONS.forEach((s) => s.steps.forEach((st, i) => {
   STATION_OF[st] = s;
-  STEP_X[st] = s.x + (s.steps.length > 1 ? (i - (s.steps.length - 1) / 2) * 4.4 : 0);  // two steps: two spots
+  STEP_X[st] = s.x + (s.steps.length > 1 ? (i - (s.steps.length - 1) / 2) * 3.2 : 0);  // two steps: two spots
 }));
 STEP_X.done = EXIT;
 
@@ -45,15 +52,18 @@ STEP_X.done = EXIT;
 export function stationOfAlert(a: any): StationId {
   const sys = a?.evidence?.image?.system;
   if (sys === "undercarriage" || sys === "tyre") return "under";
-  if (sys === "above") return "body";
+  if (sys === "above") return "above";
   const c: string = a?.code || "";
-  if (c.startsWith("anpr:") || c === "identity:chassis" || c === "identity:odometer") return "checkin";
+  if (c.startsWith("anpr:") || c === "identity:chassis" || c === "identity:odometer") return "ident";
   if (c.startsWith("route:") || c === "flood") return "examiner";       // the fusion at examiner review
-  if (c.startsWith("brake:") || c.startsWith("acoustic:wheel_bearing")) return "brakes";  // the roller-bed microphone
+  if (c.startsWith("brake:") || c.startsWith("acoustic:wheel_bearing")) return "brake";  // the roller-bed microphone
   if (c.startsWith("thermal:") || c === "corrosion:undercarriage" || c.startsWith("tyre:")) return "under";  // the pit
-  if (c.startsWith("body:") || c.startsWith("corrosion:")) return "body";
+  if (c.startsWith("body:") || c.startsWith("corrosion:")) return "above";
   if (c.startsWith("suspension")) return "susp";
-  if (c === "headlamp" || c === "tint") return "lamps";
+  if (c.startsWith("side_slip")) return "slip";
+  if (c === "tint") return "tint";
+  if (c.startsWith("speedo")) return "speedo";
+  if (c === "headlamp") return "headlight";
   return "emis";  // particle number, exhaust gas, fault codes, EV battery, engine sound
 }
 
@@ -416,7 +426,7 @@ export function LiveLaneView({ L, compact = false, sessionControls, player, idle
             const n = byStation[s.id]?.length || 0;
             const col = st === "done" ? (n ? sevOf(byStation[s.id]!).color : "#10B981") : st === "active" ? "#2563EB" : st === "waiting" ? "#D97706" : "#FFFFFF";
             return (
-              <span key={s.id} title={`${s.label}${st === "done" ? (n ? ` · ${n} finding${n === 1 ? "" : "s"}` : " · done") : st === "active" ? " · now" : ""}`}
+              <span key={s.id} title={`${s.no ? `${s.no}. ` : ""}${stationName(s, insp)}${st === "done" ? (n ? ` · ${n} finding${n === 1 ? "" : "s"}` : " · done") : st === "active" ? " · now" : ""}`}
                 className={`absolute top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 ${s.end ? "rounded-[3px]" : "rounded-full"} ${st === "pending" ? "ring-[1.5px] ring-[#CBD5E1]" : "ring-2 ring-white"}`}
                 style={{ left: `${s.x}%`, background: col }}>
                 {st === "active" && !reduced && <span className="llv-ring absolute inset-[-3px] rounded-full ring-2 ring-[#2563EB]" aria-hidden />}
@@ -487,7 +497,7 @@ export function LiveLaneView({ L, compact = false, sessionControls, player, idle
       <div ref={scrollEl} className="llv-scroll -mx-3 mt-2 overflow-x-auto px-3 sm:-mx-4 sm:px-4"
         onPointerDown={() => (userUntil.current = performance.now() + 4000)} onWheel={() => (userUntil.current = performance.now() + 4000)}
         onTouchStart={() => (userUntil.current = performance.now() + 4000)}>
-        <div className="relative min-w-[860px]">
+        <div className="relative min-w-[980px]">
           {/* station gantry heads */}
           <div className="relative mx-[52px] h-[43px]">
             {STATIONS.map((s, i) => {
@@ -496,11 +506,14 @@ export function LiveLaneView({ L, compact = false, sessionControls, player, idle
               const bg = st === "active" ? "linear-gradient(180deg,#3B82F6,#1D4ED8)" : st === "done" ? "#FFFFFF" : st === "waiting" ? "#FFF7E6" : "rgba(255,255,255,0.6)";
               return (
                 <button key={s.id} type="button" onClick={() => setSel((c) => (c === s.id || (st === "active" && !c) ? null : s.id))} aria-pressed={isSel}
-                  aria-label={`${s.label}: ${st === "active" ? "the vehicle is here" : st === "done" ? (list.length ? `done, ${list.length} finding${list.length === 1 ? "" : "s"}` : "done, no findings") : st === "waiting" ? "waiting" : "not reached yet"}. Show its readings`}
+                  aria-label={`${s.no ? `Station ${s.no}, ` : ""}${stationName(s, insp)}: ${st === "active" ? "the vehicle is here" : st === "done" ? (list.length ? `done, ${list.length} finding${list.length === 1 ? "" : "s"}` : "done, no findings") : st === "waiting" ? "waiting" : "not reached yet"}. Show its readings`}
                   className={`group absolute top-[2px] flex h-[38px] w-[38px] -translate-x-1/2 items-center justify-center rounded-full shadow-[0_4px_14px_-6px_rgba(15,23,42,0.45)] ring-1 transition ${isSel ? "ring-2 ring-[#2563EB]" : st === "active" ? "ring-white" : "ring-ink-500/70 hover:ring-[#93C5FD]"} ${hl === s.id ? "scale-110" : ""}`}
                   style={{ left: `${s.x}%`, background: bg }}>
                   {st === "active" && !reduced && <span className="llv-ring absolute inset-[-4px] rounded-full ring-2 ring-[#3B82F6]" aria-hidden />}
                   <Icon name={s.icon} size={18} width={1.9} color={st === "active" ? "#FFFFFF" : st === "done" ? "#1D4ED8" : st === "waiting" ? "#B45309" : "#94A3B8"} />
+                  {s.no && (
+                    <span className={`absolute -left-1.5 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-0.5 text-[9.5px] font-bold tabular-nums ring-2 ring-white ${st === "active" ? "bg-[#1D4ED8] text-white" : "bg-[#E2E8F0] text-fg-2"}`} aria-hidden>{s.no}</span>
+                  )}
                   {st === "done" && !list.length && (
                     <span className="absolute -bottom-0.5 -right-1 flex h-[15px] w-[15px] items-center justify-center rounded-full bg-[#10B981] text-white ring-2 ring-white" aria-hidden><Icon name="check" size={9} width={3.4} /></span>
                   )}
@@ -539,12 +552,12 @@ export function LiveLaneView({ L, compact = false, sessionControls, player, idle
             </div>
           </div>
           {/* station names and results */}
-          <div className="relative mx-[52px] h-[50px]">
+          <div className="relative mx-[52px] h-[54px]">
             {STATIONS.map((s, i) => {
               const { st, list, sev } = station(s, i);
               return (
-                <div key={s.id} className="absolute top-[4px] flex w-[80px] -translate-x-1/2 flex-col items-center text-center" style={{ left: `${s.x}%` }}>
-                  <span className={`text-[11px] font-semibold leading-[1.15] ${st === "active" ? "text-[#1D4ED8]" : st === "pending" ? "text-fg-3" : "text-fg"}`}>{s.id === "emis" && fuelOf(insp) === "ev" ? "EV battery & OBD" : s.label}</span>
+                <div key={s.id} className="absolute top-[4px] flex w-[70px] -translate-x-1/2 flex-col items-center text-center" style={{ left: `${s.x}%` }}>
+                  <span className={`text-[11px] font-semibold leading-[1.15] ${st === "active" ? "text-[#1D4ED8]" : st === "pending" ? "text-fg-3" : "text-fg"}`}>{stationLabel(s, insp)}</span>
                   <StationChip s={s} st={st} n={list.length} sev={sev} insp={insp} open={nOpen} />
                 </div>
               );
@@ -598,7 +611,7 @@ function Gantry({ s, st, reduced }: { s: Station; st: StState; reduced: boolean 
   const pad: CSSProperties = { left: `${s.x}%` };
   return (
     <>
-      {s.id === "brakes" && (
+      {(s.id === "brake" || s.id === "speedo") && (
         <>
           <span className="llv-roller absolute top-[16px] h-[11px] w-[50px] -translate-x-1/2 rounded-[4px]" style={pad} aria-hidden />
           <span className="llv-roller absolute bottom-[16px] h-[11px] w-[50px] -translate-x-1/2 rounded-[4px]" style={pad} aria-hidden />
@@ -606,11 +619,12 @@ function Gantry({ s, st, reduced }: { s: Station; st: StState; reduced: boolean 
       )}
       {s.id === "susp" && (
         <>
-          <span className="llv-plate absolute top-[15px] h-[14px] w-[70px] -translate-x-1/2 rounded-[3px]" style={pad} aria-hidden />
-          <span className="llv-plate absolute bottom-[15px] h-[14px] w-[70px] -translate-x-1/2 rounded-[3px]" style={pad} aria-hidden />
+          <span className="llv-plate absolute top-[15px] h-[14px] w-[56px] -translate-x-1/2 rounded-[3px]" style={pad} aria-hidden />
+          <span className="llv-plate absolute bottom-[15px] h-[14px] w-[56px] -translate-x-1/2 rounded-[3px]" style={pad} aria-hidden />
         </>
       )}
-      {s.id === "under" && <span className="llv-pit absolute bottom-[22px] top-[22px] w-[70px] -translate-x-1/2 rounded-md" style={pad} aria-hidden />}
+      {s.id === "slip" && <span className="llv-plate absolute top-[15px] h-[14px] w-[44px] -translate-x-1/2 rounded-[3px]" style={pad} aria-hidden />}
+      {s.id === "under" && <span className="llv-pit absolute bottom-[22px] top-[22px] w-[60px] -translate-x-1/2 rounded-md" style={pad} aria-hidden />}
       {on && <span className={`absolute bottom-[12px] top-[12px] w-[78px] -translate-x-1/2 rounded-lg bg-[#3B82F6]/15 ${reduced ? "" : "llv-glow"}`} style={pad} aria-hidden />}
       <span className={`absolute bottom-[6px] top-[6px] w-[3px] -translate-x-1/2 rounded-full ${on ? "bg-[#3B82F6] shadow-[0_0_12px_2px_rgba(59,130,246,0.55)]" : s.end ? "bg-white/50" : "bg-white/85 shadow-sm"}`} style={pad} aria-hidden />
       {!s.end && (
@@ -647,7 +661,7 @@ function Readout({ s, L, M, live, follow, followLabel, reduced }: {
   const i = STATIONS.indexOf(s);
   const st = M.stState(s, i);
   const status = live ? (s.ai ? "Scanning now" : s.end ? "Now" : "Measuring now") : st === "done" ? (list.length ? `${list.length} finding${list.length === 1 ? "" : "s"}` : "Done") : st === "waiting" ? "Waiting" : "Not reached yet";
-  const label = s.id === "emis" && fuelOf(M.insp) === "ev" ? "EV battery & OBD" : s.label;
+  const label = `${s.no ? `${s.no}. ` : ""}${stationName(s, M.insp)}`;
   return (
     <div className="flex flex-col gap-2.5 lg:flex-row lg:items-stretch lg:gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2 lg:w-[196px] lg:shrink-0 lg:flex-col lg:flex-nowrap lg:items-start lg:justify-start lg:gap-1.5">
@@ -711,7 +725,7 @@ function ReadoutBody({ s, L, M, live, list, reduced }: { s: Station; L: LaneStat
     </div>
   );
 
-  if (s.id === "checkin") {
+  if (s.id === "ident") {
     const a = r.anpr, c = r.chassis, o = r.odometer;
     return (
       <>
@@ -783,7 +797,7 @@ function ReadoutBody({ s, L, M, live, list, reduced }: { s: Station; L: LaneStat
     );
   }
 
-  if (s.id === "brakes") {
+  if (s.id === "brake") {
     const br = r.brakes;
     const wheels = Array.from(new Set([...Object.keys(L.brake || {}), ...Object.keys(br?.wheels || {})])).sort();
     const now = (w: string) => lastOf(L.brake?.[w], (p) => p.f);
@@ -835,26 +849,30 @@ function ReadoutBody({ s, L, M, live, list, reduced }: { s: Station; L: LaneStat
               <CountUp value={v} /><Unit>%</Unit>
             </Tile>
           )) : <Tile label="Suspension efficiency" note="per axle, on the shaker plates"><Waiting /></Tile>}
-          <Instrument k="side_slip_m_per_km" ins={ins} label="Side slip" unit="m/km" />
         </div>
         {findings}
       </>
     );
   }
 
-  if (s.id === "lamps") {
+  // the single-instrument stations
+  const ONE: Partial<Record<StationId, [string, string, string, number]>> = {
+    tint: ["tint_vlt_pct", "Window tint (light let through)", "%", 0],
+    slip: ["side_slip_m_per_km", "Side slip (front wheels)", "m/km", 1],
+    speedo: ["speedo_kmh_at_40", "Speedometer at a true 40 km/h", "km/h", 0],
+    headlight: ["headlamp_dev_pct", "Headlamp aim (deviation)", "%", 1],
+  };
+  const one = ONE[s.id];
+  if (one) {
     return (
       <>
-        <div className={GRID}>
-          <Instrument k="headlamp_dev_pct" ins={ins} label="Headlamp aim (deviation)" unit="%" />
-          <Instrument k="tint_vlt_pct" ins={ins} label="Window tint (light let through)" unit="%" d={0} />
-        </div>
+        <div className={GRID}><Instrument k={one[0]} ins={ins} label={one[1]} unit={one[2]} d={one[3]} /></div>
         {findings}
       </>
     );
   }
 
-  if (s.id === "under" || s.id === "body") {
+  if (s.id === "under" || s.id === "above") {
     const mine = (r.images || []).filter((im: any) => (s.id === "under" ? im.system === "undercarriage" || im.system === "tyre" : im.system === "above"));
     const latest = mine[mine.length - 1];
     const corr = mine.filter((im: any) => im.corrosion_score !== undefined).map((im: any) => Number(im.corrosion_score));

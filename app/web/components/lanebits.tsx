@@ -32,32 +32,38 @@ export function Timeline({ timeline, step, t }: { timeline: any[]; step: string;
   );
 }
 
+/** The lane's instruments in its station order: tinted glass, emission, side slip, suspension, speedometer, headlight. */
 const TILES: [string, string, string, (v: any) => string][] = [
+  ["tint_vlt_pct", "Tint VLT", "%", (v) => `${v}`],
   ["smoke_opacity_pct", "Smoke opacity", "%", (v) => `${v}`],
   ["co_pct", "CO", "%", (v) => `${v}`],
   ["hc_ppm", "HC", "ppm", (v) => `${v}`],
   ["lambda", "Lambda (λ)", "", (v) => Number(v).toFixed(2)],
   ["hv_isolation_mohm", "HV isolation", "MΩ", (v) => `${v}`],
-  ["suspension_eff_pct", "Suspension eff.", "%", (v) => (Array.isArray(v) ? v.join(" / ") : `${v}`)],
   ["side_slip_m_per_km", "Side slip", "m/km", (v) => `${v}`],
+  ["suspension_eff_pct", "Suspension eff.", "%", (v) => (Array.isArray(v) ? v.join(" / ") : `${v}`)],
+  ["speedo_kmh_at_40", "Speedometer at 40 km/h", "km/h", (v) => `${v}`],
   ["headlamp_dev_pct", "Headlamp aim", "%", (v) => `${v}`],
-  ["tint_vlt_pct", "Tint VLT", "%", (v) => `${v}`],
 ];
 
 export function Instruments({ instruments, results }: { instruments: Record<string, any>; results: Record<string, any> }) {
   const pn = results.pn;
   const br = results.brakes;
   const ev = results.ev;
-  const tiles = TILES.filter(([k]) => instruments[k]).map(([k, label, unit, f]) => ({
-    k, label, value: `${f(instruments[k].value)} ${unit}`, verdict: instruments[k].verdict, limit: instruments[k].limit, overridden: instruments[k].overridden,
-  }));
-  if (pn) tiles.unshift({ k: "pn", label: "Particle number", value: `${(pn.median_per_cm3 / 1e6).toFixed(2)} M/cm³`, verdict: pn.verdict, limit: "250k", overridden: false });
-  if (br) {
-    tiles.push({ k: "be", label: "Brake efficiency", value: `${br.efficiency_pct}%`, verdict: br.efficiency_pct < br.limit_efficiency_pct ? "fail" : "pass", limit: br.limit_efficiency_pct, overridden: false });
-    const imb = Math.max(0, ...Object.values(br.imbalance_by_axle || {}).map(Number));
-    tiles.push({ k: "bi", label: "Brake imbalance", value: `${imb}%`, verdict: imb > 30 ? "fail" : imb > 20 ? "advisory" : "pass", limit: 30, overridden: false });
+  type T = { k: string; label: string; value: string; verdict: string; limit: any; overridden: boolean };
+  const tiles: T[] = [];
+  for (const [k, label, unit, f] of TILES) {
+    const x = instruments[k];
+    if (x) tiles.push({ k, label, value: `${f(x.value)} ${unit}`, verdict: x.verdict, limit: x.limit, overridden: x.overridden });
+    // the measured results in their stations' places: particle number and battery health at Emission, the brakes after Suspension
+    if (k === "tint_vlt_pct" && pn) tiles.push({ k: "pn", label: "Particle number", value: `${(pn.median_per_cm3 / 1e6).toFixed(2)} M/cm³`, verdict: pn.verdict, limit: "250k", overridden: false });
+    if (k === "hv_isolation_mohm" && ev) tiles.push({ k: "soh", label: "Battery SOH", value: `${ev.pack_soh_pct}%`, verdict: ev.pack_soh_pct < 80 ? "advisory" : "pass", limit: "80%", overridden: false });
+    if (k === "suspension_eff_pct" && br) {
+      tiles.push({ k: "be", label: "Brake efficiency", value: `${br.efficiency_pct}%`, verdict: br.efficiency_pct < br.limit_efficiency_pct ? "fail" : "pass", limit: br.limit_efficiency_pct, overridden: false });
+      const imb = Math.max(0, ...Object.values(br.imbalance_by_axle || {}).map(Number));
+      tiles.push({ k: "bi", label: "Brake imbalance", value: `${imb}%`, verdict: imb > 30 ? "fail" : imb > 20 ? "advisory" : "pass", limit: 30, overridden: false });
+    }
   }
-  if (ev) tiles.push({ k: "soh", label: "Battery SOH", value: `${ev.pack_soh_pct}%`, verdict: ev.pack_soh_pct < 80 ? "advisory" : "pass", limit: "80%", overridden: false });
   const col = (v: string) => SEVERITY[VERDICT_SEV[v] || "normal"].color;
   if (!tiles.length) return <p className="text-[13px] text-fg-3">Instrument readings appear as each lane step completes.</p>;
   return (

@@ -14,7 +14,7 @@ def test_live_playback_controls(client):
     st = client.post("/api/sessions/S3/speed", json={"speed": 16}).json()
     assert st["speed"] == 16
     st = client.post("/api/sessions/S3/seek", json={"step": "brake_roller"}).json()
-    assert st["step"] == "brake_roller" and st["t"] >= 130
+    assert st["step"] == "brake_roller" and st["t"] >= 240  # station 7 of the lane
     st = client.post("/api/sessions/S3/resume").json()
     assert st["status"] == "playing"
     t_resumed = st["t"]
@@ -47,3 +47,26 @@ def test_status(client):
     assert s["bus"]["published"] > 0 and s["processor"]["model_calls"] > 0
     keys = {m["key"] for m in s["models"] if m["ready"]}
     assert {"tyre", "damage", "enose", "acoustic", "fusion", "demand"} <= keys
+
+
+def test_the_lane_runs_in_station_order(client):
+    """Every replay follows the lane's ten stations in order (vhi/lane.py), each instrument is read at its own station,
+    and the speedometer is checked against its tolerance."""
+    from vhi import lane
+    from vhi.sim.player import build_events
+
+    win = {s: (a, b) for s, a, b in lane.TIMELINE}
+    for sid in ("S1", "S2", "S3", "S7"):
+        meta, ev = build_events(sid)
+        assert [x["step"] for x in meta["lane_timeline"]] == lane.STEPS
+        assert [e.payload["step"] for e in ev if e.sensor == "step"] == lane.STEPS + ["done"]
+        at = {e.payload["field"]: e.t for e in ev if e.sensor == "instrument"}
+        for field, step in (("tint_vlt_pct", "tinted_glass"), ("side_slip_m_per_km", "side_slip"), ("suspension_eff_pct", "suspension"),
+                            ("speedo_kmh_at_40", "speedometer"), ("headlamp_dev_pct", "headlight_alignment")):
+            assert win[step][0] <= at[field] < win[step][1], (sid, field)
+    assert [s[1] for s in lane.STATIONS] == ["Identification", "Above-carriage", "Tinted glass", "Emission", "Side slip", "Suspension",
+                                             "Brake", "Undercarriage", "Speedometer", "Headlight alignment"]
+    client.post("/api/sessions/S7/start", json={"fast": True})
+    d = client.get("/api/inspections/latest", params={"session_id": "S7"}).json()
+    sp = d["results"]["instruments"]["speedo_kmh_at_40"]
+    assert sp["value"] == 42 and sp["verdict"] == "pass" and sp["limit"] == "40-48"

@@ -2,20 +2,26 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
+import os
+import random
+import re
 import threading
 import time
 from functools import lru_cache
+from pathlib import Path
 
 import httpx
 import numpy as np
 import pandas as pd
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 from sqlalchemy import func, select, text
 
 from .. import terms
 from ..config import get_settings
 from ..db import engine, session_scope
-from ..ml import analytics
+from ..ml import analytics, ocr
 from ..tables import Alert, Branch, LiveInspection, Setting
 from . import booking as booking_svc
 from . import evidence
@@ -198,15 +204,221 @@ def regulator() -> dict:
 
 
 # ---------------------------------------------------------------- owner: self-check and passport
+# The self-check's number-plate photo: the photo uploaded for the vehicle's "<slug>.plate" image slot (Settings ->
+# Images) or, until there is one, a sample rendered here. Either runs through the lane's plate reader (vhi.ml.ocr).
+PLATE_SAMPLE_V = 2  # bump when the sample or the dirt changes: the cached files are named after it
+_plate_lock = threading.Lock()
+
+
+def _rgb(hex_: str | None, default: tuple = (154, 160, 168)) -> tuple:
+    h = (hex_ or "").lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) if re.fullmatch(r"[0-9A-Fa-f]{6}", h) else default
+
+
+def _mix(a: tuple, b: tuple, t: float) -> tuple:
+    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
+
+
+def _sample_plate(plate: str, paint: str | None) -> tuple[Image.Image, tuple]:
+    """A sample photo of the rear number plate: a Malaysian-style plate (white characters on black, a thin light
+    border) on a softly blurred tailgate in the vehicle's paint. Returns the image and the plate's box."""
+    W, H = 960, 720
+    body = _rgb(paint)
+    img = Image.new("RGB", (W, H), body)
+    d = ImageDraw.Draw(img)
+    for y in range(H):  # lit from above
+        d.line([(0, y), (W, y)], fill=_mix(_mix(body, (255, 255, 255), 0.18), _mix(body, (0, 0, 0), 0.35), y / H))
+    d.rectangle([0, 0, W, 90], fill=_mix(body, (20, 24, 30), 0.75))  # the bottom edge of the rear window
+    d.line([(0, 200), (W, 188)], fill=_mix(body, (255, 255, 255), 0.45), width=6)  # a crease in the tailgate
+    d.line([(0, 206), (W, 194)], fill=_mix(body, (0, 0, 0), 0.3), width=4)
+    d.rounded_rectangle([170, 240, 790, 490], radius=26, fill=_mix(body, (0, 0, 0), 0.22))  # the plate recess
+    d.rectangle([0, 580, W, H], fill=_mix(body, (0, 0, 0), 0.45))  # the bumper
+    d.line([(0, 580), (W, 580)], fill=_mix(body, (255, 255, 255), 0.35), width=5)
+    img = img.filter(ImageFilter.GaussianBlur(9))
+    d = ImageDraw.Draw(img)
+    box = (220, 298, 740, 432)
+    d.rounded_rectangle(box, radius=8, fill=(14, 14, 16), outline=(205, 205, 205), width=4)
+    size = 100
+    f = ocr._font(size)
+    while size > 40 and d.textlength(plate, font=f) > 0.82 * (box[2] - box[0]):
+        size -= 4
+        f = ocr._font(size)
+    bb = d.textbbox((0, 0), plate, font=f)
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    d.text((cx - (bb[2] - bb[0]) / 2 - bb[0], cy - (bb[3] - bb[1]) / 2 - bb[1]), plate, font=f, fill=(244, 244, 244))
+    img = img.rotate(-1.2, resample=Image.BICUBIC, center=(cx, cy), fillcolor=_mix(body, (0, 0, 0), 0.3))
+    return img.filter(ImageFilter.GaussianBlur(0.7)), box
+
+
+def _sample_tag(img: Image.Image) -> Image.Image:
+    """The copy of a sample that is shown, labelled "SAMPLE PHOTO" above the plate (where the phone's viewfinder and
+    a square crop still show it)."""
+    img = img.copy()
+    d = ImageDraw.Draw(img)
+    f = ocr._font(19)
+    w = d.textlength("SAMPLE PHOTO", font=f)
+    x0, y0 = (img.width - w) / 2 - 13, 146
+    d.rounded_rectangle([x0, y0, x0 + w + 26, y0 + 34], radius=9, fill=(255, 255, 255))
+    d.text((x0 + 13, y0 + 6), "SAMPLE PHOTO", font=f, fill=(70, 70, 70))
+    return img
+
+
+def _plate_box(path, size: tuple) -> tuple:
+    """Where the plate is on a photo: the plate reader's boxes around the largest characters, widened to the plate
+    (the middle of the photo when it reads nothing)."""
+    lines = [ln for ln in ocr.read_text(path) if ln["box"] and re.search(r"[A-Z0-9]{2}", ln["text"].upper())]
+    if not lines:
+        W, H = size
+        return (round(0.22 * W), round(0.42 * H), round(0.78 * W), round(0.58 * H))
+    height = lambda ln: max(p[1] for p in ln["box"]) - min(p[1] for p in ln["box"])  # noqa: E731
+    tall = max(height(ln) for ln in lines)
+    pts = [p for ln in lines if height(ln) >= 0.6 * tall for p in ln["box"]]
+    x0, x1 = min(p[0] for p in pts), max(p[0] for p in pts)
+    y0, y1 = min(p[1] for p in pts), max(p[1] for p in pts)
+    w, h = x1 - x0, y1 - y0
+    return (round(x0 - 0.08 * w), round(y0 - 0.3 * h), round(x1 + 0.08 * w), round(y1 + 0.3 * h))
+
+
+def _dirty(img: Image.Image, box: tuple, seed: int) -> Image.Image:
+    """The same photo with the plate muddy and faded: a film of road dust over it, road spray from below and a few
+    smears across the characters."""
+    rnd = random.Random(seed)
+    x0, y0, x1, y1 = box
+    w, h = max(1, x1 - x0), max(1, y1 - y0)
+    s = h / 134
+    pad = round(10 * s)
+    area = Image.new("L", img.size, 0)
+    ImageDraw.Draw(area).rounded_rectangle([x0 - pad, y0 - pad, x1 + pad, y1 + pad], radius=round(14 * s), fill=255)
+    area = area.filter(ImageFilter.GaussianBlur(4 * s))
+    img = Image.composite(Image.new("RGB", img.size, (150, 138, 118)), img, area.point(lambda v: round(v * 0.75)))
+    mud = Image.new("L", img.size, 0)
+    md = ImageDraw.Draw(mud)
+    for _ in range(int(400 * (w / h) / (520 / 134))):
+        cx = x0 - pad + rnd.uniform(0, w + 2 * pad)
+        cy = y0 + h * (1.08 - rnd.random() ** 1.6)  # thickest along the bottom edge
+        r = rnd.uniform(5, 20) * s
+        md.ellipse([cx - r, cy - r, cx + r, cy + r], fill=rnd.randint(160, 255))
+    for _ in range(3):
+        cx, cy = x0 + rnd.uniform(0.15, 0.85) * w, y0 + rnd.uniform(0.35, 0.7) * h
+        md.ellipse([cx - 70 * s, cy - 24 * s, cx + 70 * s, cy + 24 * s], fill=225)
+    mud = ImageChops.multiply(mud.filter(ImageFilter.GaussianBlur(3.5 * s)), area.filter(ImageFilter.GaussianBlur(8 * s)))
+    grain = Image.fromarray(np.random.default_rng(seed).normal(92, 22, (img.height, img.width)).clip(0, 255).astype(np.uint8))
+    mud_col = Image.merge("RGB", (grain.point(lambda v: min(255, v + 14)), grain, grain.point(lambda v: max(0, v - 22))))
+    img = Image.composite(mud_col, img, mud)
+    return Image.composite(img.filter(ImageFilter.GaussianBlur(1.3 * s)), img, area)
+
+
+def plate_slug(plate: str) -> str:
+    """"DMO 9006" -> "dmo-9006" (the vehicle's image-slot group)."""
+    return re.sub(r"\s+", "-", plate.strip().lower())
+
+
+def plate_photo(plate: str, dirty: bool = False) -> dict:
+    """The rear number-plate photo the self-check reads, as a file under evidence/selfcheck: the vehicle's own photo for
+    its "<slug>.plate" image slot (an upload, else the generated image; source "uploaded" or "generated") or, without
+    one, the rendered sample; with dirty, the same photo with
+    the plate muddy and faded (the demo control). "path" is the photo the plate reader reads and "url" the one shown,
+    which for a sample is the same photo labelled "SAMPLE PHOTO". The files are named after their source, so a new
+    upload makes new ones and an earlier check keeps the photo it read."""
+    from . import images
+
+    slug = plate_slug(plate)
+    own = images.photo_file(f"{slug}.plate")  # the vehicle's own photo: an upload, else its generated image
+    src, kind = own if own else (None, "sample")
+    uploaded = src is not None
+    paint = images.paint(plate).get("paint_hex")
+    version = f"{kind}:{src}:{src.stat().st_mtime_ns}" if uploaded else f"sample:{PLATE_SAMPLE_V}:{paint}"
+    key = hashlib.sha1(f"{plate}|{version}".encode()).hexdigest()[:10]
+    out = get_settings().evidence_dir / "selfcheck" / f"{slug}-plate-{'dirty' if dirty else 'clean'}-{key}.jpg"
+    shown = out if uploaded else out.with_name(out.stem + "-sample.jpg")
+
+    def save(img: Image.Image, dst: Path) -> None:
+        tmp = dst.with_name(dst.name + ".part")
+        img.save(tmp, "JPEG", quality=88)
+        os.replace(tmp, dst)
+
+    with _plate_lock:
+        if not (out.exists() and shown.exists()):
+            if uploaded:
+                with Image.open(src) as im:
+                    img = im.convert("RGB")
+                box = _plate_box(src, img.size) if dirty else None
+            else:
+                img, box = _sample_plate(plate, paint)
+            if dirty:
+                img = _dirty(img, box, int(hashlib.sha1(plate.encode()).hexdigest()[:8], 16))
+            out.parent.mkdir(parents=True, exist_ok=True)
+            save(img, out)
+            if shown != out:
+                save(_sample_tag(img), shown)
+    return {"path": out, "url": f"/media/evidence/selfcheck/{shown.name}", "source": kind, "dirty": dirty}
+
+
+def _plate_item(plate: str, state: str) -> dict:
+    """The number plate: is it readable, and does it read as the registered plate?"""
+    ph = plate_photo(plate, state == "dirty")
+    r = ocr.read_plate(ph["path"])
+    read = r["plate"]
+    ok = bool(read) and read.replace(" ", "") == plate.replace(" ", "")
+    if ok:
+        value, advice = f"Reads {read}", None
+    elif read:
+        value = f"Reads {read}, not {plate}"
+        advice = (f"The plate reader read {read} instead of {plate}: clean the plate, or replace a faded or non-standard "
+                  "plate before the inspection.")
+    else:
+        value = "Not readable"
+        advice = "Number plate not readable: clean it, or replace a faded or non-standard plate before the inspection."
+    return {"item": "Number plate", "value": value, "p": r["conf"], "ok": ok, "level": "fix", "image": ph["url"],
+            "photo": ph["source"], "source": "live model (plate reader)", "advice": advice}
+
+
+# The guided brake test: the owner's own yes/no answers (guidance, not a measurement). Every "no" is an item with plain
+# advice, and each is for a workshop to look at.
+BRAKE_CHECKS = (  # answer key, item, value for yes, value for no, advice for no
+    ("warning_light", "Brake warning light", "Goes out", "Stays on",
+     "The brake warning light stays on: have a workshop check the brakes before the inspection."),
+    ("pedal", "Brake pedal", "Firm", "Soft or sinks",
+     "The brake pedal feels soft or sinks: have a workshop check the brakes before you drive far."),
+    ("straight", "Braking in a straight line", "Stops straight", "Pulls to one side",
+     "Pulls to one side when braking: have a workshop check the brakes before the inspection."),
+    ("quiet", "Brake noise", "Quiet", "Grinding or squeal",
+     "Grinding, scraping or a loud squeal when braking: the pads or discs may be worn. Have a workshop check them "
+     "before the inspection."),
+    ("handbrake", "Handbrake", "Holds", "Does not hold",
+     "The handbrake does not hold the car on a slope: have a workshop adjust or repair it before the inspection."),
+)
+BRAKE_SOURCE = "owner's answers (guided brake test)"
+
+
+def _brake_items(answers: dict | None) -> list[dict]:
+    if not answers:
+        return []
+    if answers.get("safe_place") is False:  # no safe place: the owner skipped the test (the app said not to do it)
+        return [{"item": "Brake test", "value": "Not done: no safe place", "ok": False, "level": "fix", "source": BRAKE_SOURCE,
+                 "advice": "Do the brake test later in an empty, flat car park, or ask a workshop to check the brakes "
+                           "before the inspection."}]
+    out = []
+    for key, item, yes, no, advice in BRAKE_CHECKS:
+        a = answers.get(key)
+        if a is not None:
+            out.append({"item": item, "value": yes if a else no, "ok": bool(a), "level": "pro", "source": BRAKE_SOURCE,
+                        "advice": None if a else advice})
+    return out
+
+
 def self_check(plate: str, attempt: dict, models) -> dict:
-    """Pre-inspection self-check (feature 3). Photos run through the tyre model, the 20 s engine clip through the
-    acoustic model; tint and headlamp readings come from the phone check (simulated inputs in the demo)."""
+    """Pre-inspection self-check (feature 3). The number-plate photo runs through the lane's plate reader, the tyre
+    photos through the tyre model and the 20 s engine clip through the acoustic model; tint and headlamp readings
+    come from the phone check (simulated inputs in the demo) and the brake test from the owner's own answers."""
     s = get_settings()
     items = []
+    if attempt.get("plate_photo") in ("clean", "dirty"):
+        items.append(_plate_item(plate, attempt["plate_photo"]))
     tint = attempt.get("tint_vlt_pct")
     if tint is not None:
         ok = tint >= 50
-        items.append({"item": "Window tint", "value": f"VLT {tint}%", "ok": ok, "source": "simulated (phone light check)",
+        items.append({"item": "Window tint", "value": f"VLT {tint:g}%", "ok": ok, "source": "simulated (phone light check)",
                       "advice": None if ok else "Tint is darker than 50% on the front side windows. Remove or replace the film."})
     for side in ("left", "right"):
         st = attempt.get(f"headlamp_{side}")
@@ -219,7 +431,8 @@ def self_check(plate: str, attempt: dict, models) -> dict:
         r = models.vision.classify("tyre", p)
         ok = not (r.get("available") and r["class"] == "defective" and r["p"] >= 0.6)
         items.append({"item": f"Tyre {i + 1}", "value": r.get("label"), "p": r.get("p"), "ok": ok, "image": f"/media/data/{ref}",
-                      "source": f"live model ({r.get('arch', 'YOLO11')})", "advice": None if ok else "This tyre looks damaged or worn. Have it checked."})
+                      "source": "live model (AI Tyre Scan)", "advice": None if ok else "This tyre looks damaged or worn. Have it checked."})
+    items += _brake_items(attempt.get("brakes"))
     if attempt.get("engine_audio"):
         r = models.acoustic.classify(s.data_dir / attempt["engine_audio"])
         ok = r["top"]["class"] in ("normal_engine", "lane_background") or r["top"]["p"] < 0.4
@@ -227,8 +440,9 @@ def self_check(plate: str, attempt: dict, models) -> dict:
                       "source": "live model (acoustic classifier)", "clip": f"/media/data/{attempt['engine_audio']}",
                       "advice": None if ok else "An unusual engine sound was detected. Ask a workshop to check it."})
     fails = [i for i in items if not i["ok"]]
-    # what the owner can put right (tint, bulbs) vs what a workshop has to look at (tyre damage, engine sound)
-    pro = [i for i in fails if i["item"].startswith(("Tyre", "Engine"))]
+    # what the owner can put right (tint, bulbs, a dirty plate) vs what a workshop has to look at (tyre damage, engine
+    # sound, a brake fault)
+    pro = [i for i in fails if i.get("level") == "pro" or i["item"].startswith(("Tyre", "Engine"))]
     verdict = "Needs a professional check" if pro else ("Fix these first" if fails else "Ready for inspection")
     from ..tables import SelfCheck
     with session_scope() as sess:

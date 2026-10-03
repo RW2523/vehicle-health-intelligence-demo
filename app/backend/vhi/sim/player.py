@@ -37,11 +37,35 @@ LANE_SESSIONS = {
 EXTRA_MEDIA = {
     "S2": {"cabin_images": ["assets:captures/c05o.jpg"]},
 }
-# When each non-stream measurement is published (seconds into the session)
+# Lane camera frames that a photo of the vehicle itself replaces (the image slots in data/curated/images/stock/prompts.json:
+# an upload in Settings → Images, else the slot's generated image): session -> media list -> one slot per frame, in order.
+# A frame without one keeps the session's sample frame.
+MEDIA_SLOTS = {
+    "S3": {"body_images": ["dmo-9003.damage_left", "dmo-9003.damage_rear"]},
+}
+
+
+def _own_frames(sid: str, media: dict) -> dict:
+    """The session's media with each frame that has an uploaded photo of the vehicle swapped for it."""
+    from ..services import images
+
+    out = dict(media)
+    for key, slots in MEDIA_SLOTS.get(sid, {}).items():
+        frames = list(out.get(key, []))
+        for i, slot_id in enumerate(slots[:len(frames)]):
+            own = images.photo_file(slot_id)
+            if own is not None:
+                frames[i] = f"upload:{own[0]}"
+        out[key] = frames
+    return out
+# When each non-stream measurement is published: its lane step and the seconds into that step (the lane's order is
+# vhi/lane.py; the session files carry its timeline)
 INSTRUMENT_AT = {
-    "smoke_opacity_pct": 125, "co_pct": 125, "hc_ppm": 125, "lambda": 125, "hv_isolation_mohm": 120,
-    "suspension_eff_pct": 226, "side_slip_m_per_km": 242, "headlamp_dev_pct": 270, "tint_vlt_pct": 276,
-    "adas_self_test": 372,
+    "smoke_opacity_pct": ("emission_idle_rev", 85), "co_pct": ("emission_idle_rev", 85), "hc_ppm": ("emission_idle_rev", 85),
+    "lambda": ("emission_idle_rev", 85), "hv_isolation_mohm": ("emission_idle_rev", 80),
+    "suspension_eff_pct": ("suspension", 36), "side_slip_m_per_km": ("side_slip", 12), "tint_vlt_pct": ("tinted_glass", 11),
+    "speedo_kmh_at_40": ("speedometer", 16), "headlamp_dev_pct": ("headlight_alignment", 15),
+    "adas_self_test": ("above_carriage_ai", 32),
 }
 
 PRESETS = {
@@ -63,6 +87,8 @@ PRESETS = {
 def _media_path(ref: str) -> str:
     """Return a path usable by the processor and a URL-able reference."""
     s = get_settings()
+    if ref.startswith("upload:"):
+        return ref.split(":", 1)[1]
     if ref.startswith("assets:"):
         return str(s.assets_dir / ref.split(":", 1)[1])
     return str(s.data_dir / ref)
@@ -132,8 +158,8 @@ def build_events(sid: str) -> tuple[dict, list[Event]]:
     inst = load("instruments.json") or {}
     for k, v in inst.items():
         at = INSTRUMENT_AT.get(k)
-        if at is not None:
-            ev.append(Event(at, "instrument", {"field": k, "value": v}))
+        if at is not None and at[0] in step_at:
+            ev.append(Event(step_at[at[0]]["start_s"] + at[1], "instrument", {"field": k, "value": v}))
     th = load("thermal.json")
     if th:
         ev.append(Event(step_at["undercarriage_ai"]["start_s"] + 8, "thermal", th))
@@ -141,10 +167,11 @@ def build_events(sid: str) -> tuple[dict, list[Event]]:
     if bms is not None:
         ev.append(Event(step_at["emission_idle_rev"]["start_s"] + 20, "ev_bms", {"modules": bms.to_dict("records")}))
     v = meta.get("vehicle", {})
-    ev.append(Event(4, "camera", {"kind": "plate", "plate_text": v.get("plate"), "camera": "ANPR entry camera"}))
-    ev.append(Event(24, "camera", {"kind": "chassis", "camera": "Handheld OCR camera"}))
-    ev.append(Event(30, "odometer", {"km": v.get("odometer_km"), "source": "OBD / cluster read"}))
-    media = {**meta.get("media", {}), **EXTRA_MEDIA.get(sid, {})}
+    t_id = step_at["identity_ocr"]["start_s"]
+    ev.append(Event(step_at["check_in_anpr"]["start_s"] + 4, "camera", {"kind": "plate", "plate_text": v.get("plate"), "camera": "ANPR entry camera"}))
+    ev.append(Event(t_id + 4, "camera", {"kind": "chassis", "camera": "Handheld OCR camera"}))
+    ev.append(Event(t_id + 10, "odometer", {"km": v.get("odometer_km"), "source": "OBD / cluster read"}))
+    media = _own_frames(sid, {**meta.get("media", {}), **EXTRA_MEDIA.get(sid, {})})
     t_under = step_at["undercarriage_ai"]["start_s"]
     for i, p in enumerate(media.get("undercarriage_images", [])):
         ev.append(Event(t_under + 14 + i * 12, "camera", {"kind": "undercarriage", "path": _media_path(p), "ref": p,

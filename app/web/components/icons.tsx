@@ -77,6 +77,9 @@ export const ICONS: Record<string, string> = {
   wallet: "M3 7h18v13H3zM3 7l3-4h12l3 4M16 13.5h.01",
   receipt: "M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4",
   layers: "M12 2l10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5",
+  // lane stations: the speedometer (a dial and its needle) and tinted glass (a side window with a shade line)
+  gauge: "M4 18a8 8 0 1 1 16 0M12 18l4-6M7 11.5l1 1M12 9v1.5M17 11.5l-1 1",
+  window: "M4 18V9a3 3 0 0 1 3-3h7l6 6v6zM4 13h16M10 6l-3 12",
   // fleet issues
   brake: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 8a8 8 0 0 1 4-4",
   tyre: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 3v5M12 16v5M3 12h5M16 12h5",

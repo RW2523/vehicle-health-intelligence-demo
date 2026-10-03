@@ -1,8 +1,11 @@
 "use client";
-/* Mobile app · Check: the guided pre-inspection self-check. Four captures with the phone (window tint with the light
-   meter, the headlamps, the tyres, a 20 s engine clip), then the verdict: what to fix before booking. Tyre photos run
-   through the live Tyre AI model and the engine clip through the live acoustic model; the tint and headlamp readings
-   are simulated phone checks, set with the demo controls under the viewfinder. */
+/* Mobile app · Check: the guided pre-inspection self-check. Five captures with the phone (the rear number plate, the
+   window tint with the light meter, the headlamps, the tyres, a 20 s engine clip) and a guided brake test the owner
+   does and answers, then the verdict: what to fix before booking. The plate photo runs through the lane's live plate
+   reader, the tyre photos through the live tyre model and the engine clip through the live acoustic model; the tint
+   and headlamp readings are simulated phone checks and the plate photo a sample (or the demo car's uploaded photo),
+   set with the demo controls under the viewfinder. The brake test is the owner's own yes/no answers, turned into
+   advice: guidance, not a measurement. */
 import { Suspense, useEffect, useRef, useState } from "react";
 import { refreshUseCase } from "@/components/Demo";
 import { Icon } from "@/components/icons";
@@ -13,9 +16,22 @@ import { toast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useFetch } from "@/lib/live";
 
-type Stage = "intro" | "tint" | "lamps" | "tyres" | "engine" | "review" | "analysing" | "result";
-const STEPS: { id: Stage; label: string }[] = [{ id: "tint", label: "Tint" }, { id: "lamps", label: "Lamps" }, { id: "tyres", label: "Tyres" }, { id: "engine", label: "Engine" }];
+type Stage = "intro" | "plate" | "tint" | "lamps" | "tyres" | "brakes" | "engine" | "review" | "analysing" | "result";
+const STEPS: { id: Stage; label: string }[] = [
+  { id: "plate", label: "Plate" }, { id: "tint", label: "Tint" }, { id: "lamps", label: "Lamps" }, { id: "tyres", label: "Tyres" },
+  { id: "brakes", label: "Brakes" }, { id: "engine", label: "Engine" },
+];
 const TYRES = ["Front left", "Front right", "Rear left", "Rear right"];
+// the guided brake test: what to do, then a yes/no question where "yes" is fine (the API's answer keys)
+type BrakeKey = "safe_place" | "warning_light" | "pedal" | "straight" | "quiet" | "handbrake";
+const BRAKE_GUIDE: { id: BrakeKey; title: string; how: string; ask: string }[] = [
+  { id: "safe_place", title: "A safe place", how: "Go to an empty, flat car park with nobody around, and put your seat belt on.", ask: "Are you somewhere safe to test?" },
+  { id: "warning_light", title: "Warning light", how: "Start the engine and release the handbrake. The red brake light on the dashboard, a (!) in a circle, should go out.", ask: "Has the brake warning light gone out?" },
+  { id: "pedal", title: "Pedal feel", how: "With the engine running and the car standing still, press the brake pedal firmly for 5 seconds.", ask: "Does the pedal stay high and firm, not soft, spongy or sinking to the floor?" },
+  { id: "straight", title: "Straight stop", how: "Drive at about 20 km/h, hold the steering wheel lightly and brake firmly.", ask: "Does the car stop in a straight line, without pulling to one side?" },
+  { id: "quiet", title: "No noise", how: "Listen while you brake.", ask: "Is it quiet, with no grinding, scraping or loud squeal?" },
+  { id: "handbrake", title: "Handbrake", how: "Stop on a gentle slope, put the handbrake (parking brake) on and slowly let go of the foot brake.", ask: "Does the handbrake hold the car?" },
+];
 const EXTRA_TYRES = ["images/tyre/perfect/tyre_helath_qualit_00001.jpg", "images/tyre/perfect/tyre_helath_qualit_00002.jpg"];
 const WORN_TYRE = "images/tyre/defective/tyre_helath_qualit_00231.jpg";
 const KNOCK = "audio/engine_knocking/car_engine_sou_00000.wav";
@@ -128,13 +144,13 @@ function Wave({ live, done }: { live: boolean; done: boolean }) {
 
 function Progress({ stage }: { stage: Stage }) {
   const i = STEPS.findIndex((s) => s.id === stage);
-  const at = stage === "review" ? 4 : i;
+  const at = stage === "review" ? STEPS.length : i;
   return (
-    <div className="mb-3" aria-label={`Step ${Math.min(at + 1, 4)} of 4`}>
-      <div className="grid grid-cols-4 gap-1.5">
+    <div className="mb-3" aria-label={`Step ${Math.min(at + 1, STEPS.length)} of ${STEPS.length}`}>
+      <div className="grid grid-cols-6 gap-1.5">
         {STEPS.map((s, k) => <span key={s.id} className={`h-1.5 rounded-full transition-colors ${k < at ? "bg-emerald-500" : k === at ? "bg-[#2563EB]" : "bg-slate-300/70"}`} />)}
       </div>
-      <div className="mt-1.5 grid grid-cols-4 gap-1.5 text-center text-[11px] font-semibold">
+      <div className="mt-1.5 grid grid-cols-6 gap-1.5 text-center text-[11px] font-semibold">
         {STEPS.map((s, k) => <span key={s.id} className={k === at ? "text-[#1D4ED8]" : k < at ? "text-emerald-700" : "text-slate-400"}>{s.label}</span>)}
       </div>
     </div>
@@ -146,6 +162,36 @@ function DemoControls({ children, kind = "simulated", text }: { children: React.
     <div className="mt-3 rounded-[18px] border border-dashed border-slate-300 bg-white/60 px-1 py-1">
       <div className="flex items-center justify-between gap-2 px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Demo controls<span className="min-w-0 normal-case tracking-normal"><OwnerSource kind={kind} text={text} /></span></div>
       {children}
+    </div>
+  );
+}
+
+/** A yes/no answer of the brake test ("soft": a "no" that is not a fault, shown in amber). */
+function YesNo({ value, onChange, label, soft }: { value?: boolean; onChange: (v: boolean) => void; label: string; soft?: boolean }) {
+  return (
+    <div role="group" aria-label={label} className="mt-3 grid grid-cols-2 gap-2">
+      {[true, false].map((v) => {
+        const on = value === v;
+        return (
+          <button key={String(v)} aria-pressed={on} onClick={() => onChange(v)}
+            className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-[14px] font-semibold ring-1 transition active:scale-[.98] ${on ? (v ? "bg-emerald-500 text-white ring-emerald-500" : soft ? "bg-amber-300 text-amber-950 ring-amber-400" : "bg-rose-500 text-white ring-rose-500") : "bg-white text-slate-700 ring-slate-200 active:bg-slate-50"}`}>
+            {on && <Icon name={v ? "check" : "close"} size={15} color={!v && soft ? "#78350F" : "#fff"} width={2.6} />}{v ? "Yes" : "No"}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Where a result item comes from, in plain words (no model names in the owner's app). */
+function ItemSource({ it }: { it: any }) {
+  const src = String(it.source || "");
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {/^owner/.test(src) ? <OwnerSource kind="live_logic" text="Your answers" />
+        : /live model/.test(src) ? <OwnerSource kind="live_model" text={/^Tyre/.test(it.item) ? "Tyre photo check" : /^Engine/.test(it.item) ? "Engine sound check" : /^Number plate/.test(it.item) ? "Plate reader" : undefined} />
+        : <OwnerSource kind="simulated" text={/light/.test(src) ? "Phone light meter" : "Photo check"} />}
+      {it.photo && <OwnerSource kind="sample" text={it.photo !== "sample" ? "Demo car's photo" : "Plate photo"} />}
     </div>
   );
 }
@@ -164,6 +210,13 @@ function CheckScreen() {
   const [flash, setFlash] = useState(false);
   const [scan, setScan] = useState(false);
   // the captures and the demo controls
+  // the dashboard's brake warning light for the brake test, once a photo of it is uploaded (Settings → Images)
+  const brakeLight = useFetch<Record<string, any>>("/api/images/scenes").data?.brake_light || null;
+  const plateShot = useFetch<{ source: string; clean: string; dirty: string }>(plate ? "/api/owner/self-check/plate-photo" : null, { plate: plate || undefined });
+  const [plateDirty, setPlateDirty] = useState(true);
+  const [plateDone, setPlateDone] = useState(false);
+  const [brakes, setBrakes] = useState<Partial<Record<BrakeKey, boolean>>>({});
+  const brakeEnd = useRef<HTMLLIElement>(null);
   const [tint, setTint] = useState(38);
   const [tintDone, setTintDone] = useState(false);
   const [lampL, setLampL] = useState("not working");
@@ -178,10 +231,23 @@ function CheckScreen() {
   const base = script.data?.first_attempt;
   const tyreImgs: string[] = base ? [...base.tyre_images, EXTRA_TYRES[0], worn ? WORN_TYRE : EXTRA_TYRES[1]].slice(0, 4) : [];
   const clip = knock ? KNOCK : base?.engine_audio;
+  const plateUrl = plateShot.data?.[plateDirty ? "dirty" : "clean"];
+  const plateSrc = plateShot.data && plateShot.data.source !== "sample" ? "Demo car's photo" : "Plate photo";
+  // eslint-disable-next-line @next/next/no-img-element
+  const plateThumb = plateUrl ? <img src={plateUrl} alt="" className="h-7 w-11 rounded-md object-cover ring-2 ring-white" /> : undefined;
+  // the brake test shows one step more after each answer; with no safe place it stops at the first
+  const brakeOpen = BRAKE_GUIDE.findIndex((b) => brakes[b.id] === undefined);
+  const brakeShown = brakes.safe_place === false ? 1 : brakeOpen === -1 ? BRAKE_GUIDE.length : brakeOpen + 1;
+  const brakesDone = brakes.safe_place === false || brakeOpen === -1;
+  const brakeNo = BRAKE_GUIDE.filter((b) => b.id !== "safe_place" && brakes[b.id] === false).length;
+  const brakeAnswers = () => (brakes.safe_place === false ? { safe_place: false } : brakes);
   useEffect(() => {
     if (playing) audio.current?.play().catch(() => setPlaying(false));
     else audio.current?.pause();
   }, [playing]);
+  useEffect(() => {
+    if (brakeShown > 1) brakeEnd.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [brakeShown]);
 
   const shoot = (then: () => void, ms = 700) => {
     setScan(true);
@@ -225,18 +291,23 @@ function CheckScreen() {
   const restart = () => {
     setStage("intro");
     setRes(null);
+    setPlateDone(false);
     setTintDone(false);
     setLampsDone(false);
     setTyres(0);
+    setBrakes({});
     setRec("");
     setPlaying(false);
   };
-  const guided = () => ({ tint_vlt_pct: tint, headlamp_left: lampL, headlamp_right: "ok", tyre_images: tyreImgs, engine_audio: clip });
+  const plateState = plateDirty ? "dirty" : "clean";
+  const guided = () => ({ plate_photo: plateState, tint_vlt_pct: tint, headlamp_left: lampL, headlamp_right: "ok", tyre_images: tyreImgs, brakes: brakeAnswers(), engine_audio: clip });
+  // after fixing: the plate cleaned, the tint film off, the bulb replaced (the brake answers stay the owner's own)
   const runAgain = () => {
     setTint(71);
     setLampL("ok");
+    setPlateDirty(false);
     run(last && last !== base && last.tyre_images?.length === 4
-      ? { ...last, tint_vlt_pct: Math.max(71, last.tint_vlt_pct ?? 71), headlamp_left: "ok", headlamp_right: "ok" }
+      ? { ...last, tint_vlt_pct: Math.max(71, last.tint_vlt_pct ?? 71), headlamp_left: "ok", headlamp_right: "ok", ...(last.plate_photo ? { plate_photo: "clean" } : {}) }
       : script.data.second_attempt);
   };
   const lastCheck = latestCheck(pass.data?.events);
@@ -247,9 +318,11 @@ function CheckScreen() {
   const vs = (res && VERDICT_STYLE[res.verdict]) || OTHER_VERDICT;
   // the step's button, in the footer above the tab bar (with Back from the second step on)
   const step: { label: React.ReactNode; disabled: boolean; go: () => void } | null =
-    stage === "tint" ? { label: "Next: headlamps", disabled: !tintDone, go: () => setStage("lamps") }
+    stage === "plate" ? { label: "Next: window tint", disabled: !plateDone, go: () => setStage("tint") }
+    : stage === "tint" ? { label: "Next: headlamps", disabled: !tintDone, go: () => setStage("lamps") }
     : stage === "lamps" ? { label: "Next: tyres", disabled: !lampsDone, go: () => setStage("tyres") }
-    : stage === "tyres" ? { label: "Next: engine sound", disabled: tyres < 4, go: () => setStage("engine") }
+    : stage === "tyres" ? { label: "Next: brake test", disabled: tyres < 4, go: () => setStage("brakes") }
+    : stage === "brakes" ? { label: "Next: engine sound", disabled: !brakesDone, go: () => setStage("engine") }
     : stage === "engine" ? { label: "Review captures", disabled: rec !== "done", go: () => setStage("review") }
     : stage === "review" ? { label: <><Icon name="bolt" size={18} color="#fff" />Analyse captures</>, disabled: busy || readOnly, go: () => run(guided()) }
     : null;
@@ -276,22 +349,24 @@ function CheckScreen() {
                   <div>
                     <div className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-indigo-200">Before you book</div>
                     <h2 className="mt-1 text-balance text-[22px] font-extrabold leading-tight">{"Pre\u2011inspection self\u2011check"}</h2>
-                    <p className="mt-1.5 text-[13.5px] leading-snug text-indigo-100">Take photos of the tint, both headlamps and all 4 tyres, and record 20 seconds of engine sound. The app tells you what to fix before you book.</p>
+                    <p className="mt-1.5 text-[13.5px] leading-snug text-indigo-100">Photograph the number plate, the tint, both headlamps and all 4 tyres, do a short brake test and record 20 seconds of engine sound. The app tells you what to fix before you book.</p>
                   </div>
                   <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30">
                     <span className="m-ring absolute inset-0 rounded-2xl ring-2 ring-white/40" aria-hidden />
                     <Icon name="camera" size={26} color="#fff" />
                   </span>
                 </div>
-                <div className="mt-3 flex gap-2 text-[12px] font-semibold"><span className="rounded-full bg-white/15 px-2.5 py-1">About 2 minutes</span><span className="rounded-full bg-white/15 px-2.5 py-1">4 captures</span></div>
-                <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-[15px] font-bold text-[#3730A3] shadow-[0_12px_24px_-12px_rgba(15,23,42,0.6)] active:scale-[.985]" onClick={() => setStage("tint")}>
+                <div className="mt-3 flex flex-wrap gap-2 text-[12px] font-semibold"><span className="rounded-full bg-white/15 px-2.5 py-1">About 3 minutes</span><span className="rounded-full bg-white/15 px-2.5 py-1">5 captures</span><span className="rounded-full bg-white/15 px-2.5 py-1">Brake test</span></div>
+                <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-[15px] font-bold text-[#3730A3] shadow-[0_12px_24px_-12px_rgba(15,23,42,0.6)] active:scale-[.985]" onClick={() => setStage("plate")}>
                   <Icon name="camera" size={18} color="#4338CA" />Start guided check
                 </button>
               </section>
               <MList className="mt-4" label="What the self-check covers">
+                <MRow icon="card" tone="gray" title="Number plate" sub="A photo of the rear plate: can it be read, and does it match your registration" chevron={false}><span className="mt-1 block"><OwnerSource kind="live_model" text="Plate reader" /></span></MRow>
                 <MRow icon="eye" tone="sky" title="Window tint" sub="Light meter on the front side window" chevron={false}><span className="mt-1 block"><OwnerSource kind="simulated" /></span></MRow>
                 <MRow icon="lamp" tone="amber" title="Headlamps" sub="One photo with both lamps on" chevron={false}><span className="mt-1 block"><OwnerSource kind="simulated" /></span></MRow>
                 <MRow icon="tyre" tone="purple" title="Tyres" sub="A photo of each tyre: tread, cracks and damage" chevron={false}><span className="mt-1 block"><OwnerSource kind="live_model" /></span></MRow>
+                <MRow icon="brake" tone="red" title="Brakes" sub="A short guided test you do yourself in a safe place, then answer yes or no" chevron={false}><span className="mt-1 block"><OwnerSource kind="live_logic" text="Your answers" /></span></MRow>
                 <MRow icon="vib" tone="green" title="Engine sound" sub="20 seconds at idle: knocks, ticks and rattles" chevron={false}><span className="mt-1 block"><OwnerSource kind="live_model" /></span></MRow>
               </MList>
               {lastCheck && (
@@ -299,13 +374,35 @@ function CheckScreen() {
               )}
               <MTitle action={<OwnerSource kind="sample" text="Demo car's photos" />}>Quick run</MTitle>
               <MCard>
-                <p className="text-[13px] leading-snug text-slate-600">Run the check on the demo car&apos;s captures (tint at 38%, the left headlamp out), then again once they are fixed.</p>
+                <p className="text-[13px] leading-snug text-slate-600">Run the check on the demo car&apos;s captures (a muddy number plate, tint at 38%, the left headlamp out), then again once they are fixed.</p>
                 <div className="mt-3 flex flex-col gap-2">
-                  <button disabled={busy || readOnly} className={`${BTN2} w-full`} onClick={() => run({ ...base, tint_vlt_pct: tint, headlamp_left: lampL })}>{busy ? "Checking…" : "Run self-check"}</button>
+                  <button disabled={busy || readOnly} className={`${BTN2} w-full`} onClick={() => run({ ...base, plate_photo: plateState, tint_vlt_pct: tint, headlamp_left: lampL })}>{busy ? "Checking…" : "Run self-check"}</button>
                   <button disabled={busy || readOnly} className={`${BTN2} w-full`} onClick={runAgain}>Run again after fixing</button>
                 </div>
                 {readOnly && <p className="mt-2 text-[12px] text-slate-500">Read-only account: the checks cannot be run.</p>}
               </MCard>
+            </>
+          )}
+
+          {stage === "plate" && (
+            <>
+              <Progress stage={stage} />
+              <Viewfinder hint="Fit the rear number plate in the frame" flash={flash} scanning={scan}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {plateUrl ? <img src={plateUrl} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <span className="skeleton absolute inset-0 opacity-20" aria-hidden />}
+                <span className="pointer-events-none absolute left-1/2 top-1/2 h-[24%] w-[90%] -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-dashed border-white/85" aria-hidden />
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/75 to-transparent px-5 pb-5 pt-12">
+                  <span className="w-[86px] text-[12px] font-semibold">
+                    {plateDone ? <span className="whitespace-nowrap rounded-full bg-emerald-500 px-2.5 py-1 text-white">Photo taken</span> : <span className="text-white/75">Plate in the frame</span>}
+                  </span>
+                  <Shutter label="Take the plate photo" disabled={!plateUrl} onClick={() => shoot(() => setPlateDone(true))} done={plateDone} />
+                  <span className="w-[86px] text-right text-[11px] text-white/75">{plateShot.data && plateShot.data.source !== "sample" ? "Demo car's photo" : "Sample photo"}</span>
+                </div>
+              </Viewfinder>
+              {plateShot.error && !plateShot.data && <div className="mt-3"><MError onRetry={plateShot.reload}>The plate photo could not load. {plateShot.error}</MError></div>}
+              <DemoControls kind="sample" text={plateSrc}>
+                <Switch checked={plateDirty} onChange={(v) => { setPlateDirty(v); setPlateDone(false); }} label="Dirty or faded plate" sub="Use a photo of a muddy, faded plate: the plate reader should not be able to read it" />
+              </DemoControls>
             </>
           )}
 
@@ -385,6 +482,57 @@ function CheckScreen() {
             </>
           )}
 
+          {stage === "brakes" && (
+            <>
+              <Progress stage={stage} />
+              <MCard>
+                <div className="flex items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-rose-50 ring-1 ring-rose-200"><Icon name="brake" size={22} color="#E11D48" width={1.9} /></span>
+                  <div className="min-w-0">
+                    <h2 className="text-[18px] font-extrabold leading-tight tracking-tight">Test your brakes</h2>
+                    <p className="mt-0.5 text-[13px] leading-snug text-slate-600">Do each step, then answer. The app turns your answers into advice: it is guidance, not a measurement.</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2.5 rounded-2xl bg-amber-50 px-3 py-2.5 text-[12.5px] leading-snug text-amber-950 ring-1 ring-amber-200">
+                  <span className="mt-px shrink-0"><Icon name="warn" size={16} color="#B45309" width={2} /></span>
+                  <span><b>Only do this where it is safe.</b> If in doubt, skip it and ask a workshop to check the brakes.</span>
+                </div>
+                <div className="mt-2.5"><OwnerSource kind="live_logic" text="Your answers" /></div>
+              </MCard>
+              <ol className="mt-3 flex flex-col gap-2.5" aria-label="Brake test steps">
+                {BRAKE_GUIDE.slice(0, brakeShown).map((b, i) => {
+                  const a = brakes[b.id];
+                  return (
+                    <li key={b.id} ref={i === brakeShown - 1 ? brakeEnd : undefined} className="m-pop">
+                      <MCard as="div">
+                        <div className="flex items-start gap-3">
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${a === undefined ? "bg-slate-100 text-slate-600" : a ? "bg-emerald-500 text-white" : b.id === "safe_place" ? "bg-amber-300 text-amber-950" : "bg-rose-500 text-white"}`} aria-hidden>
+                            {a === undefined ? i + 1 : a ? <Icon name="check" size={14} color="#fff" width={3} /> : "!"}
+                          </span>
+                          <div className="min-w-0 flex-1 leading-snug">
+                            <div className="text-[14.5px] font-semibold">{b.title}</div>
+                            <p className="text-[12.5px] text-slate-500">{b.how}</p>
+                            {b.id === "warning_light" && brakeLight?.url_480 && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={brakeLight.url_480} alt="The red brake warning light on the dashboard" className="mt-2 aspect-[4/3] w-full max-w-[220px] rounded-xl object-cover ring-1 ring-slate-200" />
+                            )}
+                            <p className="mt-1.5 text-[13.5px] font-medium text-slate-800">{b.ask}</p>
+                          </div>
+                        </div>
+                        <YesNo label={b.title} value={a} soft={b.id === "safe_place"} onChange={(v) => setBrakes((x) => ({ ...x, [b.id]: v }))} />
+                        {b.id === "safe_place" && a === false && (
+                          <p className="mt-3 rounded-2xl bg-slate-100 px-3 py-2.5 text-[12.5px] leading-snug text-slate-700" role="status">
+                            Do not test the brakes here. Do the test later in an empty, flat car park, or ask a workshop to check the brakes. You can go on with the rest of the self-check.
+                          </p>
+                        )}
+                      </MCard>
+                    </li>
+                  );
+                })}
+              </ol>
+            </>
+          )}
+
           {stage === "engine" && (
             <>
               <Progress stage={stage} />
@@ -419,8 +567,9 @@ function CheckScreen() {
             <>
               <Progress stage={stage} />
               <h2 className="text-[20px] font-extrabold tracking-tight">Ready to check</h2>
-              <p className="text-[13px] text-slate-500">An AI check looks at the tyre photos and listens to the engine clip; the tint and lamps are compared with the limits.</p>
+              <p className="text-[13px] text-slate-500">An AI check reads the number plate, looks at the tyre photos and listens to the engine clip; the tint and lamps are compared with the limits, and your brake answers become advice.</p>
               <MList className="mt-3" label="Captures">
+                <MRow icon="card" tone="gray" title="Number plate" sub="Rear plate photo" onClick={() => setStage("plate")} label="Retake the plate photo" right={plateThumb} />
                 <MRow icon="eye" tone="sky" title="Window tint" sub={`VLT ${tint}% measured`} onClick={() => setStage("tint")} label="Retake the tint reading" />
                 <MRow icon="lamp" tone="amber" title="Headlamps" sub={`Left ${lampL === "ok" ? "working" : "not working"} · right working`} onClick={() => setStage("lamps")} label="Retake the headlamp photo" />
                 <MRow icon="tyre" tone="purple" title="Tyres" sub="4 photos" onClick={() => setStage("tyres")} label="Retake the tyre photos"
@@ -428,6 +577,8 @@ function CheckScreen() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img key={i} src={`/media/data/${t}`} alt="" className="h-7 w-7 rounded-full object-cover ring-2 ring-white" />
                   ))}</span>} />
+                <MRow icon="brake" tone="red" title="Brakes" onClick={() => setStage("brakes")} label="Go back to the brake test"
+                  sub={brakes.safe_place === false ? "Not done: no safe place" : `${brakeNo ? `${brakeNo} problem${brakeNo === 1 ? "" : "s"} noticed` : "All 5 checks fine"} · your answers`} />
                 <MRow icon="vib" tone="green" title="Engine sound" sub="20 s clip at idle" onClick={() => setStage("engine")} label="Record the engine again" />
               </MList>
             </>
@@ -442,9 +593,11 @@ function CheckScreen() {
               </span>
               <h2 className="mt-6 text-[20px] font-extrabold">Checking your captures</h2>
               <ul className="mt-4 flex flex-col gap-2 text-left text-[13.5px] text-slate-600">
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Reading the number plate</li>
                 <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Looking at the tyre tread and sidewalls</li>
                 <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Listening to the engine for knocks and rattles</li>
                 <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Comparing tint and lamps with the limits</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#2563EB] pulse-dot" />Going through your brake answers</li>
               </ul>
             </div>
           )}
@@ -466,12 +619,13 @@ function CheckScreen() {
                     <div className="min-w-0 flex-1 text-[13.5px] leading-snug">
                       <div><b>{it.item}</b> · {it.value}</div>
                       {it.advice && <div className="text-[12.5px] text-slate-600">{it.advice}</div>}
-                      <div className="mt-1">{/live model/.test(it.source)
-                        ? <OwnerSource kind="live_model" text={/^Tyre/.test(it.item) ? "Tyre photo check" : /^Engine/.test(it.item) ? "Engine sound check" : undefined} />
-                        : <OwnerSource kind="simulated" text={/light/.test(it.source) ? "Phone light meter" : "Photo check"} />}</div>
+                      <ItemSource it={it} />
                     </div>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {it.image && <img src={it.image} alt={`${it.item} photo`} className="h-12 w-12 shrink-0 rounded-xl object-cover" />}
+                    {it.image && (it.photo
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <span className="h-12 w-16 shrink-0 overflow-hidden rounded-xl"><img src={it.image} alt={`${it.item} photo`} className="h-full w-full scale-[1.6] object-cover" /></span>
+                      // eslint-disable-next-line @next/next/no-img-element
+                      : <img src={it.image} alt={`${it.item} photo`} className="h-12 w-12 shrink-0 rounded-xl object-cover" />)}
                   </div>
                 ))}
               </MCard>

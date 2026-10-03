@@ -116,6 +116,10 @@ def test_vision(client):
     vis = client.get("/api/vision/captures").json()
     assert {s["id"] for s in vis["systems"]} == {c["system"] for c in caps} == {"undercarriage", "above", "tyre", "examiner"}
     assert all(s["model"] for s in vis["systems"] if s["id"] != "examiner")  # each AI module runs its own model
+    # named as the inspection body names them; the laser tyre system is shown as coming next, at proof of concept
+    by = {s["id"]: s for s in vis["systems"]}
+    assert (by["undercarriage"]["model"], by["above"]["model"], by["tyre"]["model"]) == ("Keymag AI Undercarriage Inspection", "ASTRA", "AI Tyre Scan")
+    assert by["tyre"]["next"]["model"] == "Laser Tyre Inspection System" and by["tyre"]["next"]["stage"] == "Proof of concept"
     # every capture links to its full-resolution source image in the demo library, and the files are served
     assert all(c["source_image"] for c in caps)
     lane2 = next(c for c in caps if c["title"] == "Lane 3 · Case 2")

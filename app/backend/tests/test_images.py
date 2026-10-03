@@ -17,7 +17,9 @@ from vhi.services.showcase import MAIN, MAIN_PLATES
 
 END = "no text overlays, no logos, no watermarks, no brand names on signage"
 VIEWS = ["hero", "rear", "side", "interior", "underbody", "tyre", "engine"]
-SCENES = {"hub", "lane", "pit", "flood", "tyre", "login"}
+# slots a few vehicles have besides the seven views: lane camera frames of DMO 9003's damage, the owners' plate photos
+EXTRA = {"dmo-9003": ["damage_left", "damage_rear", "plate"], "dmo-9006": ["plate"], "dmo-9002": ["plate"]}
+SCENES = {"hub", "lane", "pit", "flood", "tyre", "login", "brake_light"}
 
 
 def _png(w=2000, h=1250, colour=(30, 120, 200)) -> bytes:
@@ -51,22 +53,23 @@ def test_every_main_plate_has_a_hero(client):
 
 def test_slot_listing(client):
     rows = client.get("/api/images/slots").json()
-    assert len(rows) == len(MAIN) * len(VIEWS) + len(SCENES)
+    assert len(rows) == len(MAIN) * len(VIEWS) + sum(map(len, EXTRA.values())) + len(SCENES)
     ids = {r["id"] for r in rows}
-    assert {f"{m['slug']}.{v}" for m in MAIN for v in VIEWS} | {f"scene.{s}" for s in SCENES} == ids
+    assert ({f"{m['slug']}.{v}" for m in MAIN for v in VIEWS} | {f"{g}.{v}" for g, vs in EXTRA.items() for v in vs}
+            | {f"scene.{s}" for s in SCENES}) == ids
     for r in rows:
         assert {"id", "group", "plate", "view", "label", "where", "aspect", "prompt", "current", "stock", "uploaded"} <= r.keys()
         assert END in r["prompt"] and r["where"] and r["aspect"] in ("4:3", "16:9", "1:1", "21:9")
         if r["plate"]:
             assert r["plate"] in r["prompt"]  # the fictional plate is part of the prompt
     mine = client.get("/api/images/slots", params={"plate": "DMO 9006"}).json()
-    assert [r["view"] for r in mine] == VIEWS and all(r["group"] == "dmo-9006" for r in mine)
+    assert [r["view"] for r in mine] == VIEWS + EXTRA["dmo-9006"] and all(r["group"] == "dmo-9006" for r in mine)
     scenes = client.get("/api/images/slots", params={"group": "scenes"}).json()
     assert {r["view"] for r in scenes} == SCENES and all(r["plate"] is None for r in scenes)
     assert sum(1 for r in rows if r["stock"]) >= 30  # most slots that matter have a stock photo
     groups = client.get("/api/images/groups").json()
     assert [g["plate"] for g in groups[:-1]] == MAIN_PLATES and groups[-1]["group"] == "scenes"
-    assert all(g["hero"] and g["make"] and g["vtype"] and g["slots"] == len(VIEWS) for g in groups[:-1])
+    assert all(g["hero"] and g["make"] and g["vtype"] and g["slots"] == len(VIEWS) + len(EXTRA.get(g["group"], [])) for g in groups[:-1])
     sc = client.get("/api/images/scenes").json()
     assert set(sc) == SCENES and sc["login"] and sc["login"]["kind"] in ("stock", "uploaded")
     md = client.get("/api/images/prompts.md")
@@ -209,3 +212,33 @@ def test_runtime_reset_keeps_uploads(client, monkeypatch):
     ph = client.get("/api/images/scenes").json()["hub"]
     assert ph["kind"] == "uploaded"
     assert client.delete("/api/images/slots/scene.hub").json()["uploaded"] is False
+
+
+def test_the_vehicles_own_photos_replace_its_sample_lane_frames(client):
+    """DMO 9003's lane replay uses its own damage photos (its generated images, or an upload in Settings → Images that
+    replaces one) instead of the sample frames; those slots are not gallery photos."""
+    import shutil
+
+    from vhi.config import get_settings
+    from vhi.services import images
+    from vhi.sim.player import build_events
+
+    def body_frames():
+        _, ev = build_events("S3")
+        return [e.payload["path"] for e in ev if e.sensor == "camera" and e.payload.get("kind") == "body"]
+
+    gen = images.generated_dir() / "dmo-9003"
+    assert body_frames() == [str(gen / "damage_left.jpg"), str(gen / "damage_rear.jpg")]
+    assert images.slot("dmo-9003.damage_rear")["current"]["kind"] == "generated"
+    assert not any(ph["view"] in images.NOT_GALLERY for ph in images.gallery("DMO 9003"))
+    sample = get_settings().data_dir / "images/vehicle_damage/r_breakage/car_damage_evaluat_00036.jpg"
+    folder = images.uploads_dir() / "dmo-9003"
+    folder.mkdir(parents=True, exist_ok=True)
+    shutil.copy(sample, folder / "damage_rear.png")  # dropped in by hand, any format: made usable on first use
+    try:
+        assert body_frames() == [str(gen / "damage_left.jpg"), str(folder / "damage_rear.jpg")]
+        assert images.slot("dmo-9003.damage_rear")["uploaded"]
+    finally:
+        for f in folder.glob("damage_rear*"):
+            f.unlink()
+    assert body_frames()[1] == str(gen / "damage_rear.jpg")  # the upload gone, the generated image is back

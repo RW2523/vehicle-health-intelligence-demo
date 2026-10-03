@@ -3,10 +3,11 @@
    image library they come from; the live models run on any capture, a curated photo or an upload. */
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from "@/components/icons";
 import { IMAGE_KIND, ImageCard, ImageViewer, LibImage } from "@/components/ImageViewer";
 import { Card, Pill, Source, Tabs, toast } from "@/components/ui";
 import { api } from "@/lib/api";
-import { SYSTEM_NAME, llmLabel } from "@/lib/format";
+import { SYSTEM_NAME, llmLabel, moduleModel } from "@/lib/format";
 import { useFetch } from "@/lib/live";
 
 const FILTERS = [
@@ -25,19 +26,35 @@ function outcome(c: any) {
   return { label: "Pass · cosmetic only", c: "#059669" };
 }
 
-/** The platform's three AI inspection modules, and what each one's model looks for. */
+/** The platform's three AI inspection modules, each with its AI model and what it looks for (and, for tyres, the
+ *  laser system in development). */
 function Modules({ systems }: { systems: any[] }) {
   return (
     <section className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
       {systems.filter((s) => s.model).map((s) => (
-        <div key={s.id} className="card card-pad">
+        <div key={s.id} className="card card-pad flex flex-col">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 font-display text-[15.5px] font-semibold">{s.name}</div>
             <Source kind="live_model" className="shrink-0" />
           </div>
-          <p className="mt-1 text-[12.5px] text-fg-2">{s.note}</p>
-          <p className="mt-2 text-[12px] text-fg-3">Detects: {s.detects.join(", ")}.</p>
-          <p className="mt-1 text-[11.5px] text-fg-4">Model: {s.model}.</p>
+          <div className="mt-2 flex items-center gap-2 rounded-xl bg-blue-50/70 px-3 py-2 ring-1 ring-blue-100">
+            <Icon name="bolt" size={15} color="#2563EB" />
+            <span className="min-w-0 leading-tight"><span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-4">AI model</span><b className="block truncate text-[14px] text-[#1D4ED8]">{s.model}</b></span>
+          </div>
+          <p className="mt-2 text-[12.5px] text-fg-2">{s.note}</p>
+          <p className="mt-1 text-[12px] text-fg-3">Detects: {s.detects.join(", ")}.</p>
+          {s.next && (
+            <div className="mt-auto pt-3">
+              <div className="rounded-xl border border-dashed border-ink-500 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-4">Coming next</span>
+                  <Source kind="rnd" text={s.next.stage} />
+                </div>
+                <b className="mt-0.5 block text-[13.5px]">{s.next.model}</b>
+                <span className="block text-[12px] text-fg-3">Detects {s.next.detects}.</span>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </section>
@@ -282,7 +299,7 @@ export function VisionPanel() {
                     ) : (
                       <>
                         <div className="font-display text-[18px] font-bold">{live.result.label}</div>
-                        <div className="text-fg-3">{Math.round(live.result.p * 100)}% · {live.result.arch || "YOLO11"} · validation accuracy {Math.round((live.result.val_accuracy || 0) * 100)}%</div>
+                        <div className="text-fg-3">{Math.round(live.result.p * 100)}% · {moduleModel(live.task === "tyre" ? "tyre" : "above")} · validation accuracy {Math.round((live.result.val_accuracy || 0) * 100)}%</div>
                         <div className="mt-2 flex flex-wrap gap-1.5">{Object.entries(live.result.probs || {}).map(([k, v]: any) => <Pill key={k} color="#2563EB">{k} {Math.round(v * 100)}%</Pill>)}</div>
                       </>
                     )}
