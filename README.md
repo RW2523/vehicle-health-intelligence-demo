@@ -310,9 +310,9 @@ Retrain everything except vision with `make train` (a few minutes on CPU).
 ## Tests
 
 ```bash
-make test                                                          # 78 backend tests (SQLite)
+make test                                                          # 154 backend tests (SQLite)
 VHI_DATABASE_URL=postgresql+psycopg://... make test                # the same suite on PostgreSQL (add VHI_MQTT_URL=... for MQTT)
-make e2e                                                           # 42 Playwright end-to-end tests (needs `make start`;
+make e2e                                                           # 46 Playwright end-to-end tests (needs `make start`;
                                                                    # first time: cd app/web && npx playwright install chromium)
 ```
 
@@ -339,4 +339,4 @@ end-to-end tests drive the real UI:
 - **Live updates don't arrive.** The browser opens the WebSocket at `/ws` on the web port, and the web server proxies it to the API. A reverse proxy in front must pass WebSocket upgrades; otherwise set `NEXT_PUBLIC_WS_URL` and rebuild the web app.
 - **Start over with a clean demo.** Run `make reset`. It clears issued reports, bookings, lane sessions, chats and evidence, keeps the seeded world, and restarts. With Docker, run `docker compose exec api python -m vhi.seed --reset-runtime && docker compose restart api`.
 - **Rebuild the whole world.** Run `make seed`, or delete `app/backend/var/vhi.db`. With Docker, use `docker compose down -v`.
-- **Fonts look plain offline.** The UI loads Sora and IBM Plex from Google Fonts and falls back to system fonts without internet.
+- **Fonts.** Inter and IBM Plex Mono are bundled with the web app (`@fontsource`), so the UI looks the same offline.

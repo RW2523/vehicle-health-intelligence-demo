@@ -72,6 +72,10 @@ def init_db() -> None:
     from . import tables  # noqa: F401  (registers the ORM tables)
 
     Base.metadata.create_all(engine())
+    # bookings made by older builds carry the older type codes: rename them to the neutral ones the apps show
+    with engine().begin() as c:
+        for old, new in (("B5+B7", "TRANSFER+FINANCING"), ("B5", "TRANSFER"), ("B7", "FINANCING"), ("BERKALA", "PERIODIC")):
+            c.execute(text("update bookings set inspection_type = :n where inspection_type = :o"), {"n": new, "o": old})
     if is_postgres():
         # Turn the readings table into a Timescale hypertable when the extension is available.
         try:

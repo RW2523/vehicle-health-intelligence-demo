@@ -22,8 +22,11 @@ function useHere() {
   const [here, setHere] = useState<{ lat: number; lon: number; label: string } | null>(null);
   useEffect(() => {
     if (!navigator.geolocation || !window.isSecureContext) return setHere(HOME);
+    // an unanswered permission prompt never calls back: fall back to the home area after a few seconds
+    const t = setTimeout(() => setHere((h) => h ?? HOME), 4500);
     navigator.geolocation.getCurrentPosition((p) => setHere({ lat: p.coords.latitude, lon: p.coords.longitude, label: "your location" }),
       () => setHere(HOME), { timeout: 4000, maximumAge: 600000 });
+    return () => clearTimeout(t);
   }, []);
   return here;
 }

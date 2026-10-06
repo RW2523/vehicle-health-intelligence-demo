@@ -6,7 +6,7 @@
 html { background: #E6EDF6; }
 /* the page: a bright, softly blurred inspection hall behind frosted-glass panels; a light veil keeps text readable */
 body {
-  color: #0F172A; font-family: "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh;
+  color: #0F172A; font-family: "Inter Variable", "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh;
   background: transparent;
 }
 body::before {

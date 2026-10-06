@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/inter";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
 import { Toaster } from "@/components/ui";
 import "./globals.css";
 
@@ -11,14 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        {/* Fonts load from Google Fonts when online; the system fallback is used offline. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap"
-        />
-      </head>
+      {/* Inter and IBM Plex Mono are bundled with the app, so the UI looks the same offline (e.g. on the DGX). */}
       <body>
         {children}
         <Toaster />
